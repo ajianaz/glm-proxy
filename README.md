@@ -1,20 +1,20 @@
 # GLM Proxy
 
-API Gateway dengan rate limiting yang proxy request ke Z.AI API (glm-4.7). Support streaming, REST API, dan multi-user dengan token-based quota.
+An API Gateway with rate limiting that proxies requests to Z.AI API (glm-4.7). Supports streaming, REST API, and multi-user token-based quota management.
 
 Created by [ajianaz](https://github.com/ajianaz)
 
-## Fitur
+## Features
 
-- **OpenAI-Compatible**: Proxy endpoint `/v1/*` ke Z.AI API
-- **Anthropic-Compatible**: Proxy endpoint `/v1/messages` ke Z.AI Anthropic API
-- **Streaming Support**: Full support untuk Server-Sent Events (SSE)
-- **Rate Limiting**: Token-based quota dengan rolling 5-hour window
-- **Multi-User**: Multiple API keys dengan limit per-key
-- **Usage Tracking**: Monitor penggunaan token per key
-- **Model Override**: Set model spesifik per API key
+- **OpenAI-Compatible**: Proxy endpoint `/v1/*` to Z.AI API
+- **Anthropic-Compatible**: Proxy endpoint `/v1/messages` to Z.AI Anthropic API
+- **Streaming Support**: Full support for Server-Sent Events (SSE)
+- **Rate Limiting**: Token-based quota with rolling 5-hour window
+- **Multi-User**: Multiple API keys with per-key limits
+- **Usage Tracking**: Monitor token usage per key
+- **Model Override**: Set specific model per API key
 
-## Setup Cepat
+## Quick Setup
 
 ### 1. Environment Configuration
 
@@ -23,9 +23,9 @@ Created by [ajianaz](https://github.com/ajianaz)
 cp .env.example .env
 
 # Edit .env
-ZAI_API_KEY=your_zai_api_key_here    # Required: Master API key dari Z.AI
+ZAI_API_KEY=your_zai_api_key_here    # Required: Master API key from Z.AI
 DEFAULT_MODEL=glm-4.7                 # Optional: Default model (fallback)
-PORT=3030                             # Optional: Port untuk service
+PORT=3030                             # Optional: Service port
 ```
 
 ### 2. Start Service
@@ -35,7 +35,7 @@ PORT=3030                             # Optional: Port untuk service
 docker-compose up -d
 ```
 
-**Local dengan Bun:**
+**Local with Bun:**
 ```bash
 bun install
 bun start
@@ -45,32 +45,32 @@ bun start
 
 ### Endpoints
 
-| Method | Endpoint | Deskripsi | Auth Required |
-|--------|----------|-----------|---------------|
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
 | GET | `/health` | Health check | No |
 | GET | `/stats` | Usage statistics | Yes |
 | POST | `/v1/chat/completions` | Chat completion (OpenAI-compatible) | Yes |
 | POST | `/v1/completions` | Text completion (OpenAI-compatible) | Yes |
 | POST | `/v1/messages` | Messages API (Anthropic-compatible) | Yes |
-| ALL | `/v1/*` | Proxy lainnya ke Z.AI (OpenAI-compatible) | Yes |
+| ALL | `/v1/*` | Other proxies to Z.AI (OpenAI-compatible) | Yes |
 
 ### Authentication
 
-Gunakan API key via header:
+Use API key via header:
 ```bash
 Authorization: Bearer pk_your_api_key
 ```
 
-atau query parameter:
+or query parameter:
 ```bash
 ?api_key=pk_your_api_key
 ```
 
 ---
 
-## Penggunaan
+## Usage
 
-### 1. Cek Health
+### 1. Check Health
 
 ```bash
 curl http://localhost:3030/health
@@ -84,7 +84,7 @@ Response:
 }
 ```
 
-### 2. Cek Usage/Quota
+### 2. Check Usage/Quota
 
 ```bash
 curl -H "Authorization: Bearer pk_your_key" http://localhost:3030/stats
@@ -111,7 +111,7 @@ Response:
 }
 ```
 
-### 3. Chat Completion (Non-Streaming)
+### 3. Chat Completion (OpenAI-Compatible, Non-Streaming)
 
 ```bash
 curl -X POST http://localhost:3030/v1/chat/completions \
@@ -128,7 +128,7 @@ curl -X POST http://localhost:3030/v1/chat/completions \
   }'
 ```
 
-### 4. Chat Completion (Streaming)
+### 4. Chat Completion (OpenAI-Compatible, Streaming)
 
 ```bash
 curl -X POST http://localhost:3030/v1/chat/completions \
@@ -183,14 +183,14 @@ curl -X POST http://localhost:3030/v1/messages \
   }'
 ```
 
-### Menggunakan Anthropic SDK (TypeScript/JavaScript)
+### Using Anthropic SDK (TypeScript/JavaScript)
 
 ```typescript
 import Anthropic from '@anthropic-ai/sdk';
 
 const anthropic = new Anthropic({
-  apiKey: 'pk_your_key',  // Gunakan API key dari proxy
-  baseURL: 'http://localhost:3030',  // Base URL proxy (tanpa /v1/messages)
+  apiKey: 'pk_your_key',  // Use API key from proxy
+  baseURL: 'http://localhost:3030',  // Proxy base URL (without /v1/messages)
 });
 
 const msg = await anthropic.messages.create({
@@ -202,14 +202,14 @@ const msg = await anthropic.messages.create({
 console.log(msg.content);
 ```
 
-### Menggunakan Anthropic SDK (Python)
+### Using Anthropic SDK (Python)
 
 ```python
 import anthropic
 
 client = anthropic.Anthropic(
-    api_key='pk_your_key',  # Gunakan API key dari proxy
-    base_url='http://localhost:3030',  # Base URL proxy
+    api_key='pk_your_key',  # Use API key from proxy
+    base_url='http://localhost:3030',  # Proxy base URL
 )
 
 message = client.messages.create(
@@ -225,11 +225,11 @@ print(message.content)
 
 ---
 
-## Manajemen API Key
+## API Key Management
 
-API keys disimpan di `data/apikeys.json`. Edit manual untuk add/remove/modify keys.
+API keys are stored in `data/apikeys.json`. Edit manually to add/remove/modify keys.
 
-### Struktur API Key
+### API Key Structure
 
 ```json
 {
@@ -251,25 +251,25 @@ API keys disimpan di `data/apikeys.json`. Edit manual untuk add/remove/modify ke
 
 ### Field Configuration
 
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
+| Field | Type | Description |
+|-------|------|-------------|
 | `key` | string | Unique API key identifier (format: `pk_*`) |
-| `name` | string | Nama user/owner |
-| `model` | string | Model untuk key ini (glm-4.7, glm-4.5-air, dll) |
+| `name` | string | User/owner name |
+| `model` | string | Model for this key (glm-4.7, glm-4.5-air, etc.) |
 | `token_limit_per_5h` | number | Token quota per 5-hour rolling window |
-| `expiry_date` | string | ISO 8601 timestamp untuk expiry |
-| `created_at` | string | ISO 8601 timestamp pembuatan |
-| `last_used` | string | ISO 8601 timestamp last usage (auto-updated) |
-| `total_lifetime_tokens` | number | Total semua token yang pernah digunakan |
+| `expiry_date` | string | ISO 8601 timestamp for expiry |
+| `created_at` | string | ISO 8601 creation timestamp |
+| `last_used` | string | ISO 8601 last usage timestamp (auto-updated) |
+| `total_lifetime_tokens` | number | Total all tokens ever used |
 | `usage_windows` | array | Internal tracking array (auto-managed) |
 
-### Contoh: Create New API Key
+### Example: Create New API Key
 
 ```bash
 # Edit file
 nano data/apikeys.json
 
-# Atau dengan jq
+# Or with jq
 jq '.keys += [{
   "key": "pk_new_user_'"$(date +%s)"'",
   "name": "New User",
@@ -289,22 +289,22 @@ jq '.keys += [{
 
 ### Rolling 5-Hour Window
 
-- **Window Type**: Rolling window (bukan fixed reset)
-- **Duration**: 5 jam
-- **Metric**: Total tokens dari semua request dalam window aktif
+- **Window Type**: Rolling window (not fixed reset)
+- **Duration**: 5 hours
+- **Metric**: Total tokens from all requests within active window
 
-### Contoh Perhitungan
+### Calculation Example
 
-Jika `token_limit_per_5h = 100,000`:
+If `token_limit_per_5h = 100,000`:
 
-| Waktu | Tokens | Active Windows (5h) | Total Used | Status |
-|-------|--------|---------------------|------------|--------|
+| Time | Tokens | Active Windows (5h) | Total Used | Status |
+|------|--------|---------------------|------------|--------|
 | 00:00 | 10,000 | [(00:00-05:00, 10K)] | 10,000 | OK |
 | 02:00 | 20,000 | [(00:00-05:00, 10K), (02:00-07:00, 20K)] | 30,000 | OK |
 | 04:00 | 50,000 | [(00:00-05:00, 10K), (02:00-07:00, 20K), (04:00-09:00, 50K)] | 80,000 | OK |
 | 04:30 | 30,000 | [(00:00-05:00, 10K), (02:00-07:00, 20K), (04:00-09:00, 50K), (04:30-09:30, 30K)] | 110,000 | **RATE LIMITED** |
 
-### Response saat Rate Limited
+### Rate Limited Response
 
 ```json
 {
@@ -316,20 +316,20 @@ HTTP Status: `429 Too Many Requests`
 
 ---
 
-## Kapasitas & Scaling
+## Capacity & Scaling
 
 ### Single Instance Capacity
 
-Dengan setup default (Docker, 1 CPU, 512MB RAM):
+With default setup (Docker, 1 CPU, 512MB RAM):
 - **Concurrent Requests**: ~50-100
-- **Requests/second**: ~100-500 (tergantung response size)
-- **Throughput**: Terbatas oleh Z.AI rate limit
+- **Requests/second**: ~100-500 (depending on response size)
+- **Throughput**: Limited by Z.AI rate limit
 
-### Bottleneck
+### Bottlenecks
 
-1. **Z.AI Rate Limit**: Cek dokumentasi Z.AI untuk limit per API key
+1. **Z.AI Rate Limit**: Check Z.AI documentation for limits per API key
 2. **Network**: Bandwidth server <-> Z.AI
-3. **CPU/JSON parsing**: Untuk high-throughput scenarios
+3. **CPU/JSON parsing**: For high-throughput scenarios
 
 ### Scaling Options
 
@@ -340,16 +340,16 @@ docker-compose up --scale proxy-gateway=3
 ```
 
 **Vertical Scaling:**
-- Increase CPU/RAM di docker-compose.yml
-- Add Redis untuk distributed rate limiting
+- Increase CPU/RAM in docker-compose.yml
+- Add Redis for distributed rate limiting
 
 ---
 
 ## Error Codes
 
-| HTTP Code | Error Type | Deskripsi |
-|-----------|------------|-----------|
-| 200 | Success | Request berhasil |
+| HTTP Code | Error Type | Description |
+|-----------|------------|-------------|
+| 200 | Success | Request successful |
 | 400 | Bad Request | Invalid request body/params |
 | 401 | Unauthorized | Missing/invalid API key |
 | 403 | Forbidden | API key expired |
@@ -359,11 +359,11 @@ docker-compose up --scale proxy-gateway=3
 
 ---
 
-## Information untuk User
+## User Information
 
-### Share ke User
+### Share with Users
 
-Berikan informasi berikut ke setiap user:
+Provide the following information to each user:
 
 ```
 📝 API Access Information
@@ -378,10 +378,10 @@ Your API Key: pk_xxxxx
 Quota: 100,000 tokens per 5 hours
 Expiry: 2026-12-31
 
-Cek quota: http://your-domain.com/stats
+Check quota: http://your-domain.com/stats
 Documentation: http://your-domain.com/docs
 
-Contoh Request:
+Example Request:
 curl -X POST http://your-domain.com/v1/chat/completions \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
@@ -390,29 +390,29 @@ curl -X POST http://your-domain.com/v1/chat/completions \
 
 ### FAQ
 
-**Q: Apakah support streaming?**
-A: Ya, set `"stream": true` di request body untuk streaming response (baik OpenAI maupun Anthropic format).
+**Q: Does it support streaming?**
+A: Yes, set `"stream": true` in the request body for streaming response (both OpenAI and Anthropic formats).
 
-**Q: Apakah support Anthropic Messages API?**
-A: Ya! Gunakan endpoint `/v1/messages` dengan format Anthropic. Proxy akan auto-forward ke Z.AI Anthropic-compatible API.
+**Q: Does it support Anthropic Messages API?**
+A: Yes! Use endpoint `/v1/messages` with Anthropic format. The proxy will auto-forward to Z.AI Anthropic-compatible API.
 
-**Q: Apakah support model lain selain glm-4.7?**
-A: Ya, glm-4.5-air, glm-4.7, glm-4.5-flash, dll. Check Z.AI docs untuk full list.
+**Q: Does it support models other than glm-4.7?**
+A: Yes, glm-4.5-air, glm-4.7, glm-4.5-flash, etc. Check Z.AI docs for full list.
 
-**Q: Bagaimana jika quota habis?**
-A: Tunggu sampai 5-hour window berakhir, atau request admin untuk increase limit.
+**Q: What if quota runs out?**
+A: Wait until the 5-hour window ends, or request admin to increase limit.
 
-**Q: Apakah data saya disimpan?**
-A: Tidak ada logging request/response. Hanya token usage yang di-track.
+**Q: Is my data stored?**
+A: No logging of request/response. Only token usage is tracked.
 
-**Q: Bedanya OpenAI-compatible vs Anthropic-compatible?**
-A: OpenAI-compatible (`/v1/chat/completions`) menggunakan format OpenAI. Anthropic-compatible (`/v1/messages`) menggunakan format Anthropic Messages API. Keduanya di-proxy ke Z.AI glm-4.7.
+**Q: What's the difference between OpenAI-compatible vs Anthropic-compatible?**
+A: OpenAI-compatible (`/v1/chat/completions`) uses OpenAI format. Anthropic-compatible (`/v1/messages`) uses Anthropic Messages API format. Both are proxied to Z.AI glm-4.7.
 
 ---
 
 ## Troubleshooting
 
-### Container tidak start
+### Container won't start
 ```bash
 # Check logs
 docker-compose logs -f
@@ -423,10 +423,10 @@ docker-compose up --build -d
 
 ### Port conflict
 ```bash
-# Ganti PORT di .env
+# Change PORT in .env
 PORT=3031
 
-# Atau kill process yang pakai port
+# Or kill process using port
 lsof -ti:3030 | xargs kill -9
 ```
 
@@ -441,11 +441,11 @@ jq '.keys[0].expiry_date = "2027-12-31T23:59:59Z"' data/apikeys.json > tmp.json 
 
 ### Z.AI error
 ```bash
-# Check Z.AI_API_KEY valid
+# Check Z.AI_API_KEY is valid
 curl -H "Authorization: Bearer YOUR_ZAI_KEY" https://api.z.ai/api/coding/paas/v4/models
 
-# Check rate limit Z.AI
-# (Perlu dicek di dashboard Z.AI)
+# Check Z.AI rate limit
+# (Need to check in Z.AI dashboard)
 ```
 
 ---
@@ -464,5 +464,32 @@ bun build src/index.ts --outdir /tmp/build
 
 ### Type check
 ```bash
-bun x tsc --noEmit
+bun run typecheck
 ```
+
+### Lint
+```bash
+bun run lint
+```
+
+---
+
+## Available Models
+
+| Model | Description | Context | Max Output |
+|-------|-------------|---------|------------|
+| glm-4.7 | High-intelligence flagship | 200K | 96K |
+| glm-4.5-air | High cost-performance | 128K | 96K |
+| glm-4.5-flash | Free model | 128K | 96K |
+
+---
+
+## License
+
+MIT
+
+---
+
+## Support
+
+For issues and questions, please contact [ajianaz](https://github.com/ajianaz).
