@@ -1,5 +1,4 @@
 import fs from 'fs';
-import path from 'path';
 import type { ApiKeysData, ApiKey } from './types.js';
 
 const DATA_FILE = process.env.DATA_FILE || '/app/data/apikeys.json';
@@ -14,8 +13,8 @@ export async function withLock<T>(fn: () => Promise<T>): Promise<T> {
     try {
       fs.mkdirSync(LOCK_FILE, { mode: 0o755 });
       break;
-    } catch (e: any) {
-      if (e.code !== 'EEXIST' || i === maxRetries - 1) throw e;
+    } catch (e: unknown) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST' || i === maxRetries - 1) throw e;
       await new Promise(r => setTimeout(r, retryDelay));
     }
   }
@@ -31,7 +30,7 @@ export async function readApiKeys(): Promise<ApiKeysData> {
   try {
     const content = await fs.promises.readFile(DATA_FILE, 'utf-8');
     return JSON.parse(content);
-  } catch (e) {
+  } catch {
     return { keys: [] };
   }
 }
@@ -52,7 +51,7 @@ export async function findApiKey(key: string): Promise<ApiKey | null> {
 export async function updateApiKeyUsage(
   key: string,
   tokensUsed: number,
-  model: string
+  _model: string
 ): Promise<void> {
   await withLock(async () => {
     const data = await readApiKeys();

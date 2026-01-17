@@ -77,7 +77,7 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
       }
 
       processedBody = JSON.stringify(bodyJson);
-    } catch (e) {
+    } catch {
       // Body not JSON, leave as-is
     }
   }
@@ -108,7 +108,7 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
           // Don't await - fire and forget for performance
           updateApiKeyUsage(apiKey.key, tokensUsed, model).catch(console.error);
         }
-      } catch (e) {
+      } catch {
         // Response not JSON or no usage field
       }
     }

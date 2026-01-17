@@ -1,4 +1,4 @@
-import type { ApiKey, UsageWindow } from './types.js';
+import type { ApiKey } from './types.js';
 
 export function isKeyExpired(key: ApiKey): boolean {
   return new Date(key.expiry_date) < new Date();

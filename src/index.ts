@@ -1,10 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { validator } from 'hono/validator';
 import { validateApiKey, getModelForKey } from './validator.js';
 import { proxyRequest } from './proxy.js';
 import { checkRateLimit } from './ratelimit.js';
-import { getKeyStats } from './storage.js';
 import type { StatsResponse } from './types.js';
 
 type Bindings = {
