@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { validateApiKey, getModelForKey } from './validator.js';
 import { proxyRequest } from './proxy.js';
+import { proxyAnthropicRequest } from './anthropic.js';
 import { checkRateLimit } from './ratelimit.js';
 import type { StatsResponse } from './types.js';
 
@@ -64,7 +65,7 @@ app.get('/stats', async (c) => {
   return c.json(stats);
 });
 
-// Proxy all /v1/* requests to Z.AI
+// Proxy all /v1/* requests to Z.AI (OpenAI-compatible)
 app.all('/v1/*', async (c) => {
   const apiKeyHeader = extractApiKey(c.req.raw.headers);
 
@@ -121,6 +122,63 @@ app.all('/v1/*', async (c) => {
   return c.body(result.body, result.status as any);
 });
 
+// Proxy Anthropic Messages API (/v1/messages)
+app.all('/v1/messages', async (c) => {
+  const apiKeyHeader = extractApiKey(c.req.raw.headers);
+
+  // Validate API key
+  const validation = await validateApiKey(apiKeyHeader);
+  if (!validation.valid) {
+    return c.json({ error: validation.error }, validation.statusCode as any);
+  }
+
+  const apiKey = validation.apiKey!;
+
+  // Check rate limit
+  const rateLimit = checkRateLimit(apiKey);
+  if (!rateLimit.allowed) {
+    const headers: Record<string, string> = {};
+    if (rateLimit.retryAfter) {
+      headers['Retry-After'] = rateLimit.retryAfter.toString();
+    }
+    return c.json({
+      error: {
+        message: rateLimit.reason,
+        type: 'rate_limit_exceeded',
+        tokens_used: rateLimit.tokensUsed,
+        tokens_limit: rateLimit.tokensLimit,
+        window_ends_at: rateLimit.windowEnd,
+      },
+    }, 429, headers as any);
+  }
+
+  // Proxy request
+  const path = c.req.path;
+  const method = c.req.method;
+
+  const headers: Record<string, string> = {};
+  c.req.raw.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+
+  const body = c.req.raw.body ? await c.req.text() : null;
+
+  const result = await proxyAnthropicRequest({
+    apiKey,
+    path,
+    method,
+    headers,
+    body,
+  });
+
+  // Set response headers
+  Object.entries(result.headers).forEach(([key, value]) => {
+    c.header(key, value);
+  });
+
+  return c.body(result.body, result.status as any);
+});
+
 // Health check
 app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -134,7 +192,8 @@ app.get('/', (c) => {
     endpoints: {
       health: 'GET /health',
       stats: 'GET /stats',
-      proxy: 'ALL /v1/*',
+      openai_compatible: 'ALL /v1/* (except /v1/messages)',
+      anthropic_compatible: 'POST /v1/messages',
     },
   });
 });

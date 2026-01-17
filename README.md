@@ -7,6 +7,7 @@ Created by [ajianaz](https://github.com/ajianaz)
 ## Fitur
 
 - **OpenAI-Compatible**: Proxy endpoint `/v1/*` ke Z.AI API
+- **Anthropic-Compatible**: Proxy endpoint `/v1/messages` ke Z.AI Anthropic API
 - **Streaming Support**: Full support untuk Server-Sent Events (SSE)
 - **Rate Limiting**: Token-based quota dengan rolling 5-hour window
 - **Multi-User**: Multiple API keys dengan limit per-key
@@ -48,9 +49,10 @@ bun start
 |--------|----------|-----------|---------------|
 | GET | `/health` | Health check | No |
 | GET | `/stats` | Usage statistics | Yes |
-| POST | `/v1/chat/completions` | Chat completion | Yes |
-| POST | `/v1/completions` | Text completion | Yes |
-| ALL | `/v1/*` | Proxy ke Z.AI | Yes |
+| POST | `/v1/chat/completions` | Chat completion (OpenAI-compatible) | Yes |
+| POST | `/v1/completions` | Text completion (OpenAI-compatible) | Yes |
+| POST | `/v1/messages` | Messages API (Anthropic-compatible) | Yes |
+| ALL | `/v1/*` | Proxy lainnya ke Z.AI (OpenAI-compatible) | Yes |
 
 ### Authentication
 
@@ -146,6 +148,79 @@ data: {"id":"...","created":1234567890,"object":"chat.completion.chunk","model":
 data: {"id":"...","created":1234567890,"object":"chat.completion.chunk","model":"glm-4.7","choices":[{"index":0,"delta":{"content":" world"}}]}
 
 data: [DONE]
+```
+
+### 5. Anthropic Messages API (Non-Streaming)
+
+```bash
+curl -X POST http://localhost:3030/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer pk_your_key" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "glm-4.7",
+    "max_tokens": 1024,
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ]
+  }'
+```
+
+### 6. Anthropic Messages API (Streaming)
+
+```bash
+curl -X POST http://localhost:3030/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer pk_your_key" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "glm-4.7",
+    "max_tokens": 1024,
+    "stream": true,
+    "messages": [
+      {"role": "user", "content": "Tell me a joke"}
+    ]
+  }'
+```
+
+### Menggunakan Anthropic SDK (TypeScript/JavaScript)
+
+```typescript
+import Anthropic from '@anthropic-ai/sdk';
+
+const anthropic = new Anthropic({
+  apiKey: 'pk_your_key',  // Gunakan API key dari proxy
+  baseURL: 'http://localhost:3030',  // Base URL proxy (tanpa /v1/messages)
+});
+
+const msg = await anthropic.messages.create({
+  model: 'glm-4.7',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: 'Hello, GLM Proxy!' }],
+});
+
+console.log(msg.content);
+```
+
+### Menggunakan Anthropic SDK (Python)
+
+```python
+import anthropic
+
+client = anthropic.Anthropic(
+    api_key='pk_your_key',  # Gunakan API key dari proxy
+    base_url='http://localhost:3030',  # Base URL proxy
+)
+
+message = client.messages.create(
+    model='glm-4.7',
+    max_tokens=1024,
+    messages=[
+        {"role": "user", "content": "Hello, GLM Proxy!"}
+    ]
+)
+
+print(message.content)
 ```
 
 ---
@@ -316,16 +391,22 @@ curl -X POST http://your-domain.com/v1/chat/completions \
 ### FAQ
 
 **Q: Apakah support streaming?**
-A: Ya, set `"stream": true` di request body untuk streaming response.
+A: Ya, set `"stream": true` di request body untuk streaming response (baik OpenAI maupun Anthropic format).
+
+**Q: Apakah support Anthropic Messages API?**
+A: Ya! Gunakan endpoint `/v1/messages` dengan format Anthropic. Proxy akan auto-forward ke Z.AI Anthropic-compatible API.
 
 **Q: Apakah support model lain selain glm-4.7?**
-A: Ya, glm-4.5-air, glm-4.7, dll. Check Z.AI docs untuk full list.
+A: Ya, glm-4.5-air, glm-4.7, glm-4.5-flash, dll. Check Z.AI docs untuk full list.
 
 **Q: Bagaimana jika quota habis?**
 A: Tunggu sampai 5-hour window berakhir, atau request admin untuk increase limit.
 
 **Q: Apakah data saya disimpan?**
 A: Tidak ada logging request/response. Hanya token usage yang di-track.
+
+**Q: Bedanya OpenAI-compatible vs Anthropic-compatible?**
+A: OpenAI-compatible (`/v1/chat/completions`) menggunakan format OpenAI. Anthropic-compatible (`/v1/messages`) menggunakan format Anthropic Messages API. Keduanya di-proxy ke Z.AI glm-4.7.
 
 ---
 
