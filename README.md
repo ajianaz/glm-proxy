@@ -50,9 +50,8 @@ bun start
 | GET | `/health` | Health check | No |
 | GET | `/stats` | Usage statistics | Yes |
 | POST | `/v1/chat/completions` | Chat completion (OpenAI-compatible) | Yes |
-| POST | `/v1/completions` | Text completion (OpenAI-compatible) | Yes |
 | POST | `/v1/messages` | Messages API (Anthropic-compatible) | Yes |
-| ALL | `/v1/*` | Other proxies to Z.AI (OpenAI-compatible) | Yes |
+| GET | `/v1/models` | List available models | Yes |
 
 ### Authentication
 
