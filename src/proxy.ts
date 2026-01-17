@@ -5,10 +5,6 @@ import { updateApiKeyUsage } from './storage.js';
 const ZAI_API_BASE = 'https://api.z.ai/api/coding/paas/v4';
 const ZAI_API_KEY = process.env.ZAI_API_KEY;
 
-if (!ZAI_API_KEY) {
-  throw new Error('ZAI_API_KEY environment variable is required');
-}
-
 export interface ProxyOptions {
   apiKey: ApiKey;
   path: string;
@@ -27,6 +23,23 @@ export interface ProxyResult {
 
 export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> {
   const { apiKey, path, method, headers, body } = options;
+
+  // Runtime check for ZAI_API_KEY
+  if (!ZAI_API_KEY) {
+    return {
+      success: false,
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        error: {
+          message: 'ZAI_API_KEY environment variable is not configured',
+          type: 'configuration_error',
+        },
+      }),
+      tokensUsed: 0,
+    };
+  }
+
   const model = getModelForKey(apiKey);
 
   // Build target URL
