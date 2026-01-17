@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Docker security scan on pre-push
+echo "🔒 Running Docker security scan..."
+
+# Check if Dockerfile or docker-compose.yml changed
+if git diff --name-only HEAD@{upstream}..HEAD | grep -qE "(Dockerfile|docker-compose\.yml|package\.json)"; then
+    # Build and scan
+    if command -v trivy &> /dev/null; then
+        docker build -t proxy-gateway:scan .
+        trivy image --severity CRITICAL,HIGH --exit-code 1 proxy-gateway:scan
+        docker rmi proxy-gateway:scan > /dev/null 2>&1
+    else
+        echo "⚠️  Trivy not installed. Install with: brew install trivy"
+        echo "Or run: bun run security-scan"
+    fi
+else
+    echo "ℹ️  No Docker changes detected, skipping security scan."
+fi
