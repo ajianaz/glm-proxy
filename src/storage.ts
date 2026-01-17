@@ -1,8 +1,15 @@
 import fs from 'fs';
+import path from 'path';
 import type { ApiKeysData, ApiKey } from './types.js';
 
-const DATA_FILE = process.env.DATA_FILE || '/app/data/apikeys.json';
+const DATA_FILE = process.env.DATA_FILE || path.join(process.cwd(), 'data/apikeys.json');
 const LOCK_FILE = DATA_FILE + '.lock';
+
+// Ensure data directory exists
+const DATA_DIR = path.dirname(DATA_FILE);
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 // Simple file lock using mkdir (atomic on Unix)
 export async function withLock<T>(fn: () => Promise<T>): Promise<T> {
