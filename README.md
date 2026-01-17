@@ -1,6 +1,8 @@
-# Proxy Gateway
+# GLM Proxy
 
 API Gateway dengan rate limiting yang proxy request ke Z.AI API (glm-4.7). Support streaming, REST API, dan multi-user dengan token-based quota.
+
+Created by [ajianaz](https://github.com/ajianaz)
 
 ## Fitur
 
