@@ -1,7 +1,7 @@
 FROM oven/bun:1-alpine
 
-# Install wget for healthcheck
-RUN apk add --no-cache wget
+# Install wget for healthcheck and su-exec for user switching
+RUN apk add --no-cache wget su-exec
 
 # Create non-root user
 RUN addgroup -g 1001 -S appuser && \
@@ -18,11 +18,15 @@ RUN bun install --frozen-lockfile --production --ignore-scripts
 # Copy application code
 COPY src/ ./src/
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Create data directory with proper permissions
 RUN mkdir -p /app/data && chown -R appuser:appuser /app
 
-# Switch to non-root user
-USER appuser
+# Don't switch user here - entrypoint will do it after fixing permissions
+# USER appuser
 
 EXPOSE 3000
 
@@ -30,4 +34,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["bun", "src/index.ts"]
