@@ -34,3 +34,9 @@ services:
       - "traefik.http.routers.glm.tls=true"
       - "traefik.http.routers.glm.tls.certresolver=letsencrypt"
       - "traefik.http.services.glm.loadbalancer.server.port=${PORT:-3000}"
+    networks:
+      - public-net
+
+networks:
+  public-net:
+    external: true
