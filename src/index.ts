@@ -1,9 +1,12 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { validateApiKey, getModelForKey } from './validator.js';
+import { getModelForKey } from './validator.js';
 import { proxyRequest } from './proxy.js';
 import { proxyAnthropicRequest } from './anthropic.js';
 import { checkRateLimit } from './ratelimit.js';
+import { authMiddleware, getApiKeyFromContext, type AuthContext } from './middleware/auth.js';
+import { rateLimitMiddleware } from './middleware/rateLimit.js';
+import { createProxyHandler } from './handlers/proxyHandler.js';
 import type { StatsResponse } from './types.js';
 
 type Bindings = {
@@ -12,7 +15,7 @@ type Bindings = {
   PORT: string;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<{ Bindings: Bindings; Variables: AuthContext }>();
 
 // Enable CORS
 app.use('/*', cors({
@@ -21,22 +24,9 @@ app.use('/*', cors({
   allowHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
 }));
 
-// Extract API key from headers
-const extractApiKey = (headers: Headers): string | undefined => {
-  return headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
-         headers.get('x-api-key') || undefined;
-};
-
 // Stats endpoint
-app.get('/stats', async (c) => {
-  const apiKeyHeader = extractApiKey(c.req.raw.headers);
-
-  const validation = await validateApiKey(apiKeyHeader);
-  if (!validation.valid) {
-    return c.json({ error: validation.error }, validation.statusCode as any);
-  }
-
-  const apiKey = validation.apiKey!;
+app.get('/stats', authMiddleware, async (c) => {
+  const apiKey = getApiKeyFromContext(c as any);
 
   // Get rate limit info
   const rateLimit = checkRateLimit(apiKey);
@@ -65,119 +55,15 @@ app.get('/stats', async (c) => {
   return c.json(stats);
 });
 
-// Proxy all /v1/* requests to Z.AI (OpenAI-compatible)
-app.all('/v1/*', async (c) => {
-  const apiKeyHeader = extractApiKey(c.req.raw.headers);
+// Create proxy handlers
+const openaiProxyHandler = createProxyHandler(proxyRequest);
+const anthropicProxyHandler = createProxyHandler(proxyAnthropicRequest);
 
-  // Validate API key
-  const validation = await validateApiKey(apiKeyHeader);
-  if (!validation.valid) {
-    return c.json({ error: validation.error }, validation.statusCode as any);
-  }
+// Anthropic Messages API - must be defined before /v1/* catch-all
+app.post('/v1/messages', authMiddleware, rateLimitMiddleware, anthropicProxyHandler);
 
-  const apiKey = validation.apiKey!;
-
-  // Check rate limit
-  const rateLimit = checkRateLimit(apiKey);
-  if (!rateLimit.allowed) {
-    const headers: Record<string, string> = {};
-    if (rateLimit.retryAfter) {
-      headers['Retry-After'] = rateLimit.retryAfter.toString();
-    }
-    return c.json({
-      error: {
-        message: rateLimit.reason,
-        type: 'rate_limit_exceeded',
-        tokens_used: rateLimit.tokensUsed,
-        tokens_limit: rateLimit.tokensLimit,
-        window_ends_at: rateLimit.windowEnd,
-      },
-    }, 429, headers as any);
-  }
-
-  // Proxy request
-  const path = c.req.path;
-  const method = c.req.method;
-
-  const headers: Record<string, string> = {};
-  c.req.raw.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-
-  const body = c.req.raw.body ? await c.req.text() : null;
-
-  const result = await proxyRequest({
-    apiKey,
-    path,
-    method,
-    headers,
-    body,
-  });
-
-  // Set response headers
-  Object.entries(result.headers).forEach(([key, value]) => {
-    c.header(key, value);
-  });
-
-  return c.body(result.body, result.status as any);
-});
-
-// Proxy Anthropic Messages API (/v1/messages)
-app.all('/v1/messages', async (c) => {
-  const apiKeyHeader = extractApiKey(c.req.raw.headers);
-
-  // Validate API key
-  const validation = await validateApiKey(apiKeyHeader);
-  if (!validation.valid) {
-    return c.json({ error: validation.error }, validation.statusCode as any);
-  }
-
-  const apiKey = validation.apiKey!;
-
-  // Check rate limit
-  const rateLimit = checkRateLimit(apiKey);
-  if (!rateLimit.allowed) {
-    const headers: Record<string, string> = {};
-    if (rateLimit.retryAfter) {
-      headers['Retry-After'] = rateLimit.retryAfter.toString();
-    }
-    return c.json({
-      error: {
-        message: rateLimit.reason,
-        type: 'rate_limit_exceeded',
-        tokens_used: rateLimit.tokensUsed,
-        tokens_limit: rateLimit.tokensLimit,
-        window_ends_at: rateLimit.windowEnd,
-      },
-    }, 429, headers as any);
-  }
-
-  // Proxy request
-  const path = c.req.path;
-  const method = c.req.method;
-
-  const headers: Record<string, string> = {};
-  c.req.raw.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-
-  const body = c.req.raw.body ? await c.req.text() : null;
-
-  const result = await proxyAnthropicRequest({
-    apiKey,
-    path,
-    method,
-    headers,
-    body,
-  });
-
-  // Set response headers
-  Object.entries(result.headers).forEach(([key, value]) => {
-    c.header(key, value);
-  });
-
-  return c.body(result.body, result.status as any);
-});
+// OpenAI-Compatible API - catch-all for /v1/*
+app.all('/v1/*', authMiddleware, rateLimitMiddleware, openaiProxyHandler);
 
 // Health check
 app.get('/health', (c) => {
