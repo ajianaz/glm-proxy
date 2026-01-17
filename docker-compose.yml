@@ -1,0 +1,12 @@
+services:
+  proxy-gateway:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      ZAI_API_KEY: ${ZAI_API_KEY}
+      DEFAULT_MODEL: glm-4.7
+      PORT: 3000
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
