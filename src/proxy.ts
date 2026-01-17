@@ -43,19 +43,22 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
   const model = getModelForKey(apiKey);
 
   // Build target URL
-  const targetUrl = `${ZAI_API_BASE}${path}`;
+  // Z.AI uses /v4 base, OpenAI compatibility but without /v1 prefix
+  // e.g., /v1/chat/completions -> /chat/completions -> /v4/chat/completions
+  const cleanPath = path.startsWith('/v1/') ? path.substring(4) : path;
+  const slash = cleanPath.startsWith('/') ? '' : '/';
+  const targetUrl = `${ZAI_API_BASE}${slash}${cleanPath}`;
 
-  // Prepare headers for Z.AI
+  // Prepare headers for Z.AI - always forward Authorization with master key
   const proxyHeaders: Record<string, string> = {
     'Authorization': `Bearer ${ZAI_API_KEY}`,
-    'Content-Type': 'application/json',
   };
 
-  // Forward relevant headers
+  // Forward relevant headers from client (but not Authorization)
   const forwardHeaders = ['content-type', 'accept', 'user-agent'];
   for (const h of forwardHeaders) {
     const key = Object.keys(headers).find(k => k.toLowerCase() === h);
-    if (key && key !== 'authorization') {
+    if (key) {
       proxyHeaders[key] = headers[key];
     }
   }
