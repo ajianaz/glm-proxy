@@ -6,7 +6,8 @@ import type { AuthContext } from './auth.js';
 // Rate limit middleware - checks quota before proceeding
 export async function rateLimitMiddleware(c: Context<{ Variables: AuthContext }>, next: Next) {
   const apiKey: ApiKey = c.get('apiKey');
-  const rateLimit = checkRateLimit(apiKey);
+  // TODO: Query daily_usage table to get actual tokensUsedToday
+  const rateLimit = checkRateLimit(apiKey, 0);
 
   if (!rateLimit.allowed) {
     const headers: Record<string, string> = {};

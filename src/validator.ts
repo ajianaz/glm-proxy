@@ -43,7 +43,7 @@ export async function validateApiKey(
   if (isKeyExpired(apiKey)) {
     return {
       valid: false,
-      error: `API key expired on ${apiKey.expiry_date}`,
+      error: `API key expired on ${apiKey.expiryDate}`,
       statusCode: 403,
     };
   }
