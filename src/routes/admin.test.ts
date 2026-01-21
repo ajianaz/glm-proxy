@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach } from 'bun:test';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import admin from './admin';
 import { db } from '../db/index';
 import { apiKeys } from '../db/schema';
