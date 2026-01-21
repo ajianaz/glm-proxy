@@ -8,6 +8,7 @@ import { authMiddleware, getApiKeyFromContext, type AuthContext } from './middle
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { createProxyHandler } from './handlers/proxyHandler.js';
 import type { StatsResponse } from './types.js';
+import adminRoutes from './routes/admin.js';
 
 type Bindings = {
   ZAI_API_KEY: string;
@@ -65,6 +66,9 @@ app.post('/v1/messages', authMiddleware, rateLimitMiddleware, anthropicProxyHand
 // OpenAI-Compatible API - catch-all for /v1/*
 app.all('/v1/*', authMiddleware, rateLimitMiddleware, openaiProxyHandler);
 
+// Admin API routes
+app.route('/admin', adminRoutes);
+
 // Health check
 app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -80,6 +84,7 @@ app.get('/', (c) => {
       stats: 'GET /stats',
       openai_compatible: 'ALL /v1/* (except /v1/messages)',
       anthropic_compatible: 'POST /v1/messages',
+      admin: 'ALL /admin/* (requires admin API key)',
     },
   });
 });
