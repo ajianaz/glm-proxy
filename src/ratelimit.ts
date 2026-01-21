@@ -1,7 +1,7 @@
 import type { ApiKey } from './types.js';
 
 export function isKeyExpired(key: ApiKey): boolean {
-  return new Date(key.expiry_date) < new Date();
+  return new Date(key.expiryDate) < new Date();
 }
 
 export interface RateLimitCheck {
@@ -14,42 +14,38 @@ export interface RateLimitCheck {
   retryAfter?: number; // seconds
 }
 
-export function checkRateLimit(key: ApiKey): RateLimitCheck {
-  const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+export function checkRateLimit(
+  key: ApiKey,
+  tokensUsedToday: number = 0
+): RateLimitCheck {
   const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
 
-  // Get all active windows (within 5 hours)
-  const activeWindows = key.usage_windows.filter(
-    w => w.window_start >= fiveHoursAgo
-  );
+  const endOfDay = new Date(now);
+  endOfDay.setHours(23, 59, 59, 999);
 
-  // Sum tokens from all active windows
-  const totalTokensUsed = activeWindows.reduce(
-    (sum, w) => sum + w.tokens_used,
-    0
-  );
+  const windowStart = startOfDay.toISOString();
+  const windowEnd = endOfDay.toISOString();
 
-  // Find earliest window start for calculation
-  const windowStart = activeWindows.length > 0
-    ? activeWindows[0].window_start
-    : now.toISOString();
-
-  // Calculate when this window ends (5 hours from start)
-  const startTime = new Date(windowStart);
-  const windowEndTime = new Date(startTime.getTime() + 5 * 60 * 60 * 1000);
-  const windowEnd = windowEndTime.toISOString();
+  // TODO: Query daily_usage table to get actual tokens_used_today for this API key
+  // This should join with daily_usage table on api_key_id and filter by today's date
+  // For now, accepting tokensUsedToday as a parameter from the caller
 
   // Check if over limit
-  if (totalTokensUsed > key.token_limit_per_5h) {
+  if (tokensUsedToday > key.tokenLimitPerDay) {
+    // Calculate seconds until tomorrow midnight
+    const tomorrow = new Date(startOfDay);
+    tomorrow.setDate(tomorrow.getDate() + 1);
     const retryAfterSeconds = Math.max(0, Math.floor(
-      (windowEndTime.getTime() - now.getTime()) / 1000
+      (tomorrow.getTime() - now.getTime()) / 1000
     ));
 
     return {
       allowed: false,
-      reason: 'Token limit exceeded for 5-hour window',
-      tokensUsed: totalTokensUsed,
-      tokensLimit: key.token_limit_per_5h,
+      reason: 'Token limit exceeded for 24-hour window',
+      tokensUsed: tokensUsedToday,
+      tokensLimit: key.tokenLimitPerDay,
       windowStart,
       windowEnd,
       retryAfter: retryAfterSeconds,
@@ -58,8 +54,8 @@ export function checkRateLimit(key: ApiKey): RateLimitCheck {
 
   return {
     allowed: true,
-    tokensUsed: totalTokensUsed,
-    tokensLimit: key.token_limit_per_5h,
+    tokensUsed: tokensUsedToday,
+    tokensLimit: key.tokenLimitPerDay,
     windowStart,
     windowEnd,
   };
