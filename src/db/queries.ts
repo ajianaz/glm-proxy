@@ -1,19 +1,19 @@
 import { db } from './index';
-import { apiKeys } from './schema';
+import { apiKeys, ValidModel } from './schema';
 import { eq, desc, count } from 'drizzle-orm';
 import { generateId, generateApiKey } from '../utils/ulid';
 
 // Types for input parameters
 export type CreateApiKeyInput = {
   name: string;
-  model: 'glm-4.7' | 'glm-4.7-flash' | 'glm-4.7-flashx' | 'glm-4.5' | 'glm-4.5-air' | 'glm-4.5-flash' | 'glm-4.5v';
+  model: ValidModel;
   tokenLimitPerDay: number;
   expiryDate: string;
 };
 
 export type UpdateApiKeyInput = Partial<{
   name: string;
-  model: 'glm-4.7' | 'glm-4.7-flash' | 'glm-4.7-flashx' | 'glm-4.5' | 'glm-4.5-air' | 'glm-4.5-flash' | 'glm-4.5v';
+  model: ValidModel;
   tokenLimitPerDay: number;
   expiryDate: string;
   lastUsed: string | null;
@@ -139,10 +139,10 @@ export async function updateApiKey(
 export async function deleteApiKey(id: string): Promise<boolean> {
   const result = await db
     .delete(apiKeys)
-    .where(eq(apiKeys.id, id));
+    .where(eq(apiKeys.id, id))
+    .returning();
 
-  // In drizzle-orm with postgres-js, result indicates affected rows
-  return result.count > 0;
+  return result.length > 0;
 }
 
 /**

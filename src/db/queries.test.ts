@@ -1,4 +1,4 @@
-import { test, expect, describe } from "bun:test";
+import { describe, it, expect } from 'vitest';
 import { db } from './index';
 import { apiKeys } from './schema';
 import { eq } from 'drizzle-orm';
@@ -19,7 +19,7 @@ async function cleanupTestKey(key: string) {
 
 describe('Database Query Layer', () => {
   describe('createApiKey', () => {
-    test('should create a new API key with valid fields', async () => {
+    it('should create a new API key with valid fields', async () => {
       const input = {
         name: 'Test Key',
         model: 'glm-4.7' as const,
@@ -43,7 +43,7 @@ describe('Database Query Layer', () => {
       await cleanupTestKey(result.key);
     });
 
-    test('should create unique keys for each call', async () => {
+    it('should create unique keys for each call', async () => {
       const input = {
         name: 'Test Key',
         model: 'glm-4.7' as const,
@@ -63,7 +63,7 @@ describe('Database Query Layer', () => {
   });
 
   describe('findApiKeyByKey', () => {
-    test('should find API key by key value', async () => {
+    it('should find API key by key value', async () => {
       const input = {
         name: 'Test Key',
         model: 'glm-4.7' as const,
@@ -82,14 +82,14 @@ describe('Database Query Layer', () => {
       await cleanupTestKey(created.key);
     });
 
-    test('should return null for non-existent key', async () => {
+    it('should return null for non-existent key', async () => {
       const found = await findApiKeyByKey('ajianaz_nonexistentkey123456');
       expect(found).toBeNull();
     });
   });
 
   describe('findApiKeyById', () => {
-    test('should find API key by ID', async () => {
+    it('should find API key by ID', async () => {
       const input = {
         name: 'Test Key',
         model: 'glm-4.7' as const,
@@ -107,14 +107,14 @@ describe('Database Query Layer', () => {
       await cleanupTestKey(created.key);
     });
 
-    test('should return null for non-existent ID', async () => {
+    it('should return null for non-existent ID', async () => {
       const found = await findApiKeyById('01hzabcdef1234567890abcd');
       expect(found).toBeNull();
     });
   });
 
   describe('listApiKeys', () => {
-    test('should list API keys with pagination', async () => {
+    it('should list API keys with pagination', async () => {
       // Create multiple keys
       const keys = [];
       for (let i = 0; i < 3; i++) {
@@ -140,7 +140,7 @@ describe('Database Query Layer', () => {
       }
     });
 
-    test('should handle offset correctly', async () => {
+    it('should handle offset correctly', async () => {
       const keys = [];
       for (let i = 0; i < 3; i++) {
         const created = await createApiKey({
@@ -164,7 +164,7 @@ describe('Database Query Layer', () => {
       }
     });
 
-    test('should return empty list when no keys exist (with filter)', async () => {
+    it('should return empty list when no keys exist (with filter)', async () => {
       // This test verifies the structure is correct even with empty results
       const result = await listApiKeys({ limit: 10, offset: 0 });
       expect(result.items).toBeDefined();
@@ -175,7 +175,7 @@ describe('Database Query Layer', () => {
   });
 
   describe('updateApiKey', () => {
-    test('should update API key fields', async () => {
+    it('should update API key fields', async () => {
       const created = await createApiKey({
         name: 'Original Name',
         model: 'glm-4.7' as const,
@@ -198,14 +198,14 @@ describe('Database Query Layer', () => {
       await cleanupTestKey(created.key);
     });
 
-    test('should return null when updating non-existent ID', async () => {
+    it('should return null when updating non-existent ID', async () => {
       const result = await updateApiKey('01hz nonexistent', {
         name: 'Updated Name',
       });
       expect(result).toBeNull();
     });
 
-    test('should update lastUsed timestamp', async () => {
+    it('should update lastUsed timestamp', async () => {
       const created = await createApiKey({
         name: 'Test Key',
         model: 'glm-4.7' as const,
@@ -225,7 +225,7 @@ describe('Database Query Layer', () => {
   });
 
   describe('deleteApiKey', () => {
-    test('should delete API key by ID', async () => {
+    it('should delete API key by ID', async () => {
       const created = await createApiKey({
         name: 'To Be Deleted',
         model: 'glm-4.7' as const,
@@ -242,14 +242,14 @@ describe('Database Query Layer', () => {
       expect(found).toBeNull();
     });
 
-    test('should return false when deleting non-existent ID', async () => {
+    it('should return false when deleting non-existent ID', async () => {
       const result = await deleteApiKey('01hznonexistent1234567890');
       expect(result).toBe(false);
     });
   });
 
   describe('regenerateApiKey', () => {
-    test('should generate new key value while keeping other fields', async () => {
+    it('should generate new key value while keeping other fields', async () => {
       const created = await createApiKey({
         name: 'Test Key',
         model: 'glm-4.7' as const,
@@ -271,12 +271,12 @@ describe('Database Query Layer', () => {
       await cleanupTestKey(regenerated!.key);
     });
 
-    test('should return null for non-existent ID', async () => {
+    it('should return null for non-existent ID', async () => {
       const result = await regenerateApiKey('01hznonexistent1234567890');
       expect(result).toBeNull();
     });
 
-    test('new key should be findable', async () => {
+    it('new key should be findable', async () => {
       const created = await createApiKey({
         name: 'Test Key',
         model: 'glm-4.7' as const,
