@@ -4,6 +4,178 @@ import { getDb } from './connection.js';
 import * as schema from './schema.js';
 
 /**
+ * Custom error types for database operations
+ */
+
+/**
+ * Base class for all database operation errors
+ */
+export class DatabaseOperationError extends Error {
+  constructor(
+    message: string,
+    public readonly operation: string,
+    public readonly cause?: Error
+  ) {
+    super(message);
+    this.name = 'DatabaseOperationError';
+  }
+}
+
+/**
+ * Error thrown when database connection fails
+ */
+export class DatabaseConnectionError extends DatabaseOperationError {
+  constructor(
+    message: string,
+    public readonly databaseType?: 'sqlite' | 'postgresql',
+    cause?: Error
+  ) {
+    super(message, 'connection', cause);
+    this.name = 'DatabaseConnectionError';
+  }
+}
+
+/**
+ * Error thrown when a database query fails
+ */
+export class DatabaseQueryError extends DatabaseOperationError {
+  constructor(
+    message: string,
+    public readonly queryType: string,
+    public readonly table: string,
+    cause?: Error
+  ) {
+    super(message, 'query', cause);
+    this.name = 'DatabaseQueryError';
+  }
+}
+
+/**
+ * Error thrown when a database constraint is violated
+ */
+export class DatabaseConstraintError extends DatabaseOperationError {
+  constructor(
+    message: string,
+    public readonly constraint: string,
+    public readonly table: string,
+    cause?: Error
+  ) {
+    super(message, 'constraint', cause);
+    this.name = 'DatabaseConstraintError';
+  }
+}
+
+/**
+ * Error thrown when validation fails
+ */
+export class ValidationError extends DatabaseOperationError {
+  constructor(
+    message: string,
+    public readonly field?: string,
+    public readonly value?: unknown
+  ) {
+    super(message, 'validation');
+    this.name = 'ValidationError';
+  }
+}
+
+/**
+ * Log database operation errors with structured information
+ *
+ * @param error - The error that occurred
+ * @param operation - The operation being performed
+ * @param context - Additional context about the error
+ */
+function logDatabaseError(error: Error, operation: string, context: Record<string, unknown> = {}): void {
+  const errorInfo = {
+    timestamp: new Date().toISOString(),
+    operation,
+    errorType: error.name,
+    errorMessage: error.message,
+    ...context,
+  };
+
+  // Log with appropriate level based on error type
+  if (error instanceof DatabaseConnectionError) {
+    console.error('[DB Connection Error]', errorInfo);
+  } else if (error instanceof DatabaseConstraintError) {
+    console.error('[DB Constraint Error]', errorInfo);
+  } else if (error instanceof ValidationError) {
+    console.warn('[Validation Error]', errorInfo);
+  } else {
+    console.error('[DB Operation Error]', errorInfo);
+  }
+}
+
+/**
+ * Wrap database operations with error handling and logging
+ *
+ * @param operationName - Name of the operation for error reporting
+ * @param fn - Async function to execute
+ * @param context - Additional context for error reporting
+ * @returns Result of the function
+ * @throws DatabaseOperationError or specific subclass
+ */
+async function withErrorHandling<T>(
+  operationName: string,
+  fn: (db: Awaited<ReturnType<typeof getDb>>) => Promise<T>,
+  context: Record<string, unknown> = {}
+): Promise<T> {
+  try {
+    const db = await getDb();
+    return await fn(db);
+  } catch (error) {
+    // If it's already one of our custom errors, log and rethrow
+    if (
+      error instanceof DatabaseOperationError ||
+      error instanceof DatabaseConnectionError ||
+      error instanceof DatabaseQueryError ||
+      error instanceof DatabaseConstraintError ||
+      error instanceof ValidationError
+    ) {
+      logDatabaseError(error, operationName, context);
+      throw error;
+    }
+
+    // Convert unknown errors to appropriate error types
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const cause = error instanceof Error ? error : undefined;
+
+    // Detect specific error patterns
+    if (errorMessage.includes('SQLITE_CONSTRAINT') || errorMessage.includes('duplicate key')) {
+      const constraintError = new DatabaseConstraintError(
+        `Database constraint violation: ${errorMessage}`,
+        'unique',
+        'api_keys',
+        cause
+      );
+      logDatabaseError(constraintError, operationName, context);
+      throw constraintError;
+    }
+
+    if (errorMessage.includes('connection') || errorMessage.includes('connect')) {
+      const connError = new DatabaseConnectionError(
+        `Database connection failed: ${errorMessage}`,
+        undefined,
+        cause
+      );
+      logDatabaseError(connError, operationName, context);
+      throw connError;
+    }
+
+    // Generic database error
+    const dbError = new DatabaseQueryError(
+      `Database operation failed: ${errorMessage}`,
+      operationName,
+      context.table as string || 'unknown',
+      cause
+    );
+    logDatabaseError(dbError, operationName, context);
+    throw dbError;
+  }
+}
+
+/**
  * Find an API key by its key string
  *
  * @param key - The API key string to search for
@@ -20,47 +192,50 @@ import * as schema from './schema.js';
  * ```
  */
 export async function findApiKey(key: string): Promise<ApiKey | null> {
-  try {
-    const { db, type } = await getDb();
-
-    // Select the appropriate table based on database type
-    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
-    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
-
-    // Query the API key
-    const result = await db.select().from(table).where(eq(table.key, key)).limit(1);
-
-    if (result.length === 0) {
-      return null;
-    }
-
-    const apiKeyRow = result[0];
-
-    // Query usage windows for this key
-    const usageWindows = await db
-      .select()
-      .from(usageTable)
-      .where(eq(usageTable.apiKey, key));
-
-    // Map database rows to ApiKey interface
-    return {
-      key: apiKeyRow.key,
-      name: apiKeyRow.name,
-      model: apiKeyRow.model ?? undefined,
-      token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
-      expiry_date: apiKeyRow.expiryDate,
-      created_at: apiKeyRow.createdAt,
-      last_used: apiKeyRow.lastUsed,
-      total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
-      usage_windows: usageWindows.map(w => ({
-        window_start: w.windowStart,
-        tokens_used: w.tokensUsed,
-      })),
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to find API key: ${errorMessage}`);
+  if (!key || !key.trim()) {
+    throw new ValidationError('API key is required and cannot be empty', 'key', key);
   }
+
+  return withErrorHandling(
+    'findApiKey',
+    async ({ db, type }) => {
+      // Select the appropriate table based on database type
+      const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+      const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+      // Query the API key
+      const result = await db.select().from(table).where(eq(table.key, key)).limit(1);
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      const apiKeyRow = result[0];
+
+      // Query usage windows for this key
+      const usageWindows = await db
+        .select()
+        .from(usageTable)
+        .where(eq(usageTable.apiKey, key));
+
+      // Map database rows to ApiKey interface
+      return {
+        key: apiKeyRow.key,
+        name: apiKeyRow.name,
+        model: apiKeyRow.model ?? undefined,
+        token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+        expiry_date: apiKeyRow.expiryDate,
+        created_at: apiKeyRow.createdAt,
+        last_used: apiKeyRow.lastUsed,
+        total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+        usage_windows: usageWindows.map(w => ({
+          window_start: w.windowStart,
+          tokens_used: w.tokensUsed,
+        })),
+      };
+    },
+    { key: key.substring(0, 10) + '...' } // Don't log full key for security
+  );
 }
 
 /**
@@ -90,54 +265,61 @@ export async function findApiKey(key: string): Promise<ApiKey | null> {
 export async function createApiKey(apiKey: ApiKey): Promise<ApiKey> {
   // Validate required fields
   if (!apiKey.key || !apiKey.key.trim()) {
-    throw new Error('API key is required and cannot be empty');
+    throw new ValidationError('API key is required and cannot be empty', 'key', apiKey.key);
   }
 
   if (!apiKey.name || !apiKey.name.trim()) {
-    throw new Error('API key name is required and cannot be empty');
+    throw new ValidationError('API key name is required and cannot be empty', 'name', apiKey.name);
   }
 
   if (apiKey.token_limit_per_5h <= 0) {
-    throw new Error('Token limit must be greater than 0');
+    throw new ValidationError(
+      'Token limit must be greater than 0',
+      'token_limit_per_5h',
+      apiKey.token_limit_per_5h
+    );
   }
 
   if (!apiKey.expiry_date) {
-    throw new Error('Expiry date is required');
+    throw new ValidationError('Expiry date is required', 'expiry_date', apiKey.expiry_date);
   }
 
-  try {
-    const { db, type } = await getDb();
+  return withErrorHandling(
+    'createApiKey',
+    async ({ db, type }) => {
+      // Select the appropriate table based on database type
+      const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
 
-    // Select the appropriate table based on database type
-    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+      // Check if key already exists
+      const existing = await db.select().from(table).where(eq(table.key, apiKey.key)).limit(1);
+      if (existing.length > 0) {
+        throw new DatabaseConstraintError(
+          `API key '${apiKey.key.substring(0, 10)}...' already exists`,
+          'unique_key',
+          'api_keys'
+        );
+      }
 
-    // Check if key already exists
-    const existing = await db.select().from(table).where(eq(table.key, apiKey.key)).limit(1);
-    if (existing.length > 0) {
-      throw new Error(`API key '${apiKey.key}' already exists`);
-    }
+      // Insert the new API key
+      await db.insert(table).values({
+        key: apiKey.key,
+        name: apiKey.name,
+        model: apiKey.model ?? null,
+        tokenLimitPer5h: apiKey.token_limit_per_5h,
+        expiryDate: apiKey.expiry_date,
+        createdAt: apiKey.created_at,
+        lastUsed: apiKey.last_used,
+        totalLifetimeTokens: apiKey.total_lifetime_tokens,
+      });
 
-    // Insert the new API key
-    await db.insert(table).values({
-      key: apiKey.key,
-      name: apiKey.name,
-      model: apiKey.model ?? null,
-      tokenLimitPer5h: apiKey.token_limit_per_5h,
-      expiryDate: apiKey.expiry_date,
-      createdAt: apiKey.created_at,
-      lastUsed: apiKey.last_used,
-      totalLifetimeTokens: apiKey.total_lifetime_tokens,
-    });
-
-    // Return the created key (usage_windows start empty)
-    return {
-      ...apiKey,
-      usage_windows: [],
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to create API key: ${errorMessage}`);
-  }
+      // Return the created key (usage_windows start empty)
+      return {
+        ...apiKey,
+        usage_windows: [],
+      };
+    },
+    { name: apiKey.name, key: apiKey.key.substring(0, 10) + '...' }
+  );
 }
 
 /**
@@ -164,73 +346,80 @@ export async function updateApiKey(
   key: string,
   updates: Partial<Pick<ApiKey, 'name' | 'model' | 'token_limit_per_5h' | 'expiry_date'>>
 ): Promise<ApiKey | null> {
-  try {
-    const { db, type } = await getDb();
-
-    // Select the appropriate table based on database type
-    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
-    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
-
-    // Check if key exists
-    const existing = await db.select().from(table).where(eq(table.key, key)).limit(1);
-    if (existing.length === 0) {
-      return null;
-    }
-
-    // Build update object with only provided fields
-    const updateValues: Record<string, unknown> = {};
-    if (updates.name !== undefined) {
-      if (!updates.name.trim()) {
-        throw new Error('API key name cannot be empty');
-      }
-      updateValues.name = updates.name;
-    }
-    if (updates.model !== undefined) {
-      updateValues.model = updates.model ?? null;
-    }
-    if (updates.token_limit_per_5h !== undefined) {
-      if (updates.token_limit_per_5h <= 0) {
-        throw new Error('Token limit must be greater than 0');
-      }
-      updateValues.tokenLimitPer5h = updates.token_limit_per_5h;
-    }
-    if (updates.expiry_date !== undefined) {
-      if (!updates.expiry_date) {
-        throw new Error('Expiry date cannot be empty');
-      }
-      updateValues.expiryDate = updates.expiry_date;
-    }
-
-    // Perform update if there are fields to update
-    if (Object.keys(updateValues).length > 0) {
-      await db.update(table).set(updateValues).where(eq(table.key, key));
-    }
-
-    // Query usage windows
-    const usageWindows = await db.select().from(usageTable).where(eq(usageTable.apiKey, key));
-
-    // Get the updated record
-    const updated = await db.select().from(table).where(eq(table.key, key)).limit(1);
-
-    // Map database rows to ApiKey interface
-    return {
-      key: updated[0].key,
-      name: updated[0].name,
-      model: updated[0].model ?? undefined,
-      token_limit_per_5h: updated[0].tokenLimitPer5h,
-      expiry_date: updated[0].expiryDate,
-      created_at: updated[0].createdAt,
-      last_used: updated[0].lastUsed,
-      total_lifetime_tokens: updated[0].totalLifetimeTokens,
-      usage_windows: usageWindows.map(w => ({
-        window_start: w.windowStart,
-        tokens_used: w.tokensUsed,
-      })),
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to update API key: ${errorMessage}`);
+  if (!key || !key.trim()) {
+    throw new ValidationError('API key is required and cannot be empty', 'key', key);
   }
+
+  return withErrorHandling(
+    'updateApiKey',
+    async ({ db, type }) => {
+      // Select the appropriate table based on database type
+      const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+      const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+      // Check if key exists
+      const existing = await db.select().from(table).where(eq(table.key, key)).limit(1);
+      if (existing.length === 0) {
+        return null;
+      }
+
+      // Build update object with only provided fields
+      const updateValues: Record<string, unknown> = {};
+      if (updates.name !== undefined) {
+        if (!updates.name.trim()) {
+          throw new ValidationError('API key name cannot be empty', 'name', updates.name);
+        }
+        updateValues.name = updates.name;
+      }
+      if (updates.model !== undefined) {
+        updateValues.model = updates.model ?? null;
+      }
+      if (updates.token_limit_per_5h !== undefined) {
+        if (updates.token_limit_per_5h <= 0) {
+          throw new ValidationError(
+            'Token limit must be greater than 0',
+            'token_limit_per_5h',
+            updates.token_limit_per_5h
+          );
+        }
+        updateValues.tokenLimitPer5h = updates.token_limit_per_5h;
+      }
+      if (updates.expiry_date !== undefined) {
+        if (!updates.expiry_date) {
+          throw new ValidationError('Expiry date cannot be empty', 'expiry_date', updates.expiry_date);
+        }
+        updateValues.expiryDate = updates.expiry_date;
+      }
+
+      // Perform update if there are fields to update
+      if (Object.keys(updateValues).length > 0) {
+        await db.update(table).set(updateValues).where(eq(table.key, key));
+      }
+
+      // Query usage windows
+      const usageWindows = await db.select().from(usageTable).where(eq(usageTable.apiKey, key));
+
+      // Get the updated record
+      const updated = await db.select().from(table).where(eq(table.key, key)).limit(1);
+
+      // Map database rows to ApiKey interface
+      return {
+        key: updated[0].key,
+        name: updated[0].name,
+        model: updated[0].model ?? undefined,
+        token_limit_per_5h: updated[0].tokenLimitPer5h,
+        expiry_date: updated[0].expiryDate,
+        created_at: updated[0].createdAt,
+        last_used: updated[0].lastUsed,
+        total_lifetime_tokens: updated[0].totalLifetimeTokens,
+        usage_windows: usageWindows.map(w => ({
+          window_start: w.windowStart,
+          tokens_used: w.tokensUsed,
+        })),
+      };
+    },
+    { key: key.substring(0, 10) + '...', updates: Object.keys(updates) }
+  );
 }
 
 /**
@@ -253,26 +442,29 @@ export async function updateApiKey(
  * ```
  */
 export async function deleteApiKey(key: string): Promise<boolean> {
-  try {
-    const { db, type } = await getDb();
-
-    // Select the appropriate table based on database type
-    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
-
-    // Check if key exists
-    const existing = await db.select().from(table).where(eq(table.key, key)).limit(1);
-    if (existing.length === 0) {
-      return false;
-    }
-
-    // Delete the API key (cascade delete will handle usage_windows)
-    await db.delete(table).where(eq(table.key, key));
-
-    return true;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to delete API key: ${errorMessage}`);
+  if (!key || !key.trim()) {
+    throw new ValidationError('API key is required and cannot be empty', 'key', key);
   }
+
+  return withErrorHandling(
+    'deleteApiKey',
+    async ({ db, type }) => {
+      // Select the appropriate table based on database type
+      const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+
+      // Check if key exists
+      const existing = await db.select().from(table).where(eq(table.key, key)).limit(1);
+      if (existing.length === 0) {
+        return false;
+      }
+
+      // Delete the API key (cascade delete will handle usage_windows)
+      await db.delete(table).where(eq(table.key, key));
+
+      return true;
+    },
+    { key: key.substring(0, 10) + '...' }
+  );
 }
 
 /**
@@ -305,81 +497,92 @@ export async function updateApiKeyUsage(
   tokensUsed: number,
   _model: string
 ): Promise<void> {
+  if (!key || !key.trim()) {
+    throw new ValidationError('API key is required and cannot be empty', 'key', key);
+  }
+
   if (tokensUsed < 0) {
-    throw new Error('Tokens used must be a non-negative number');
+    throw new ValidationError(
+      'Tokens used must be a non-negative number',
+      'tokensUsed',
+      tokensUsed
+    );
   }
 
-  try {
-    const { db, type } = await getDb();
+  return withErrorHandling(
+    'updateApiKeyUsage',
+    async ({ db, type }) => {
+      // Select the appropriate tables based on database type
+      const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+      const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
 
-    // Select the appropriate tables based on database type
-    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
-    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+      // Use a transaction to ensure atomicity
+      await db.transaction(async (tx) => {
+        // Check if key exists
+        const existing = await tx.select().from(table).where(eq(table.key, key)).limit(1);
+        if (existing.length === 0) {
+          throw new DatabaseQueryError(
+            `API key '${key.substring(0, 10)}...' not found`,
+            'updateApiKeyUsage',
+            'api_keys'
+          );
+        }
 
-    // Use a transaction to ensure atomicity
-    await db.transaction(async (tx) => {
-      // Check if key exists
-      const existing = await tx.select().from(table).where(eq(table.key, key)).limit(1);
-      if (existing.length === 0) {
-        throw new Error(`API key '${key}' not found`);
-      }
+        const now = new Date().toISOString();
+        const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
 
-      const now = new Date().toISOString();
-      const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
-
-      // Update last_used and total_lifetime_tokens in api_keys table
-      await tx
-        .update(table)
-        .set({
-          lastUsed: now,
-          totalLifetimeTokens: existing[0].totalLifetimeTokens + tokensUsed,
-        })
-        .where(eq(table.key, key));
-
-      // Find existing usage window within the last 5 hours
-      const existingWindows = await tx
-        .select()
-        .from(usageTable)
-        .where(
-          and(
-            eq(usageTable.apiKey, key),
-            gte(usageTable.windowStart, fiveHoursAgo)
-          )
-        )
-        .orderBy(usageTable.windowStart)
-        .limit(1);
-
-      if (existingWindows.length > 0) {
-        // Update existing window
+        // Update last_used and total_lifetime_tokens in api_keys table
         await tx
-          .update(usageTable)
+          .update(table)
           .set({
-            tokensUsed: existingWindows[0].tokensUsed + tokensUsed,
+            lastUsed: now,
+            totalLifetimeTokens: existing[0].totalLifetimeTokens + tokensUsed,
           })
-          .where(eq(usageTable.id, existingWindows[0].id));
-      } else {
-        // Create new usage window
-        await tx.insert(usageTable).values({
-          apiKey: key,
-          windowStart: now,
-          tokensUsed: tokensUsed,
-        });
-      }
+          .where(eq(table.key, key));
 
-      // Clean up old usage windows (older than 5 hours)
-      await tx
-        .delete(usageTable)
-        .where(
-          and(
-            eq(usageTable.apiKey, key),
-            lt(usageTable.windowStart, fiveHoursAgo)
+        // Find existing usage window within the last 5 hours
+        const existingWindows = await tx
+          .select()
+          .from(usageTable)
+          .where(
+            and(
+              eq(usageTable.apiKey, key),
+              gte(usageTable.windowStart, fiveHoursAgo)
+            )
           )
-        );
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to update API key usage: ${errorMessage}`);
-  }
+          .orderBy(usageTable.windowStart)
+          .limit(1);
+
+        if (existingWindows.length > 0) {
+          // Update existing window
+          await tx
+            .update(usageTable)
+            .set({
+              tokensUsed: existingWindows[0].tokensUsed + tokensUsed,
+            })
+            .where(eq(usageTable.id, existingWindows[0].id));
+        } else {
+          // Create new usage window
+          await tx.insert(usageTable).values({
+            apiKey: key,
+            windowStart: now,
+            tokensUsed: tokensUsed,
+          });
+        }
+
+        // Clean up old usage windows (older than 5 hours)
+        await tx
+          .delete(usageTable)
+          .where(
+            and(
+              eq(usageTable.apiKey, key),
+              lt(usageTable.windowStart, fiveHoursAgo)
+            )
+          );
+      });
+    },
+    { key: key.substring(0, 10) + '...', tokensUsed }
+  );
 }
 
 /**
@@ -407,74 +610,77 @@ export async function updateApiKeyUsage(
  * ```
  */
 export async function getKeyStats(key: string): Promise<StatsResponse | null> {
-  try {
-    const { db, type } = await getDb();
-
-    // Select the appropriate tables based on database type
-    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
-    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
-
-    // Query the API key
-    const result = await db.select().from(table).where(eq(table.key, key)).limit(1);
-
-    if (result.length === 0) {
-      return null;
-    }
-
-    const apiKeyRow = result[0];
-
-    // Calculate if key is expired
-    const now = new Date();
-    const expiryDate = new Date(apiKeyRow.expiryDate);
-    const isExpired = expiryDate < now;
-
-    // Get usage windows within the last 5 hours for current window calculation
-    const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
-
-    // Get all usage windows for total calculation
-    const allUsageWindows = await db
-      .select()
-      .from(usageTable)
-      .where(eq(usageTable.apiKey, key))
-      .orderBy(desc(usageTable.windowStart));
-
-    // Get current window (most recent window within 5 hours)
-    const currentWindow = allUsageWindows.find(w => {
-      const windowStart = new Date(w.windowStart);
-      return windowStart >= new Date(fiveHoursAgo);
-    });
-
-    // Calculate current window usage
-    const tokensUsedInCurrentWindow = currentWindow?.tokensUsed ?? 0;
-    const windowStartedAt = currentWindow?.windowStart ?? apiKeyRow.lastUsed;
-    const windowEndsAt = currentWindow
-      ? new Date(new Date(currentWindow.windowStart).getTime() + 5 * 60 * 60 * 1000).toISOString()
-      : new Date(new Date(apiKeyRow.lastUsed).getTime() + 5 * 60 * 60 * 1000).toISOString();
-
-    const remainingTokens = Math.max(0, apiKeyRow.tokenLimitPer5h - tokensUsedInCurrentWindow);
-
-    // Map to StatsResponse interface
-    return {
-      key: apiKeyRow.key,
-      name: apiKeyRow.name,
-      model: apiKeyRow.model ?? '',
-      token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
-      expiry_date: apiKeyRow.expiryDate,
-      created_at: apiKeyRow.createdAt,
-      last_used: apiKeyRow.lastUsed,
-      is_expired: isExpired,
-      current_usage: {
-        tokens_used_in_current_window: tokensUsedInCurrentWindow,
-        window_started_at: windowStartedAt,
-        window_ends_at: windowEndsAt,
-        remaining_tokens: remainingTokens,
-      },
-      total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to get API key stats: ${errorMessage}`);
+  if (!key || !key.trim()) {
+    throw new ValidationError('API key is required and cannot be empty', 'key', key);
   }
+
+  return withErrorHandling(
+    'getKeyStats',
+    async ({ db, type }) => {
+      // Select the appropriate tables based on database type
+      const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+      const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+      // Query the API key
+      const result = await db.select().from(table).where(eq(table.key, key)).limit(1);
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      const apiKeyRow = result[0];
+
+      // Calculate if key is expired
+      const now = new Date();
+      const expiryDate = new Date(apiKeyRow.expiryDate);
+      const isExpired = expiryDate < now;
+
+      // Get usage windows within the last 5 hours for current window calculation
+      const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+
+      // Get all usage windows for total calculation
+      const allUsageWindows = await db
+        .select()
+        .from(usageTable)
+        .where(eq(usageTable.apiKey, key))
+        .orderBy(desc(usageTable.windowStart));
+
+      // Get current window (most recent window within 5 hours)
+      const currentWindow = allUsageWindows.find(w => {
+        const windowStart = new Date(w.windowStart);
+        return windowStart >= new Date(fiveHoursAgo);
+      });
+
+      // Calculate current window usage
+      const tokensUsedInCurrentWindow = currentWindow?.tokensUsed ?? 0;
+      const windowStartedAt = currentWindow?.windowStart ?? apiKeyRow.lastUsed;
+      const windowEndsAt = currentWindow
+        ? new Date(new Date(currentWindow.windowStart).getTime() + 5 * 60 * 60 * 1000).toISOString()
+        : new Date(new Date(apiKeyRow.lastUsed).getTime() + 5 * 60 * 60 * 1000).toISOString();
+
+      const remainingTokens = Math.max(0, apiKeyRow.tokenLimitPer5h - tokensUsedInCurrentWindow);
+
+      // Map to StatsResponse interface
+      return {
+        key: apiKeyRow.key,
+        name: apiKeyRow.name,
+        model: apiKeyRow.model ?? '',
+        token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+        expiry_date: apiKeyRow.expiryDate,
+        created_at: apiKeyRow.createdAt,
+        last_used: apiKeyRow.lastUsed,
+        is_expired: isExpired,
+        current_usage: {
+          tokens_used_in_current_window: tokensUsedInCurrentWindow,
+          window_started_at: windowStartedAt,
+          window_ends_at: windowEndsAt,
+          remaining_tokens: remainingTokens,
+        },
+        total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+      };
+    },
+    { key: key.substring(0, 10) + '...' }
+  );
 }
 
 /**
@@ -505,58 +711,57 @@ export async function getAllApiKeys(
   const { limit = 100, offset = 0 } = options;
 
   if (limit <= 0) {
-    throw new Error('Limit must be greater than 0');
+    throw new ValidationError('Limit must be greater than 0', 'limit', limit);
   }
 
   if (offset < 0) {
-    throw new Error('Offset must be non-negative');
+    throw new ValidationError('Offset must be non-negative', 'offset', offset);
   }
 
-  try {
-    const { db, type } = await getDb();
+  return withErrorHandling(
+    'getAllApiKeys',
+    async ({ db, type }) => {
+      // Select the appropriate tables based on database type
+      const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+      const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
 
-    // Select the appropriate tables based on database type
-    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
-    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+      // Query all API keys with pagination
+      const result = await db
+        .select()
+        .from(table)
+        .orderBy(desc(table.createdAt))
+        .limit(limit)
+        .offset(offset);
 
-    // Query all API keys with pagination
-    const result = await db
-      .select()
-      .from(table)
-      .orderBy(desc(table.createdAt))
-      .limit(limit)
-      .offset(offset);
+      // For each key, fetch its usage windows
+      const keysWithUsage: ApiKey[] = await Promise.all(
+        result.map(async (apiKeyRow) => {
+          const usageWindows = await db
+            .select()
+            .from(usageTable)
+            .where(eq(usageTable.apiKey, apiKeyRow.key));
 
-    // For each key, fetch its usage windows
-    const keysWithUsage: ApiKey[] = await Promise.all(
-      result.map(async (apiKeyRow) => {
-        const usageWindows = await db
-          .select()
-          .from(usageTable)
-          .where(eq(usageTable.apiKey, apiKeyRow.key));
+          return {
+            key: apiKeyRow.key,
+            name: apiKeyRow.name,
+            model: apiKeyRow.model ?? undefined,
+            token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+            expiry_date: apiKeyRow.expiryDate,
+            created_at: apiKeyRow.createdAt,
+            last_used: apiKeyRow.lastUsed,
+            total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+            usage_windows: usageWindows.map(w => ({
+              window_start: w.windowStart,
+              tokens_used: w.tokensUsed,
+            })),
+          };
+        })
+      );
 
-        return {
-          key: apiKeyRow.key,
-          name: apiKeyRow.name,
-          model: apiKeyRow.model ?? undefined,
-          token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
-          expiry_date: apiKeyRow.expiryDate,
-          created_at: apiKeyRow.createdAt,
-          last_used: apiKeyRow.lastUsed,
-          total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
-          usage_windows: usageWindows.map(w => ({
-            window_start: w.windowStart,
-            tokens_used: w.tokensUsed,
-          })),
-        };
-      })
-    );
-
-    return keysWithUsage;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to get all API keys: ${errorMessage}`);
-  }
+      return keysWithUsage;
+    },
+    { limit, offset }
+  );
 }
 
 /**
@@ -575,53 +780,52 @@ export async function getAllApiKeys(
  */
 export async function findKeysByModel(model: string): Promise<ApiKey[]> {
   if (!model || !model.trim()) {
-    throw new Error('Model name is required and cannot be empty');
+    throw new ValidationError('Model name is required and cannot be empty', 'model', model);
   }
 
-  try {
-    const { db, type } = await getDb();
+  return withErrorHandling(
+    'findKeysByModel',
+    async ({ db, type }) => {
+      // Select the appropriate tables based on database type
+      const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+      const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
 
-    // Select the appropriate tables based on database type
-    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
-    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+      // Query API keys by model
+      const result = await db
+        .select()
+        .from(table)
+        .where(eq(table.model, model))
+        .orderBy(desc(table.createdAt));
 
-    // Query API keys by model
-    const result = await db
-      .select()
-      .from(table)
-      .where(eq(table.model, model))
-      .orderBy(desc(table.createdAt));
+      // For each key, fetch its usage windows
+      const keysWithUsage: ApiKey[] = await Promise.all(
+        result.map(async (apiKeyRow) => {
+          const usageWindows = await db
+            .select()
+            .from(usageTable)
+            .where(eq(usageTable.apiKey, apiKeyRow.key));
 
-    // For each key, fetch its usage windows
-    const keysWithUsage: ApiKey[] = await Promise.all(
-      result.map(async (apiKeyRow) => {
-        const usageWindows = await db
-          .select()
-          .from(usageTable)
-          .where(eq(usageTable.apiKey, apiKeyRow.key));
+          return {
+            key: apiKeyRow.key,
+            name: apiKeyRow.name,
+            model: apiKeyRow.model ?? undefined,
+            token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+            expiry_date: apiKeyRow.expiryDate,
+            created_at: apiKeyRow.createdAt,
+            last_used: apiKeyRow.lastUsed,
+            total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+            usage_windows: usageWindows.map(w => ({
+              window_start: w.windowStart,
+              tokens_used: w.tokensUsed,
+            })),
+          };
+        })
+      );
 
-        return {
-          key: apiKeyRow.key,
-          name: apiKeyRow.name,
-          model: apiKeyRow.model ?? undefined,
-          token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
-          expiry_date: apiKeyRow.expiryDate,
-          created_at: apiKeyRow.createdAt,
-          last_used: apiKeyRow.lastUsed,
-          total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
-          usage_windows: usageWindows.map(w => ({
-            window_start: w.windowStart,
-            tokens_used: w.tokensUsed,
-          })),
-        };
-      })
-    );
-
-    return keysWithUsage;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to find API keys by model: ${errorMessage}`);
-  }
+      return keysWithUsage;
+    },
+    { model }
+  );
 }
 
 /**
@@ -643,52 +847,51 @@ export async function findKeysByModel(model: string): Promise<ApiKey[]> {
  * ```
  */
 export async function findExpiredKeys(): Promise<ApiKey[]> {
-  try {
-    const { db, type } = await getDb();
+  const now = new Date().toISOString();
 
-    // Select the appropriate tables based on database type
-    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
-    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+  return withErrorHandling(
+    'findExpiredKeys',
+    async ({ db, type }) => {
+      // Select the appropriate tables based on database type
+      const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+      const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
 
-    const now = new Date().toISOString();
+      // Query expired API keys
+      const result = await db
+        .select()
+        .from(table)
+        .where(lt(table.expiryDate, now))
+        .orderBy(desc(table.expiryDate));
 
-    // Query expired API keys
-    const result = await db
-      .select()
-      .from(table)
-      .where(lt(table.expiryDate, now))
-      .orderBy(desc(table.expiryDate));
+      // For each key, fetch its usage windows
+      const keysWithUsage: ApiKey[] = await Promise.all(
+        result.map(async (apiKeyRow) => {
+          const usageWindows = await db
+            .select()
+            .from(usageTable)
+            .where(eq(usageTable.apiKey, apiKeyRow.key));
 
-    // For each key, fetch its usage windows
-    const keysWithUsage: ApiKey[] = await Promise.all(
-      result.map(async (apiKeyRow) => {
-        const usageWindows = await db
-          .select()
-          .from(usageTable)
-          .where(eq(usageTable.apiKey, apiKeyRow.key));
+          return {
+            key: apiKeyRow.key,
+            name: apiKeyRow.name,
+            model: apiKeyRow.model ?? undefined,
+            token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+            expiry_date: apiKeyRow.expiryDate,
+            created_at: apiKeyRow.createdAt,
+            last_used: apiKeyRow.lastUsed,
+            total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+            usage_windows: usageWindows.map(w => ({
+              window_start: w.windowStart,
+              tokens_used: w.tokensUsed,
+            })),
+          };
+        })
+      );
 
-        return {
-          key: apiKeyRow.key,
-          name: apiKeyRow.name,
-          model: apiKeyRow.model ?? undefined,
-          token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
-          expiry_date: apiKeyRow.expiryDate,
-          created_at: apiKeyRow.createdAt,
-          last_used: apiKeyRow.lastUsed,
-          total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
-          usage_windows: usageWindows.map(w => ({
-            window_start: w.windowStart,
-            tokens_used: w.tokensUsed,
-          })),
-        };
-      })
-    );
-
-    return keysWithUsage;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to find expired API keys: ${errorMessage}`);
-  }
+      return keysWithUsage;
+    },
+    { timestamp: now }
+  );
 }
 
 /**
@@ -711,50 +914,49 @@ export async function findExpiredKeys(): Promise<ApiKey[]> {
  * ```
  */
 export async function findActiveKeys(): Promise<ApiKey[]> {
-  try {
-    const { db, type } = await getDb();
+  const now = new Date().toISOString();
 
-    // Select the appropriate tables based on database type
-    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
-    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+  return withErrorHandling(
+    'findActiveKeys',
+    async ({ db, type }) => {
+      // Select the appropriate tables based on database type
+      const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+      const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
 
-    const now = new Date().toISOString();
+      // Query active API keys
+      const result = await db
+        .select()
+        .from(table)
+        .where(gte(table.expiryDate, now))
+        .orderBy(desc(table.createdAt));
 
-    // Query active API keys
-    const result = await db
-      .select()
-      .from(table)
-      .where(gte(table.expiryDate, now))
-      .orderBy(desc(table.createdAt));
+      // For each key, fetch its usage windows
+      const keysWithUsage: ApiKey[] = await Promise.all(
+        result.map(async (apiKeyRow) => {
+          const usageWindows = await db
+            .select()
+            .from(usageTable)
+            .where(eq(usageTable.apiKey, apiKeyRow.key));
 
-    // For each key, fetch its usage windows
-    const keysWithUsage: ApiKey[] = await Promise.all(
-      result.map(async (apiKeyRow) => {
-        const usageWindows = await db
-          .select()
-          .from(usageTable)
-          .where(eq(usageTable.apiKey, apiKeyRow.key));
+          return {
+            key: apiKeyRow.key,
+            name: apiKeyRow.name,
+            model: apiKeyRow.model ?? undefined,
+            token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+            expiry_date: apiKeyRow.expiryDate,
+            created_at: apiKeyRow.createdAt,
+            last_used: apiKeyRow.lastUsed,
+            total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+            usage_windows: usageWindows.map(w => ({
+              window_start: w.windowStart,
+              tokens_used: w.tokensUsed,
+            })),
+          };
+        })
+      );
 
-        return {
-          key: apiKeyRow.key,
-          name: apiKeyRow.name,
-          model: apiKeyRow.model ?? undefined,
-          token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
-          expiry_date: apiKeyRow.expiryDate,
-          created_at: apiKeyRow.createdAt,
-          last_used: apiKeyRow.lastUsed,
-          total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
-          usage_windows: usageWindows.map(w => ({
-            window_start: w.windowStart,
-            tokens_used: w.tokensUsed,
-          })),
-        };
-      })
-    );
-
-    return keysWithUsage;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to find active API keys: ${errorMessage}`);
-  }
+      return keysWithUsage;
+    },
+    { timestamp: now }
+  );
 }
