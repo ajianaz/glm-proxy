@@ -1,4 +1,4 @@
-import { getAllApiKeys } from './src/api-key-manager.js';
+import { getAllApiKeys, createApiKey, ValidationError, ApiKeyManagerError } from './src/api-key-manager.js';
 
 /**
  * WebSocket client tracking for real-time updates
@@ -214,13 +214,135 @@ async function handleRequest(req: Request): Promise<Response> {
 
     if (pathname === '/api/keys' && req.method === 'POST') {
       // POST /api/keys - Create new API key
-      return new Response(
-        JSON.stringify({ error: 'Not implemented yet' }),
-        {
-          status: 501,
-          headers: { 'Content-Type': 'application/json' },
+      try {
+        // Parse request body
+        const body = await req.json();
+
+        // Validate required fields
+        if (!body.key || typeof body.key !== 'string') {
+          return new Response(
+            JSON.stringify({ error: 'API key is required and must be a string' }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
         }
-      );
+
+        if (!body.name || typeof body.name !== 'string') {
+          return new Response(
+            JSON.stringify({ error: 'Name is required and must be a string' }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        if (body.token_limit_per_5h === undefined || typeof body.token_limit_per_5h !== 'number') {
+          return new Response(
+            JSON.stringify({ error: 'Token limit is required and must be a number' }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        if (!body.expiry_date || typeof body.expiry_date !== 'string') {
+          return new Response(
+            JSON.stringify({ error: 'Expiry date is required and must be a string' }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        // Validate optional model field
+        if (body.model !== undefined && typeof body.model !== 'string') {
+          return new Response(
+            JSON.stringify({ error: 'Model must be a string if provided' }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        // Prepare API key object with defaults
+        const now = new Date().toISOString();
+        const newApiKey = {
+          key: body.key,
+          name: body.name,
+          model: body.model,
+          token_limit_per_5h: body.token_limit_per_5h,
+          expiry_date: body.expiry_date,
+          created_at: now,
+          last_used: now,
+          total_lifetime_tokens: 0,
+          usage_windows: [],
+        };
+
+        // Create the API key
+        const createdKey = await createApiKey(newApiKey);
+
+        // Broadcast creation to WebSocket clients
+        broadcast({
+          type: 'key_created',
+          key: createdKey,
+          timestamp: now,
+        });
+
+        return new Response(JSON.stringify(createdKey), {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      } catch (error) {
+        // Handle validation errors
+        if (error instanceof ValidationError) {
+          return new Response(
+            JSON.stringify({
+              error: 'Validation failed',
+              message: error.message,
+            }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        // Handle duplicate key errors (still a validation error)
+        if (error instanceof ApiKeyManagerError && error.code === 'VALIDATION_ERROR') {
+          return new Response(
+            JSON.stringify({
+              error: 'Validation failed',
+              message: error.message,
+            }),
+            {
+              status: 409,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        // Handle other errors
+        console.error('Error creating API key:', error);
+        return new Response(
+          JSON.stringify({
+            error: 'Failed to create API key',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          }),
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          }
+        );
+      }
     }
 
     // PUT /api/keys/:id - Update API key
