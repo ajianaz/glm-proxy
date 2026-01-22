@@ -379,6 +379,61 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - React best practices with hooks (useState, useEffect)
   - Accessible UI with proper labels, ARIA attributes, and keyboard navigation
   - Manual verification completed: Form opens, validates, submits, and closes correctly
+- ✅ [2026-01-22] Subtask 3.4 - Build usage visualization components
+  - Created comprehensive src/components/UsageVisualization.tsx (490 lines)
+  - Implemented overview statistics cards with metrics:
+    * Total API Keys count with active/expired breakdown
+    * Total Quota (5h window) across all keys
+    * Current Usage (5h window) with average percentage and progress bar
+    * Lifetime Tokens total consumption
+  - Created Top Consumer card highlighting highest usage key
+    * Displays key name, ID, usage percentage, and token consumption
+    * Color-coded progress bar based on usage thresholds
+  - Implemented Top Keys by Usage chart:
+    * Shows top 10 keys ranked by current window usage
+    * Displays rank, name, model, usage percentage bar, and token counts
+    * Color-coded bars (green < 70%, yellow 70-90%, red ≥ 90%)
+  - Created Quota Distribution by Model chart:
+    * Groups usage by model for easier analysis
+    * Shows quota allocation vs actual usage per model
+    * Helps identify which models are most heavily used
+  - Implemented detailed key stats view:
+    * Shows when a key is focused via onFocus callback
+    * Displays key ID, model, quota limit, current window times
+    * Shows usage percentage, remaining quota, lifetime usage, last used timestamp
+  - All visualizations use utility functions:
+    * calculateUsagePercent(): Computes current 5h window usage
+    * calculateRemainingQuota(): Calculates remaining tokens in current window
+    * formatNumber(): Formats numbers with commas
+    * formatDate(): Formats dates in readable format
+    * getUsageColor(): Returns color based on usage percentage thresholds
+  - Added comprehensive CSS styles (dashboard.css +400 lines):
+    * .stats-grid: Responsive grid layout for stat cards
+    * .stat-card variants: primary, success, warning, info with colored borders
+    * .progress-bar and .progress-bar-fill: Animated progress indicators
+    * .top-consumer-card: Highlight card for top consumer with gradient background
+    * .usage-chart-card, .quota-distribution-card: Chart containers with headers
+    * .chart-row: Horizontal bar chart rows with labels, bars, and values
+    * .key-detail-card: Detailed stats display with 2-column grid
+    * Fully responsive with mobile, tablet, and desktop breakpoints
+  - Updated App.tsx:
+    * Imported and integrated UsageVisualization component
+    * Added focusKey state management
+    * Removed old basic stats cards (replaced by enhanced visualization)
+    * Added "Clear Focus" button to dismiss detailed key view
+  - Updated ApiKeyTable.tsx:
+    * Added onFocus prop to interface
+    * Added focus button (📊) to action buttons
+    * Focus button allows users to see detailed stats for specific keys
+  - All TypeScript compilation successful with no errors
+  - No console.log debugging statements (only console.error for errors)
+  - Build verification successful (bundled to 1.0 MB)
+  - Server tested and working correctly on port 3001
+  - All visualizations render correctly with real data
+  - Follows existing code patterns from App.tsx and ApiKeyTable.tsx
+  - React best practices with hooks (useState, useMemo)
+  - Accessible UI with proper labels and semantic HTML
+  - Manual verification completed: All charts, progress bars, and statistics cards display correctly
 
 ### Phase Breakdown
 

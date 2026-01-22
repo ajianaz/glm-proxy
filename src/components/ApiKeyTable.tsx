@@ -83,6 +83,8 @@ function isKeyExpired(key: ApiKey): boolean {
 interface ApiKeyTableProps {
   /** Callback when edit button is clicked */
   onEdit?: (key: ApiKey) => void;
+  /** Callback when focus button is clicked */
+  onFocus?: (keyId: string) => void;
 }
 
 /**
@@ -90,7 +92,7 @@ interface ApiKeyTableProps {
  *
  * Displays API keys in a sortable, filterable table with actions.
  */
-export default function ApiKeyTable({ onEdit }: ApiKeyTableProps): React.JSX.Element {
+export default function ApiKeyTable({ onEdit, onFocus }: ApiKeyTableProps): React.JSX.Element {
   const { apiKeys, updateKey, deleteKey } = useApp();
 
   // State for sorting and filtering
@@ -419,6 +421,15 @@ export default function ApiKeyTable({ onEdit }: ApiKeyTableProps): React.JSX.Ele
                     {/* Actions */}
                     <td className="cell-actions">
                       <div className="action-buttons">
+                        {onFocus && (
+                          <button
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => onFocus(key.key)}
+                            title="View details"
+                          >
+                            📊
+                          </button>
+                        )}
                         <button
                           className="btn btn-sm btn-ghost"
                           onClick={() => handleEdit(key.key)}

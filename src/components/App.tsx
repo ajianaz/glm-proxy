@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import ApiKeyTable from './ApiKeyTable';
 import ApiKeyForm from './ApiKeyForm';
+import UsageVisualization from './UsageVisualization';
 import type { ApiKey } from '../types';
 
 /**
@@ -328,6 +329,7 @@ function AppContent(): React.JSX.Element {
   const { apiKeys, isLoading, error, isConnected } = useApp();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingKey, setEditingKey] = useState<ApiKey | undefined>(undefined);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -358,21 +360,8 @@ function AppContent(): React.JSX.Element {
         </span>
       </div>
 
-      {/* Stats Overview */}
-      <div className="stats-overview">
-        <div className="stat-card">
-          <h3>Total API Keys</h3>
-          <p className="stat-value">{apiKeys.length}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Active Keys</h3>
-          <p className="stat-value">{apiKeys.filter((key) => new Date(key.expiry_date) > new Date()).length}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Expired Keys</h3>
-          <p className="stat-value">{apiKeys.filter((key) => new Date(key.expiry_date) <= new Date()).length}</p>
-        </div>
-      </div>
+      {/* Usage Visualization */}
+      <UsageVisualization focusKey={focusKey} />
 
       {/* Action Bar */}
       <div className="action-bar">
@@ -382,11 +371,20 @@ function AppContent(): React.JSX.Element {
         >
           + Create New Key
         </button>
+        {focusKey && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => setFocusKey(null)}
+          >
+            Clear Focus
+          </button>
+        )}
       </div>
 
       {/* API Key Table */}
       <ApiKeyTable
         onEdit={(key) => setEditingKey(key)}
+        onFocus={(keyId) => setFocusKey(keyId)}
       />
 
       {/* Create/Edit Form Modal */}
