@@ -228,17 +228,20 @@
       "id": "phase-4",
       "name": "Caching & Request Optimization",
       "description": "Implement smart caching and request optimization",
-      "status": "pending",
+      "status": "in_progress",
       "subtasks": [
         {
           "id": "4.1",
           "title": "Response Caching Layer",
           "description": "Add optional caching for identical requests",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "src/cache/CacheManager.ts",
+            "src/cache/types.ts",
             "src/cache/CacheKey.ts",
-            "src/cache/CacheStore.ts"
+            "src/cache/CacheStore.ts",
+            "src/cache/CacheManager.ts",
+            "src/cache/index.ts",
+            "test/cache.test.ts"
           ],
           "acceptance_criteria": [
             "Configurable cache (disabled by default)",
@@ -247,7 +250,8 @@
             "Cache size limits with LRU eviction",
             "Cache hit/miss metrics",
             "Support for streaming cache responses"
-          ]
+          ],
+          "notes": "Successfully implemented comprehensive response caching layer. Created CacheStore with O(1) get/set operations, LRU eviction, and TTL-based expiration. Implemented CacheKey generator using SHA-256 hashing of model+messages+params. Built CacheManager with global singleton pattern and environment variable configuration (CACHE_ENABLED, CACHE_TTL_MS, CACHE_MAX_SIZE). Added comprehensive metrics tracking (hits, misses, hit rate, lookup times, evictions). Supports both buffered and streaming responses. Periodic cleanup every 60s. All 53 tests passing. All acceptance criteria met - cache is configurable via environment and disabled by default, deterministic cache keys, TTL expiration, LRU eviction, comprehensive metrics, and streaming response support."
         },
         {
           "id": "4.2",
