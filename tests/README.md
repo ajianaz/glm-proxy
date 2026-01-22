@@ -50,6 +50,26 @@ Comprehensive integration tests for all API endpoints:
 - **CORS headers** - Verify CORS configuration
 - **Error handling** - Test various error scenarios
 
+### `websocket.test.ts`
+
+Comprehensive integration tests for WebSocket real-time updates:
+
+- **WebSocket Connection** - Connection establishment and authentication
+- **Key Created Events** - Broadcast when API keys are created
+- **Key Updated Events** - Broadcast when API keys are updated
+- **Key Deleted Events** - Broadcast when API keys are deleted
+- **Usage Updated Events** - Broadcast when usage is tracked
+- **Multiple Clients** - Broadcasts to all connected clients
+- **Event Ordering** - Event ordering for rapid updates
+- **Error Handling** - Graceful error handling and recovery
+- **Real-time Integration** - End-to-end real-time update scenarios
+
+#### Run WebSocket Tests
+
+```bash
+bun run test:websocket
+```
+
 ## Test Coverage
 
 The API tests cover:
@@ -99,5 +119,5 @@ Tests use timestamps and random strings to ensure unique test keys and avoid con
 - [ ] Add automatic server startup/teardown
 - [ ] Add test database isolation
 - [ ] Add performance/load testing
-- [ ] Add WebSocket real-time update tests
+- [x] Add WebSocket real-time update tests ✅
 - [ ] Add authentication tests
