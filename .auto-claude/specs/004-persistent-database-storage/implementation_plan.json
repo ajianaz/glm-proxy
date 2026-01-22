@@ -2,7 +2,7 @@
   "feature": "Persistent Database Storage",
   "description": "# Persistent Database Storage\n\nReplace file-based storage with SQLite or PostgreSQL and Drizzle ORM for API keys, usage data, and configuration. Includes migration tool and data backup/restore functionality.\n\n## Rationale\nCurrent file-based storage doesn't support high concurrency and prevents horizontal scaling. Database enables multiple instances to share state and is critical for production deployments. Addresses major technical debt.\n\n## User Stories\n- As a production engineer, I want database-backed storage so that we can scale horizontally with multiple instances\n- As a DevOps engineer, I want automatic backups so that we don't lose API key data\n- As a developer, I want easy migration from file-based to database storage so that upgrading is seamless\n\n## Acceptance Criteria\n- [ ] SQLite support for simple deployments (zero external dependencies)\n- [ ] PostgreSQL support for production deployments\n- [ ] Migration tool to convert existing apikeys.json to database\n- [ ] Database schema supports all current API key fields\n- [ ] Database operations use transactions for consistency\n- [ ] Connection pooling for performance\n- [ ] Backup and restore functionality\n- [ ] Database health checks and connection error handling\n- [ ] Backward compatibility with file-based storage during transition period",
   "created_at": "2026-01-22T03:27:58.071Z",
-  "updated_at": "2026-01-22T05:57:42.599Z",
+  "updated_at": "2026-01-22T06:05:09.912Z",
   "status": "in_progress",
   "phases": [
     {
@@ -553,13 +553,13 @@
       "id": "phase-7",
       "name": "Testing",
       "description": "Write comprehensive tests for all database operations, migration, and backup/restore functionality",
-      "status": "pending",
+      "status": "in_progress",
       "subtasks": [
         {
           "id": "7.1",
           "name": "Test database schema",
           "description": "Verify schema creation and constraints",
-          "status": "pending",
+          "status": "completed",
           "files": [
             "test/db/schema.test.ts"
           ],
@@ -568,7 +568,9 @@
             "Indexes work as expected",
             "Foreign key constraints enforced",
             "Unique constraints on key field"
-          ]
+          ],
+          "completed_at": "2026-01-22T06:08:00.000Z",
+          "notes": "Created comprehensive schema verification tests in test/db/schema.test.ts with 17 passing tests:\n\n**Table Creation Tests (5 tests):**\n- api_keys table exists\n- usage_windows table exists\n- api_keys has correct columns (key, name, model, token_limit_per_5h, expiry_date, created_at, last_used, total_lifetime_tokens)\n- usage_windows has correct columns (id, api_key, window_start, tokens_used)\n- api_keys.key is primary key\n\n**Index Tests (5 tests):**\n- Index on api_keys.last_used (api_keys_last_used_idx)\n- Index on api_keys.expiry_date (api_keys_expiry_date_idx)\n- Index on usage_windows.api_key (usage_windows_api_key_idx)\n- Index on usage_windows.window_start (usage_windows_window_start_idx)\n- Composite index on (api_key, window_start) (usage_windows_api_key_window_start_idx)\n\n**Foreign Key Constraints Tests (2 tests):**\n- usage_windows.api_key references api_keys.key\n- Cascade delete on api_key deletion (verified usage windows are deleted when parent key is deleted)\n\n**Unique Constraints Tests (2 tests):**\n- Primary key uniqueness constraint (duplicate key insertion rejected)\n- Different keys can coexist (unique keys work correctly)\n\n**Data Types and Constraints Tests (3 tests):**\n- NOT NULL constraints enforced (name, token_limit_per_5h)\n- Default value for total_lifetime_tokens is 0\n- Default value for tokens_used is 0\n\n**Database Support:**\n- Works with both SQLite (bun:sqlite) and PostgreSQL (postgres driver)\n- Database-specific SQL queries for schema verification (PRAGMA for SQLite, information_schema for PostgreSQL)\n- Type detection and appropriate query execution\n\n**Code Quality:**\n- Follows existing test patterns from src/db/connection.test.ts and src/db/operations.test.ts\n- No console.log statements\n- Proper test data isolation (unique keys per test suite)\n- Comprehensive cleanup in afterAll hooks\n- TypeScript compilation verified\n- ESLint validation passed\n\n**Integration:**\n- All 17 schema tests passing\n- All 144 total database tests passing (no regressions)\n- Tests verified with bun test\n\nAll acceptance criteria met:\n✅ Tables created correctly (5 tests verify table and column existence)\n✅ Indexes work as expected (5 tests verify all indexes exist)\n✅ Foreign key constraints enforced (2 tests verify FK reference and cascade delete)\n✅ Unique constraints on key field (2 tests verify primary key uniqueness)"
         },
         {
           "id": "7.2",

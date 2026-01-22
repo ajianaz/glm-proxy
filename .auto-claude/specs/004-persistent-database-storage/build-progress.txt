@@ -48,8 +48,8 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ Error handling (COMPLETED: 6.4)
 - ✅ HTTP health endpoint (COMPLETED: 6.5)
 
-### Phase 7: Testing [PENDING]
-- Schema tests
+### Phase 7: Testing [IN PROGRESS]
+- ✅ Schema tests (COMPLETED: 7.1)
 - CRUD tests
 - Usage tracking tests
 - Migration tests
@@ -80,6 +80,51 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 6. Implement storage abstraction layer (NEXT: Phase 3)
 
 ## Completed Tasks
+- **7.1** Test database schema (COMPLETED)
+  - Created test/db/schema.test.ts with comprehensive schema verification
+  - 17 comprehensive tests covering all schema aspects:
+    * Table Creation Tests (5 tests):
+      - api_keys table exists
+      - usage_windows table exists
+      - api_keys has correct columns (key, name, model, token_limit_per_5h, expiry_date, created_at, last_used, total_lifetime_tokens)
+      - usage_windows has correct columns (id, api_key, window_start, tokens_used)
+      - api_keys.key is primary key
+    * Index Tests (5 tests):
+      - Index on api_keys.last_used (api_keys_last_used_idx)
+      - Index on api_keys.expiry_date (api_keys_expiry_date_idx)
+      - Index on usage_windows.api_key (usage_windows_api_key_idx)
+      - Index on usage_windows.window_start (usage_windows_window_start_idx)
+      - Composite index on (api_key, window_start) (usage_windows_api_key_window_start_idx)
+    * Foreign Key Constraints Tests (2 tests):
+      - usage_windows.api_key references api_keys.key
+      - Cascade delete on api_key deletion (verified usage windows are deleted when parent key is deleted)
+    * Unique Constraints Tests (2 tests):
+      - Primary key uniqueness constraint (duplicate key insertion rejected)
+      - Different keys can coexist (unique keys work correctly)
+    * Data Types and Constraints Tests (3 tests):
+      - NOT NULL constraints enforced (name, token_limit_per_5h)
+      - Default value for total_lifetime_tokens is 0
+      - Default value for tokens_used is 0
+  - Database Support:
+    * Works with both SQLite (bun:sqlite) and PostgreSQL (postgres driver)
+    * Database-specific SQL queries for schema verification (PRAGMA for SQLite, information_schema for PostgreSQL)
+    * Type detection and appropriate query execution
+  - Code Quality:
+    * Follows existing test patterns from connection.test.ts and operations.test.ts
+    * No console.log statements
+    * Proper test data isolation (unique keys per test suite)
+    * Comprehensive cleanup in afterAll hooks
+    * TypeScript compilation verified
+    * ESLint validation passed
+  - Integration:
+    * All 17 schema tests passing
+    * All 144 total database tests passing (no regressions)
+    * Tests verified with bun test
+  - All acceptance criteria met:
+    ✅ Tables created correctly (5 tests verify table and column existence)
+    ✅ Indexes work as expected (5 tests verify all indexes exist)
+    ✅ Foreign key constraints enforced (2 tests verify FK reference and cascade delete)
+    ✅ Unique constraints on key field (2 tests verify primary key uniqueness)
 - **4.1** Create migration CLI script (COMPLETED)
   - Created scripts/migrate.ts with comprehensive migration functionality
   - Reads apikeys.json from DATA_FILE env var or provided path via --file argument
