@@ -2,37 +2,39 @@ import { describe, it, expect, vi } from 'vitest';
 import { validateApiKey, getModelForKey } from '../src/validator.js';
 import type { ApiKey } from '../src/types.js';
 
-// Mock storage functions
-vi.mock('../src/storage.js', () => ({
-  findApiKey: async (key: string) => {
-    if (key === 'pk_valid_key') {
-      return {
-        key: 'pk_valid_key',
-        name: 'Test User',
-        model: 'glm-4.7',
-        token_limit_per_5h: 100000,
-        expiry_date: '2026-12-31T23:59:59Z',
-        created_at: '2026-01-18T00:00:00Z',
-        last_used: '2026-01-18T00:00:00Z',
-        total_lifetime_tokens: 0,
-        usage_windows: [],
-      } as ApiKey;
-    }
-    if (key === 'pk_expired_key') {
-      return {
-        key: 'pk_expired_key',
-        name: 'Expired User',
-        model: 'glm-4.7',
-        token_limit_per_5h: 100000,
-        expiry_date: '2024-01-01T00:00:00Z',
-        created_at: '2023-01-18T00:00:00Z',
-        last_used: '2023-01-18T00:00:00Z',
-        total_lifetime_tokens: 0,
-        usage_windows: [],
-      } as ApiKey;
-    }
-    return null;
-  },
+// Mock storage interface
+vi.mock('../src/storage/index.js', () => ({
+  getStorage: async () => ({
+    findApiKey: async (key: string) => {
+      if (key === 'pk_valid_key') {
+        return {
+          key: 'pk_valid_key',
+          name: 'Test User',
+          model: 'glm-4.7',
+          token_limit_per_5h: 100000,
+          expiry_date: '2026-12-31T23:59:59Z',
+          created_at: '2026-01-18T00:00:00Z',
+          last_used: '2026-01-18T00:00:00Z',
+          total_lifetime_tokens: 0,
+          usage_windows: [],
+        } as ApiKey;
+      }
+      if (key === 'pk_expired_key') {
+        return {
+          key: 'pk_expired_key',
+          name: 'Expired User',
+          model: 'glm-4.7',
+          token_limit_per_5h: 100000,
+          expiry_date: '2024-01-01T00:00:00Z',
+          created_at: '2023-01-18T00:00:00Z',
+          last_used: '2023-01-18T00:00:00Z',
+          total_lifetime_tokens: 0,
+          usage_windows: [],
+        } as ApiKey;
+      }
+      return null;
+    },
+  }),
 }));
 
 describe('Validator', () => {

@@ -22,7 +22,14 @@
     "test:coverage:watch": "vitest --coverage",
     "test:coverage:unit": "vitest run --coverage",
     "test:coverage:integration": "bun test --coverage test/integration",
-    "security-scan": "./scripts/security-scan.sh"
+    "security-scan": "./scripts/security-scan.sh",
+    "migrate": "bun scripts/migrate.ts",
+    "migrate:dry-run": "bun scripts/migrate.ts --dry-run",
+    "migrate:force": "bun scripts/migrate.ts --force",
+    "backup": "bun scripts/backup.ts",
+    "backup:list": "bun scripts/backup.ts --list",
+    "backup:compress": "bun scripts/backup.ts --compress",
+    "restore": "bun scripts/restore.ts"
   },
   "private": true,
   "devDependencies": {
@@ -32,6 +39,8 @@
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",
     "@vitest/coverage-v8": "^4.0.17",
+    "better-sqlite3": "^12.6.2",
+    "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.2",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
@@ -41,8 +50,10 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.1",
     "hono": "^4.11.4",
     "jose": "^6.1.3",
+    "postgres": "^3.4.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zod": "^4.3.5"
