@@ -176,9 +176,33 @@ Optimize rate limiting from O(n) to O(1) complexity by implementing a rolling wi
     * Conclusion: O(1) complexity confirmed ✅
   - All tests passing: 37/37 rolling window tests, 12/12 rate limit tests (49/49 total)
 
-**Phase 7: Documentation and Cleanup** (2 subtasks)
-- Update README and documentation
-- Code cleanup and optimization
+**Phase 7: Documentation and Cleanup** (In Progress) 🚧
+- [x] **phase-7-subtask-1**: Update README and documentation ✅ COMPLETED
+  - Documented the new rolling window algorithm and performance improvements
+  - Added comprehensive O(1) rolling window algorithm documentation to README.md:
+    * Algorithm explanation with time-bucket aggregation
+    * Data structure and implementation details
+    * Performance comparison table (3.31x speedup for 1000 windows)
+  - Added Architecture section:
+    * O(n) vs O(1) algorithm comparison with code examples
+    * Hybrid approach explanation (lazy migration strategy)
+    * Implementation details and configuration parameters
+  - Added Performance Characteristics section:
+    * Benchmark results for 10, 100, 1000 windows
+    * O(1) complexity verification with empirical data
+    * Real-world impact analysis (70% CPU reduction for large datasets)
+    * When to use O(1) vs O(n) guidance
+  - Added Migration Guide section:
+    * Zero-downtime migration explanation
+    * Old vs new data format comparison
+    * Verification steps for users
+  - Updated API Key Structure documentation:
+    * Added rolling_window_cache field to examples
+    * Updated field configuration table
+    * Clarified auto-creation behavior
+  - All relevant tests verified (37/37 rolling window tests, 12/12 rate limit tests)
+  - Committed with comprehensive documentation update
+- [ ] **phase-7-subtask-2**: Code cleanup and optimization
 
 ### Key Design Decisions
 
@@ -188,4 +212,4 @@ Optimize rate limiting from O(n) to O(1) complexity by implementing a rolling wi
 4. **Migration**: On-the-fly migration when keys are first accessed
 
 ### Next Steps
-Continue to phase-6-subtask-2: Run performance tests and document results
+Continue to phase-7-subtask-2: Code cleanup and optimization
