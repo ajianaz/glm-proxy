@@ -6,6 +6,9 @@ import {
   isLikelyJWT,
   type TokenValidationResult,
 } from '../utils/adminToken.js';
+import {
+  validateAdminCredential as validateCredentialHash,
+} from '../utils/adminCredentials.js';
 
 export type AdminAuthContext = {
   isAuthenticated: true;
@@ -59,7 +62,7 @@ function extractAuthCredential(headers: Headers): {
 }
 
 /**
- * Validate admin API key against configured master key
+ * Validate admin API key against configured master key (using secure hash comparison)
  * @param keyHeader - The API key from request headers
  * @returns Object with valid flag and optional error details
  */
@@ -99,8 +102,8 @@ export function validateAdminApiKey(keyHeader: string | null | undefined): {
     };
   }
 
-  // Validate against master admin key
-  if (key !== config.adminApiKey) {
+  // Validate against master admin key using secure hash comparison
+  if (!validateCredentialHash(key)) {
     return {
       valid: false,
       error: 'Invalid admin API key',
@@ -147,8 +150,8 @@ async function validateAdminCredential(credential: string | null): Promise<{
 
   const trimmedCredential = credential.trim();
 
-  // Try API key validation first
-  if (trimmedCredential === config.adminApiKey) {
+  // Try API key validation first using secure hash comparison
+  if (validateCredentialHash(trimmedCredential)) {
     return {
       valid: true,
       authMethod: 'api_key',

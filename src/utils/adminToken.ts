@@ -7,6 +7,7 @@
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { getConfig } from '../config.js';
+import { getRawAdminKey } from './adminCredentials.js';
 
 /**
  * Admin token payload structure
@@ -39,10 +40,11 @@ export interface TokenValidationResult {
  * Uses the admin API key to derive a consistent signing key
  */
 async function getSigningKey(): Promise<Uint8Array> {
-  const config = getConfig();
   // Use the admin API key as the secret key for signing tokens
+  // We use getRawAdminKey() which retrieves the key from environment variables
+  // The key is only used for signing, never compared directly
   const encoder = new TextEncoder();
-  return encoder.encode(config.adminApiKey);
+  return encoder.encode(getRawAdminKey());
 }
 
 /**
@@ -65,10 +67,10 @@ async function getSigningKey(): Promise<Uint8Array> {
  * ```
  */
 export async function generateAdminToken(): Promise<string> {
-  const config = getConfig();
   const signingKey = await getSigningKey();
 
   // Calculate expiration time
+  const config = getConfig();
   const now = Math.floor(Date.now() / 1000);
   const exp = now + config.adminTokenExpirationSeconds;
 

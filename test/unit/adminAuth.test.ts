@@ -10,6 +10,7 @@ import {
 } from '../../src/middleware/adminAuth';
 import { generateAdminToken } from '../../src/utils/adminToken';
 import { resetConfig } from '../../src/config';
+import { resetAdminKeyCache } from '../../src/utils/adminCredentials';
 
 describe('Admin Authentication Middleware', () => {
   const testAdminKey = 'test-admin-key-12345';
@@ -18,6 +19,7 @@ describe('Admin Authentication Middleware', () => {
   beforeEach(() => {
     // Reset config before each test
     resetConfig();
+    resetAdminKeyCache();
 
     // Set up environment for testing
     process.env.ADMIN_API_KEY = testAdminKey;
@@ -397,6 +399,7 @@ describe('Admin Authentication Middleware', () => {
       const specialKey = 'test-key-123!@#$%^&*()';
       process.env.ADMIN_API_KEY = specialKey;
       resetConfig();
+      resetAdminKeyCache();
 
       const result = validateAdminApiKey(specialKey);
       expect(result.valid).toBe(true);

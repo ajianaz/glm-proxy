@@ -6,6 +6,7 @@ import {
   isLikelyJWT,
 } from '../../src/utils/adminToken';
 import { getConfig, resetConfig } from '../../src/config';
+import { resetAdminKeyCache } from '../../src/utils/adminCredentials';
 
 describe('Admin Token Utilities', () => {
   beforeAll(() => {
@@ -17,6 +18,7 @@ describe('Admin Token Utilities', () => {
 
   beforeEach(() => {
     resetConfig();
+    resetAdminKeyCache();
   });
 
   describe('generateAdminToken', () => {
