@@ -1,8 +1,25 @@
 /**
  * Admin API Routes - API Key Management
  *
- * Provides CRUD endpoints for programmatic API key management.
- * All endpoints require admin authentication via API key or JWT token.
+ * DESIGN PRINCIPLES:
+ * - RESTful API design with proper HTTP methods and status codes
+ * - Authentication required for all endpoints (API key or JWT token)
+ * - Comprehensive input validation using Zod schemas
+ * - Consistent error response format across all endpoints
+ * - Request logging for audit trail and debugging
+ *
+ * SECURITY:
+ * - All endpoints are protected by admin authentication middleware
+ * - Input validation prevents injection attacks
+ * - Error messages don't leak sensitive information
+ * - Key preview prevents accidental key exposure
+ *
+ * ERROR HANDLING STRATEGY:
+ * - Validation errors: 400 with field-level details
+ * - Authentication failures: 401 (no credentials) or 403 (service disabled)
+ * - Not found: 404 with resource identifier
+ * - Conflicts: 409 (duplicate keys)
+ * - Server errors: 500 with generic message
  */
 
 import { Hono } from 'hono';
@@ -30,6 +47,7 @@ import { formatValidationErrors } from '../../middleware/validation.js';
 const app = new Hono<{ Variables: AdminAuthContext }>();
 
 // Apply request logging middleware to all admin API routes
+// This logs method, path, status, duration, and auth method for each request
 app.use('/*', requestLoggerMiddleware);
 
 /**

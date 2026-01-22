@@ -41,6 +41,13 @@ export class ApiKeyValidationError extends Error {
 
 /**
  * Hash an API key using SHA-256
+ *
+ * SECURITY: We hash keys before storing to prevent plaintext exposure in the database.
+ * SHA-256 is sufficient for this use case because:
+ * - API keys are random strings with high entropy (not passwords)
+ * - We're not protecting against brute force (keys are long and random)
+ * - Fast hash allows quick authentication lookups
+ *
  * @param key - The raw API key to hash
  * @returns Hex-encoded SHA-256 hash
  */
@@ -53,6 +60,15 @@ function hashApiKeySync(key: string): string {
 /**
  * Generate a safe preview of the API key
  * Shows first 8 and last 4 characters with asterisks in between
+ *
+ * SECURITY: We never return the full API key in responses to prevent:
+ * - Accidental exposure in logs or monitoring systems
+ * - Unauthorized access if API responses are cached or logged
+ * - Key leakage through browser extensions or developer tools
+ *
+ * The preview (first 8 + last 4) is sufficient for users to identify keys
+ * without revealing enough information to be useful to attackers.
+ *
  * @param key - The raw API key
  * @returns Masked key preview
  */
@@ -91,6 +107,16 @@ function serializeScopes(scopes: string[] = []): string {
 
 /**
  * Convert database record to API response format
+ *
+ * SECURITY: This function ensures sensitive data is never exposed in API responses.
+ * We deliberately exclude:
+ * - key_hash: To prevent reverse engineering or rainbow table attacks
+ * - key: The full API key is never stored, only the hash
+ * - key_preview: Only included in create response, not list or get responses
+ *
+ * DESIGN: We use SQLite's INTEGER (0/1) for booleans but TypeScript booleans in API.
+ * This conversion ensures type safety across the database/API boundary.
+ *
  * @param record - Database record
  * @returns Safe API response (never includes full key or hash)
  */
@@ -185,6 +211,16 @@ function validateUpdateData(data: UpdateApiKeyData): void {
 export const ApiKeyModel = {
   /**
    * Create a new API key
+   *
+   * DESIGN DECISIONS:
+   * - Transaction wraps the operation to ensure atomicity and prevent race conditions
+   * - Default rate_limit of 60 matches common API rate limiting practices
+   * - Keys are hashed before storage using SHA-256 for security
+   * - UNIQUE constraint on key_hash prevents duplicate keys
+   *
+   * SECURITY: The key_preview is only returned once (at creation time).
+   * Subsequent list/get operations don't include it for added security.
+   *
    * @param data - API key creation data
    * @returns Created API key response with key preview
    * @throws {ApiKeyValidationError} If validation fails
@@ -196,7 +232,8 @@ export const ApiKeyModel = {
     const db = getDatabase();
     const keyHash = hashApiKeySync(data.key);
 
-    // Use transaction for atomic operation
+    // Use transaction for atomic operation to prevent race conditions
+    // Without transactions, concurrent requests could create duplicate keys
     const createTx = db.transaction(() => {
       try {
         const query = db.query<{
@@ -220,8 +257,8 @@ export const ApiKeyModel = {
           data.name.trim(),
           data.description?.trim() || null,
           serializeScopes(data.scopes),
-          data.rate_limit ?? 60,
-          1
+          data.rate_limit ?? 60, // Default to 60 requests per minute if not specified
+          1 // Active by default
         );
 
         if (!result) {
@@ -234,6 +271,7 @@ export const ApiKeyModel = {
           key_preview: generateKeyPreview(data.key),
         };
       } catch (error: any) {
+        // Detect UNIQUE constraint violations (duplicate key hashes)
         if (error.message?.includes('UNIQUE constraint failed')) {
           throw new ApiKeyDuplicateError();
         }
@@ -351,6 +389,20 @@ export const ApiKeyModel = {
 
   /**
    * Update an existing API key (atomic operation)
+   *
+   * DESIGN DECISIONS:
+   * - Transaction prevents race conditions in read-modify-write operations
+   * - Dynamic SQL building allows partial updates (only specified fields)
+   * - Empty description is converted to null for consistent database state
+   * - All user-provided strings are trimmed to prevent whitespace issues
+   *
+   * RACE CONDITION PREVENTION:
+   * Without transactions, two concurrent updates could:
+   * 1. Both read the same state
+   * 2. Both modify different fields
+   * 3. Second write overwriting first's changes
+   * Transactions ensure serializable isolation.
+   *
    * @param id - API key ID
    * @param data - Update data
    * @returns Updated API key response
@@ -364,7 +416,8 @@ export const ApiKeyModel = {
 
     // Use transaction for atomic operation to prevent race conditions
     const updateTx = db.transaction(() => {
-      // Build SET clause dynamically
+      // Build SET clause dynamically based on provided fields
+      // This allows partial updates (client only sends fields they want to change)
       const updates: string[] = [];
       const queryParams: (string | number | null)[] = [];
 
@@ -375,6 +428,7 @@ export const ApiKeyModel = {
 
       if (data.description !== undefined) {
         updates.push('description = ?');
+        // Empty string is converted to null for consistency
         queryParams.push(data.description?.trim() || null);
       }
 
@@ -393,8 +447,8 @@ export const ApiKeyModel = {
         queryParams.push(data.is_active ? 1 : 0);
       }
 
+      // Handle no-op updates (client sent empty body or no changes)
       if (updates.length === 0) {
-        // No updates, just return existing key
         const existing = this.findById(id);
         if (!existing) {
           throw new ApiKeyNotFoundError(id);

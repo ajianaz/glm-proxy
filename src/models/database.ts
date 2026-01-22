@@ -20,6 +20,28 @@ let db: Database | null = null;
 
 /**
  * Get or create the database connection
+ *
+ * DESIGN DECISION - Singleton Pattern:
+ * We use a singleton to ensure only one database connection exists.
+ * This is safe for SQLite because:
+ * - SQLite handles multiple concurrent reads efficiently
+ * - WAL mode allows readers to proceed without blocking writers
+ * - Single connection avoids connection overhead
+ *
+ * PRAGMA SETTINGS EXPLANATION:
+ * - journal_mode = WAL: Write-Ahead Logging for better concurrency
+ *   * Readers don't block writers and writers don't block readers
+ *   * Better performance for concurrent read operations
+ *   * Slightly more disk space usage (trade-off for performance)
+ *
+ * - foreign_keys = ON: Enable foreign key constraints
+ *   * Ensures referential integrity across tables
+ *   * Currently only one table but useful for future schema changes
+ *
+ * - busy_timeout = 5000: Wait up to 5 seconds if database is locked
+ *   * Prevents immediate failure when database is temporarily locked
+ *   * 5000ms is reasonable for most admin operations (not too long, not too short)
+ *
  * @returns SQLite Database instance
  */
 export function getDatabase(): Database {
@@ -27,13 +49,19 @@ export function getDatabase(): Database {
     const config = getConfig();
     const dbPath = config.databasePath;
 
-    // Create database with WAL mode for better concurrency
+    // Create database with optimized settings for concurrency
     db = new Database(dbPath);
+
+    // WAL mode significantly improves concurrency by separating reads and writes
     db.exec('PRAGMA journal_mode = WAL;');
+
+    // Enable foreign key constraints for data integrity
     db.exec('PRAGMA foreign_keys = ON;');
+
+    // Wait up to 5 seconds if database is locked (handles concurrent access)
     db.exec('PRAGMA busy_timeout = 5000;');
 
-    // Initialize schema
+    // Initialize schema (tables, indexes, triggers)
     initializeSchema(db);
   }
 

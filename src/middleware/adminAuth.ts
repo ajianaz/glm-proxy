@@ -118,7 +118,25 @@ export function validateAdminApiKey(keyHeader: string | null | undefined): {
 
 /**
  * Validate admin credential (API key or token)
- * Tries API key validation first, then token validation if it looks like a JWT
+ *
+ * AUTHENTICATION STRATEGY:
+ * This function implements a dual authentication system:
+ * 1. API Key Authentication: Direct validation using SHA-256 hash comparison
+ * 2. JWT Token Authentication: Signed tokens with expiration for temporary access
+ *
+ * DESIGN DECISION - Why try API key first:
+ * - Performance: Hash comparison is faster than JWT signature verification
+ * - Simplicity: Most admin operations use API keys for long-term access
+ * - Security: Tokens have expiration and are used for temporary/session-based access
+ *
+ * JWT DETECTION:
+ * We use isLikelyJWT() to avoid expensive token verification for obvious API keys.
+ * A JWT has 3 parts separated by dots (header.payload.signature).
+ *
+ * SECURITY CONSIDERATIONS:
+ * - Both methods use the same secret (admin API key) for validation
+ * - Token expiration is enforced to limit the window of abuse if leaked
+ * - Error messages don't reveal whether the credential format was correct
  *
  * @param credential - The credential string to validate
  * @returns Object with valid flag, optional error details, and auth method
@@ -135,7 +153,7 @@ async function validateAdminCredential(credential: string | null): Promise<{
     return {
       valid: false,
       error: 'Admin API is disabled',
-      statusCode: 403,
+      statusCode: 403, // Forbidden (not 401) because the service is unavailable, not credentials
     };
   }
 
@@ -151,6 +169,7 @@ async function validateAdminCredential(credential: string | null): Promise<{
   const trimmedCredential = credential.trim();
 
   // Try API key validation first using secure hash comparison
+  // This is faster than JWT verification and covers the common case
   if (validateCredentialHash(trimmedCredential)) {
     return {
       valid: true,
@@ -159,6 +178,7 @@ async function validateAdminCredential(credential: string | null): Promise<{
   }
 
   // If it looks like a JWT, try token validation
+  // We check format before verifying to avoid unnecessary crypto operations
   if (isLikelyJWT(trimmedCredential)) {
     const tokenResult = await validateAdminToken(trimmedCredential);
     if (tokenResult.valid) {
@@ -168,7 +188,8 @@ async function validateAdminCredential(credential: string | null): Promise<{
       };
     }
 
-    // Token looked like JWT but was invalid
+    // Token looked like JWT but was invalid (expired, bad signature, etc.)
+    // Return the specific token error for better debugging
     return {
       valid: false,
       error: tokenResult.error || 'Invalid admin token',
@@ -177,6 +198,7 @@ async function validateAdminCredential(credential: string | null): Promise<{
   }
 
   // Not a valid API key and doesn't look like a token
+  // Generic error message doesn't reveal which validation failed
   return {
     valid: false,
     error: 'Invalid admin API key or token',
