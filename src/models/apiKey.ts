@@ -196,47 +196,52 @@ export const ApiKeyModel = {
     const db = getDatabase();
     const keyHash = hashApiKeySync(data.key);
 
-    try {
-      const query = db.query<{
-        id: number;
-        key_hash: string;
-        name: string;
-        description: string | null;
-        scopes: string;
-        rate_limit: number;
-        is_active: number;
-        created_at: string;
-        updated_at: string;
-      }, [string, string, string | null, string, number, number]>(
-        `INSERT INTO api_keys (key_hash, name, description, scopes, rate_limit, is_active)
-         VALUES (?, ?, ?, ?, ?, ?)
-         RETURNING *`
-      );
+    // Use transaction for atomic operation
+    const createTx = db.transaction(() => {
+      try {
+        const query = db.query<{
+          id: number;
+          key_hash: string;
+          name: string;
+          description: string | null;
+          scopes: string;
+          rate_limit: number;
+          is_active: number;
+          created_at: string;
+          updated_at: string;
+        }, [string, string, string | null, string, number, number]>(
+          `INSERT INTO api_keys (key_hash, name, description, scopes, rate_limit, is_active)
+           VALUES (?, ?, ?, ?, ?, ?)
+           RETURNING *`
+        );
 
-      const result = query.get(
-        keyHash,
-        data.name.trim(),
-        data.description?.trim() || null,
-        serializeScopes(data.scopes),
-        data.rate_limit ?? 60,
-        1
-      );
+        const result = query.get(
+          keyHash,
+          data.name.trim(),
+          data.description?.trim() || null,
+          serializeScopes(data.scopes),
+          data.rate_limit ?? 60,
+          1
+        );
 
-      if (!result) {
-        throw new Error('Failed to create API key');
+        if (!result) {
+          throw new Error('Failed to create API key');
+        }
+
+        const response = recordToResponse(result);
+        return {
+          ...response,
+          key_preview: generateKeyPreview(data.key),
+        };
+      } catch (error: any) {
+        if (error.message?.includes('UNIQUE constraint failed')) {
+          throw new ApiKeyDuplicateError();
+        }
+        throw error;
       }
+    });
 
-      const response = recordToResponse(result);
-      return {
-        ...response,
-        key_preview: generateKeyPreview(data.key),
-      };
-    } catch (error: any) {
-      if (error.message?.includes('UNIQUE constraint failed')) {
-        throw new ApiKeyDuplicateError();
-      }
-      throw error;
-    }
+    return createTx();
   },
 
   /**
@@ -345,7 +350,7 @@ export const ApiKeyModel = {
   },
 
   /**
-   * Update an existing API key
+   * Update an existing API key (atomic operation)
    * @param id - API key ID
    * @param data - Update data
    * @returns Updated API key response
@@ -357,74 +362,84 @@ export const ApiKeyModel = {
 
     const db = getDatabase();
 
-    // Build SET clause dynamically
-    const updates: string[] = [];
-    const queryParams: (string | number | null)[] = [];
+    // Use transaction for atomic operation to prevent race conditions
+    const updateTx = db.transaction(() => {
+      // Build SET clause dynamically
+      const updates: string[] = [];
+      const queryParams: (string | number | null)[] = [];
 
-    if (data.name !== undefined) {
-      updates.push('name = ?');
-      queryParams.push(data.name.trim());
-    }
+      if (data.name !== undefined) {
+        updates.push('name = ?');
+        queryParams.push(data.name.trim());
+      }
 
-    if (data.description !== undefined) {
-      updates.push('description = ?');
-      queryParams.push(data.description?.trim() || null);
-    }
+      if (data.description !== undefined) {
+        updates.push('description = ?');
+        queryParams.push(data.description?.trim() || null);
+      }
 
-    if (data.scopes !== undefined) {
-      updates.push('scopes = ?');
-      queryParams.push(serializeScopes(data.scopes));
-    }
+      if (data.scopes !== undefined) {
+        updates.push('scopes = ?');
+        queryParams.push(serializeScopes(data.scopes));
+      }
 
-    if (data.rate_limit !== undefined) {
-      updates.push('rate_limit = ?');
-      queryParams.push(data.rate_limit);
-    }
+      if (data.rate_limit !== undefined) {
+        updates.push('rate_limit = ?');
+        queryParams.push(data.rate_limit);
+      }
 
-    if (data.is_active !== undefined) {
-      updates.push('is_active = ?');
-      queryParams.push(data.is_active ? 1 : 0);
-    }
+      if (data.is_active !== undefined) {
+        updates.push('is_active = ?');
+        queryParams.push(data.is_active ? 1 : 0);
+      }
 
-    if (updates.length === 0) {
-      // No updates, just return existing key
-      const existing = this.findById(id);
-      if (!existing) {
+      if (updates.length === 0) {
+        // No updates, just return existing key
+        const existing = this.findById(id);
+        if (!existing) {
+          throw new ApiKeyNotFoundError(id);
+        }
+        return existing;
+      }
+
+      queryParams.push(id);
+
+      const query = db.query<ApiKeyRecord, (string | number | null)[]>(
+        `UPDATE api_keys SET ${updates.join(', ')} WHERE id = ? RETURNING *`
+      );
+
+      const result = query.get(...queryParams);
+
+      if (!result) {
         throw new ApiKeyNotFoundError(id);
       }
-      return existing;
-    }
 
-    queryParams.push(id);
+      return recordToResponse(result);
+    });
 
-    const query = db.query<ApiKeyRecord, (string | number | null)[]>(
-      `UPDATE api_keys SET ${updates.join(', ')} WHERE id = ? RETURNING *`
-    );
-
-    const result = query.get(...queryParams);
-
-    if (!result) {
-      throw new ApiKeyNotFoundError(id);
-    }
-
-    return recordToResponse(result);
+    return updateTx();
   },
 
   /**
-   * Delete an API key
+   * Delete an API key (atomic operation)
    * @param id - API key ID
    * @returns true if deleted, false if not found
    */
   delete(id: number): boolean {
     const db = getDatabase();
 
-    const query = db.query<{ changes: number }, number>(
-      'DELETE FROM api_keys WHERE id = ?'
-    );
+    // Use transaction for atomic operation
+    const deleteTx = db.transaction(() => {
+      const query = db.query<{ changes: number }, number>(
+        'DELETE FROM api_keys WHERE id = ?'
+      );
 
-    const result = query.run(id);
+      const result = query.run(id);
 
-    return result.changes > 0;
+      return result.changes > 0;
+    });
+
+    return deleteTx();
   },
 
   /**
