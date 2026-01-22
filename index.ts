@@ -1,4 +1,4 @@
-import { getAllApiKeys, createApiKey, updateApiKey, ValidationError, NotFoundError, ApiKeyManagerError } from './src/api-key-manager.js';
+import { getAllApiKeys, createApiKey, updateApiKey, deleteApiKey, ValidationError, NotFoundError, ApiKeyManagerError } from './src/api-key-manager.js';
 
 /**
  * WebSocket client tracking for real-time updates
@@ -487,14 +487,71 @@ async function handleRequest(req: Request): Promise<Response> {
     // DELETE /api/keys/:id - Delete API key
     const deleteKeyMatch = pathname.match(/^\/api\/keys\/([^/]+)$/);
     if (deleteKeyMatch && req.method === 'DELETE') {
-      const keyId = deleteKeyMatch[1];
-      return new Response(
-        JSON.stringify({ error: 'Not implemented yet', keyId }),
-        {
-          status: 501,
-          headers: { 'Content-Type': 'application/json' },
+      try {
+        const keyId = decodeURIComponent(deleteKeyMatch[1]);
+
+        // Get the key before deletion for broadcasting
+        const allKeys = await getAllApiKeys();
+        const keyToDelete = allKeys.find(k => k.key === keyId);
+
+        if (!keyToDelete) {
+          return new Response(
+            JSON.stringify({
+              error: 'API key not found',
+              message: `API key "${keyId}" not found`,
+            }),
+            {
+              status: 404,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
         }
-      );
+
+        // Delete the API key
+        await deleteApiKey(keyId);
+
+        // Broadcast deletion to WebSocket clients
+        broadcast({
+          type: 'key_deleted',
+          key: keyToDelete,
+          timestamp: new Date().toISOString(),
+        });
+
+        return new Response(null, {
+          status: 204, // 204 No Content is standard for successful DELETE
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      } catch (error) {
+        // Handle not found errors
+        if (error instanceof NotFoundError) {
+          return new Response(
+            JSON.stringify({
+              error: 'API key not found',
+              message: error.message,
+            }),
+            {
+              status: 404,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        // Handle other errors
+        console.error('Error deleting API key:', error);
+        return new Response(
+          JSON.stringify({
+            error: 'Failed to delete API key',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          }),
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          }
+        );
+      }
     }
 
     // GET /api/keys/:id/usage - Get usage statistics

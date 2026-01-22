@@ -19,7 +19,7 @@ Building a responsive web dashboard for managing API keys with real-time usage v
 - ⏳ Ready to begin Phase 1: Foundation and Setup
 
 ### Current Phase: Backend API Implementation - In Progress
-**Next Step:** Phase 2.5 - Create DELETE /api/keys/:id endpoint
+**Next Step:** Phase 2.6 - Create GET /api/keys/:id/usage endpoint
 
 ### Recent Completed Subtasks
 - ✅ [2026-01-22] Subtask 1.1 - Initialize project structure and dependencies
@@ -190,6 +190,31 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - No console.log debugging statements (only console.error for errors)
   - Follows existing code patterns from POST endpoint
   - Security: prevents key field modification to avoid authorization bypass
+- ✅ [2026-01-22] Subtask 2.5 - Create DELETE /api/keys/:id endpoint
+  - Implemented comprehensive DELETE endpoint for deleting API keys
+  - Added request validation with URL decoding support for special characters
+  - Implemented pre-deletion verification to check key existence
+  - Proper HTTP status codes:
+    - 204 No Content on successful deletion (standard for DELETE)
+    - 404 for non-existent keys
+    - 500 for server errors
+  - WebSocket broadcast for real-time updates (key_deleted event)
+  - CORS headers enabled for API access
+  - Comprehensive error handling with try-catch blocks
+  - Created test script (test-delete-endpoint.ts, 345 lines)
+  - All 6 tests passing:
+    - ✓ Delete existing API key
+    - ✓ Delete non-existent key returns 404
+    - ✓ Delete key with special characters (URL encoding)
+    - ✓ Double delete (second attempt returns 404)
+    - ✓ Verify 204 response has no content
+    - ✓ Verify CORS headers are present
+  - Data persistence verified (keys removed from apikeys.json)
+  - TypeScript compilation successful with no errors
+  - No console.log debugging statements (only console.error for errors)
+  - Follows existing code patterns from PUT and POST endpoints
+  - Returns 204 No Content (standard for successful DELETE operations)
+  - Broadcasts deletion to WebSocket clients for real-time UI updates
 
 ### Phase Breakdown
 
@@ -204,7 +229,7 @@ Building a responsive web dashboard for managing API keys with real-time usage v
 - 2.2 Create GET /api/keys endpoint ✅
 - 2.3 Create POST /api/keys endpoint ✅
 - 2.4 Create PUT /api/keys/:id endpoint ✅
-- 2.5 Create DELETE /api/keys/:id endpoint
+- 2.5 Create DELETE /api/keys/:id endpoint ✅
 - 2.6 Create GET /api/keys/:id/usage endpoint
 - 2.7 Implement WebSocket for real-time updates
 
