@@ -63,6 +63,14 @@ Optimize rate limiting from O(n) to O(1) complexity by implementing a rolling wi
   - Verified O(1) performance with < 1ms for 60 buckets
   - Verified O(1) performance with < 10ms for 1000 checks
 
+#### Phase 3: Integrate with ApiKey Type ✅ COMPLETED
+- [x] **phase-3-subtask-1**: Extend ApiKey type with rolling window cache ✅ COMPLETED
+  - Re-exported TimeBucket and RollingWindowData types from rolling-window.ts to types.ts
+  - Added optional 'rolling_window_cache' field to ApiKey interface
+  - Maintained backwards compatibility by marking field as optional
+  - Enables O(1) rate limit optimization in future phases
+  - Changes verified to compile successfully without errors
+
 ### Implementation Plan Summary
 
 **Phase 1: Design and Planning** (2 subtasks) ✅ COMPLETED
@@ -73,8 +81,8 @@ Optimize rate limiting from O(n) to O(1) complexity by implementing a rolling wi
 - Create RollingWindow class in src/rolling-window.ts ✅
 - Add comprehensive unit tests ✅
 
-**Phase 3: Integrate with ApiKey Type** (1 subtask)
-- Extend ApiKey type with rolling window cache field
+**Phase 3: Integrate with ApiKey Type** (1 subtask) ✅ COMPLETED
+- Extend ApiKey type with rolling window cache field ✅
 
 **Phase 4: Update Rate Limit Check Logic** (2 subtasks)
 - Refactor checkRateLimit() to use O(1) algorithm
