@@ -198,7 +198,7 @@
     {
       "id": "phase-5",
       "name": "Update Storage Logic",
-      "status": "in_progress",
+      "status": "completed",
       "subtasks": [
         {
           "id": "phase-5-subtask-1",
@@ -227,11 +227,12 @@
         {
           "id": "phase-5-subtask-2",
           "name": "Add migration logic for existing keys",
-          "status": "pending",
+          "status": "completed",
           "description": "Add helper function to migrate existing usage_windows to rolling window format",
           "files": [
             "src/storage.ts"
           ],
+          "completed_at": "2026-01-22T12:45:00Z",
           "implementation_details": {
             "function": "migrateToRollingWindow(apiKey: ApiKey): void",
             "logic": [
@@ -239,7 +240,18 @@
               "If not, create RollingWindow instance from usage_windows data",
               "Populate buckets and calculate running_total",
               "Store in rolling_window_cache field"
-            ]
+            ],
+            "changes": [
+              "Added migrateToRollingWindow() helper function to storage.ts",
+              "Function creates RollingWindow instance from usage_windows if cache doesn't exist",
+              "Refactored updateApiKeyUsage() to use the new helper function",
+              "Added comprehensive tests for migration function (3 test cases)"
+            ],
+            "test_results": {
+              "migration_tests": "3/3 passed",
+              "rate_limit_tests": "49/49 passed",
+              "verification": "All relevant tests passing"
+            }
           }
         }
       ]
