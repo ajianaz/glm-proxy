@@ -1,0 +1,110 @@
+{
+  "discovery_date": "2026-01-22T04:00:00.000Z",
+  "project_type": "TypeScript/Bun API Gateway",
+  "framework": "Hono",
+  "total_lines_of_code": 759,
+  "key_findings": {
+    "current_bottleneck": "File I/O on every authenticated request via findApiKey() in storage.ts",
+    "file_locking_overhead": "up to 500ms potential wait with retry mechanism",
+    "current_auth_flow": "Every request triggers withLock() → readApiKeys() → JSON.parse → array.find()",
+    "concurrent_issue": "File locking creates I/O contention under load"
+  },
+  "architecture": {
+    "entry_point": "src/index.ts (Hono app setup)",
+    "auth_flow": [
+      "middleware/auth.ts - extractApiKey() and validateApiKey()",
+      "validator.ts - calls findApiKey()",
+      "storage.ts - findApiKey() with file I/O bottleneck",
+      "middleware/rateLimit.ts - checkRateLimit() using in-memory ApiKey object"
+    ],
+    "protected_endpoints": [
+      "POST /v1/messages",
+      "ALL /v1/*",
+      "GET /stats"
+    ],
+    "storage_location": "data/apikeys.json",
+    "locking_mechanism": "Directory-based atomic lock using mkdir() (Unix-only)"
+  },
+  "file_analysis": {
+    "src/storage.ts": {
+      "lines": 100,
+      "key_function": "findApiKey() (lines 51-56) - **PRIMARY TARGET FOR CACHE**",
+      "other_functions": [
+        "withLock() - file locking with retry",
+        "readApiKeys() - reads and parses JSON",
+        "writeApiKeys() - atomic write using temp+rename",
+        "updateApiKeyUsage() - fire-and-forget pattern"
+      ],
+      "performance_issues": [
+        "File read on every request",
+        "JSON parsing overhead",
+        "Lock acquisition with up to 10 retries × 50ms delays",
+        "No caching mechanism"
+      ]
+    },
+    "src/types.ts": {
+      "lines": 38,
+      "key_interface": "ApiKey with fields: key, name, model, token_limit_per_5h, expiry_date, created_at, last_used, total_lifetime_tokens, usage_windows"
+    },
+    "src/validator.ts": {
+      "lines": 59,
+      "role": "Calls findApiKey() and validates expiry"
+    },
+    "src/middleware/auth.ts": {
+      "lines": 32,
+      "role": "Entry point for auth, attaches apiKey to context"
+    }
+  },
+  "existing_caching": "NONE - Pure file-based storage with no memoization",
+  "implementation_strategy": {
+    "cache_layer": "Module-level singleton in new src/cache.ts",
+    "integration_point": "Modify findApiKey() in storage.ts",
+    "cache_key": "API key string (key field from ApiKey interface)",
+    "cache_value": "ApiKey object or null for not-found keys",
+    "ttl": "5 minutes (300000ms)",
+    "eviction_policy": "LRU when size limit reached",
+    "max_size": "1000 entries (configurable)"
+  },
+  "performance_targets": {
+    "cache_hit_latency": "<1ms (vs 5-50ms for file read)",
+    "io_reduction": ">95%",
+    "concurrent_requests": "Support 100+ without lock contention",
+    "memory_usage": " bounded by max_size setting"
+  },
+  "testing_requirements": {
+    "unit_tests": "test/cache.test.ts - LRU, TTL, eviction, statistics",
+    "integration_tests": "test/storage.test.ts - cache hit/miss, invalidation",
+    "benchmarks": "test/benchmarks/cache-benchmark.test.ts",
+    "regression_tests": "All existing tests must pass"
+  },
+  "code_patterns": {
+    "framework": "Hono with context-based middleware (c.set/c.get)",
+    "async_pattern": "async/await throughout",
+    "error_handling": "Try-catch with .catch() for fire-and-forget",
+    "module_pattern": "Direct imports, no dependency injection",
+    "testing_framework": "Bun test (bun test)"
+  },
+  "risks_and_mitigations": {
+    "cache_coherency": "Risk: Concurrent file updates may stale cache. Mitigation: TTL ensures fresh data, selective invalidation on updates",
+    "memory_bloat": "Risk: Many unique API keys. Mitigation: Max size limit with LRU eviction",
+    "ttl_accuracy": "Risk: High load may delay expiration checks. Mitigation: Check TTL on every get() call",
+    "auth_breakage": "Risk: Cache bugs break authentication. Mitigation: Comprehensive integration tests, feature flag"
+  },
+  "configuration_options": {
+    "CACHE_TTL_MS": "300000 (5 minutes)",
+    "CACHE_MAX_SIZE": "1000 entries",
+    "CACHE_ENABLED": "true",
+    "CACHE_WARMUP_ON_START": "false",
+    "CACHE_LOG_LEVEL": "none"
+  },
+  "files_to_create": [
+    "src/cache.ts",
+    "test/cache.test.ts",
+    "test/benchmarks/cache-benchmark.test.ts"
+  ],
+  "files_to_modify": [
+    "src/storage.ts",
+    "test/storage.test.ts",
+    "src/index.ts"
+  ]
+}

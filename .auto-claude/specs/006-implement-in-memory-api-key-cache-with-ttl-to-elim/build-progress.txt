@@ -1,0 +1,205 @@
+# Implementation Progress: In-Memory API Key Cache with TTL
+
+**Feature:** Implement in-memory API key cache with TTL to eliminate file I/O on every request
+**Status:** Planning Complete - Ready for Implementation
+**Created:** 2026-01-22
+**Estimated Time:** 6.5 hours
+
+---
+
+## Summary
+
+This implementation will add an in-memory LRU cache to the storage layer to eliminate the performance bottleneck of reading from `data/apikeys.json` on every authenticated request. The cache will use a 5-minute TTL to balance performance with data freshness.
+
+## Current Progress
+
+### ✅ Phase 0: Codebase Analysis (Complete)
+- [x] Explored project structure and architecture
+- [x] Identified performance bottleneck in storage.ts
+- [x] Analyzed existing authentication flow
+- [x] Reviewed code patterns and testing approach
+- [x] Confirmed no existing caching mechanisms
+
+**Key Findings:**
+- Every authenticated request triggers file I/O via `findApiKey()`
+- File locking with up to 500ms retry delays creates contention
+- Project uses Hono framework with TypeScript/Bun
+- Clean separation of concerns enables easy cache integration at storage layer
+
+### ⏳ Phase 1: Design and Architecture (In Progress)
+**Goal:** Design cache architecture and define interfaces
+
+- [x] 1.1 Design cache data structure and interfaces (30m) ✅
+  - Define CacheEntry interface ✅
+  - Define LRUCache interface ✅
+  - Document LRU eviction policy ✅
+  - Plan integration with storage.ts ✅
+  - **Design Document:** `.auto-claude/specs/.../cache-design.md`
+
+- [ ] 1.2 Plan cache invalidation strategy (20m)
+  - TTL expiration mechanism (5 minutes)
+  - LRU eviction when size limit reached
+  - Manual invalidation on updates
+  - Cache clear on file modifications
+
+- [ ] 1.3 Review existing code patterns (15m)
+  - Verify withLock pattern compatibility
+  - Confirm ApiKey type requirements
+  - Identify integration points
+  - Ensure no breaking changes
+
+### ⏳ Phase 2: Core Cache Implementation (Pending)
+**Goal:** Implement LRU cache module with TTL support
+
+- [ ] 2.1 Create cache module (src/cache.ts) (45m)
+  - Implement CacheEntry interface
+  - Implement LRUCache class with generic types
+  - Add get(), set(), delete(), clear(), has() methods
+  - Add TTL expiration checks
+  - Add LRU eviction logic
+  - Add size limit enforcement
+
+- [ ] 2.2 Add cache statistics and monitoring (20m)
+  - Implement hits/misses counters
+  - Add getStats() method
+  - Add resetStats() method
+  - Ensure thread-safety for concurrent access
+
+- [ ] 2.3 Create singleton cache instance (15m)
+  - Export apiKeyCache singleton
+  - Configure TTL (5 minutes)
+  - Configure max size (1000 entries)
+  - Add optional warm-up on init
+
+### ⏳ Phase 3: Integrate Cache with Storage Layer (Pending)
+**Goal:** Integrate cache into storage.ts
+
+- [ ] 3.1 Modify findApiKey to use cache (30m)
+  - Check cache before file read
+  - Return cached ApiKey on hit
+  - Fall back to file on miss
+  - Populate cache after miss
+  - Cache not-found keys as null
+
+- [ ] 3.2 Add cache invalidation on writes (25m)
+  - Invalidate on updateApiKeyUsage
+  - Invalidate on any write operations
+  - Consider selective vs full invalidation
+  - Maintain cache coherency
+
+- [ ] 3.3 Add cache warm-up on startup (20m)
+  - Implement optional warm-up function
+  - Load all keys on startup
+  - Make configurable via env var
+  - Non-blocking initialization
+
+### ⏳ Phase 4: Testing (Pending)
+**Goal:** Comprehensive testing to ensure correctness
+
+- [ ] 4.1 Write unit tests for cache module (45m)
+  - Test basic get/set operations
+  - Test TTL expiration
+  - Test LRU eviction
+  - Test statistics tracking
+  - Test delete/clear operations
+  - Test edge cases
+
+- [ ] 4.2 Write integration tests (40m)
+  - Test cache hit path
+  - Test cache miss and fallback
+  - Test cache population
+  - Test not-found key caching
+  - Test invalidation
+  - Verify existing tests pass
+
+- [ ] 4.3 Write performance benchmarks (30m)
+  - Benchmark cache vs no-cache
+  - Measure latency reduction
+  - Measure throughput improvement
+  - Measure I/O reduction
+  - Document results
+
+- [ ] 4.4 Run all existing tests (15m)
+  - Verify no regressions
+  - Check authentication
+  - Check rate limiting
+  - Check proxy functionality
+
+### ⏳ Phase 5: Documentation and Monitoring (Pending)
+**Goal:** Add observability and documentation
+
+- [ ] 5.1 Add cache statistics endpoint (25m)
+  - Create GET /cache/stats
+  - Return hits, misses, hitRate, size
+  - Require authentication
+  - Return JSON format
+
+- [ ] 5.2 Add logging for cache operations (15m)
+  - Debug log on hit/miss
+  - Info log on invalidation
+  - Make configurable via env var
+
+- [ ] 5.3 Update documentation (20m)
+  - Document cache architecture
+  - Document configuration options
+  - Document monitoring endpoints
+  - Add troubleshooting guide
+
+### ⏳ Phase 6: Validation and Deployment (Pending)
+**Goal:** Final validation and deployment prep
+
+- [ ] 6.1 Perform load testing (30m)
+  - Test 100+ concurrent requests
+  - Verify no lock timeouts
+  - Measure hit rate under load
+  - Check memory usage
+
+- [ ] 6.2 Test failure scenarios (20m)
+  - Graceful degradation on errors
+  - TTL expiration under load
+  - File update coherency
+  - Startup with empty cache
+
+- [ ] 6.3 Final QA and sign-off (15m)
+  - Verify all acceptance criteria
+  - Complete code review
+  - Document benchmarks
+  - Approve for deployment
+
+---
+
+## Files to Create
+- src/cache.ts - LRU cache implementation
+- test/cache.test.ts - Unit tests
+- test/benchmarks/cache-benchmark.test.ts - Performance benchmarks
+
+## Files to Modify
+- src/storage.ts - Integrate cache into findApiKey
+- src/index.ts - Add cache stats endpoint
+- test/storage.test.ts - Add integration tests
+
+## Configuration Options
+- CACHE_TTL_MS: 300000 (5 minutes)
+- CACHE_MAX_SIZE: 1000 entries
+- CACHE_ENABLED: true
+- CACHE_WARMUP_ON_START: false
+- CACHE_LOG_LEVEL: none
+
+## Performance Targets
+- Cache hit latency: <1ms (vs 5-50ms file read)
+- I/O reduction: >95%
+- Concurrent requests: 100+ without contention
+- Memory: bounded by max_size
+
+## Acceptance Criteria
+- [ ] Cache hit rate > 95% under normal load
+- [ ] TTL expiration works correctly (5 minutes)
+- [ ] LRU eviction prevents unbounded memory growth
+- [ ] All existing tests pass
+- [ ] New unit tests for cache pass
+- [ ] Benchmarks show >10x improvement
+- [ ] File locking contention eliminated
+
+---
+
+**Next Steps:** Begin Phase 1 - Design cache data structures and interfaces

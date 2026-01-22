@@ -1,0 +1,463 @@
+{
+  "feature": "Implement in-memory API key cache with TTL to eliminate file I/O on every request",
+  "description": "The current implementation reads from the JSON file on every API request for authentication (findApiKey in storage.ts). This creates significant I/O overhead and scales poorly. Implementing an in-memory LRU cache with a 5-minute TTL would eliminate most disk reads while maintaining data freshness.",
+  "created_at": "2026-01-22T03:34:05.273Z",
+  "updated_at": "2026-01-22T03:39:11.955Z",
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "workflow_type": "development",
+  "services_involved": [
+    "storage",
+    "validator",
+    "middleware/auth"
+  ],
+  "final_acceptance": [
+    "Cache hit rate > 95% under normal load",
+    "TTL expiration works correctly (5 minutes)",
+    "LRU eviction prevents unbounded memory growth",
+    "All existing tests pass",
+    "New unit tests for cache functionality pass",
+    "Performance benchmarks show >10x improvement in cache hit path",
+    "File locking contention eliminated"
+  ],
+  "spec_file": "spec.md",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Phase 1: Design and Architecture",
+      "description": "Design the cache architecture, define interfaces, and plan the implementation approach",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "1.1",
+          "name": "Design cache data structure and interfaces",
+          "description": "Design the LRU cache with TTL support, including the cache entry structure, cache interface, and integration points with existing code",
+          "status": "completed",
+          "estimated_time": "30m",
+          "dependencies": [],
+          "acceptance_criteria": [
+            "CacheEntry interface defined with value, timestamp, and ttl",
+            "LRUCache interface defined with get, set, delete, and clear methods",
+            "Cache size limits and eviction policy documented",
+            "Integration approach with storage.ts documented"
+          ],
+          "completed_at": "2026-01-22T04:15:00.000Z",
+          "notes": "Created comprehensive design document at cache-design.md with all interfaces, data structures, integration strategy, and edge cases documented"
+        },
+        {
+          "id": "1.2",
+          "name": "Plan cache invalidation strategy",
+          "description": "Define when and how cache entries are invalidated, including TTL expiration, LRU eviction, and manual invalidation on updates",
+          "status": "pending",
+          "estimated_time": "20m",
+          "dependencies": [
+            "1.1"
+          ],
+          "acceptance_criteria": [
+            "TTL expiration strategy documented (5 minutes)",
+            "LRU eviction strategy documented when size limit reached",
+            "Cache invalidation on API key updates/deletions planned",
+            "Cache clear on file modifications documented"
+          ]
+        },
+        {
+          "id": "1.3",
+          "name": "Review existing code patterns",
+          "description": "Review storage.ts, validator.ts, and auth middleware to ensure cache integration follows existing patterns",
+          "status": "pending",
+          "estimated_time": "15m",
+          "dependencies": [],
+          "acceptance_criteria": [
+            "Understanding of withLock pattern and how cache eliminates it",
+            "Understanding of ApiKey type and what needs to be cached",
+            "Integration points identified in findApiKey function",
+            "No breaking changes to existing API confirmed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Phase 2: Core Cache Implementation",
+      "description": "Implement the LRU cache with TTL support as a standalone module",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "2.1",
+          "name": "Create cache module (src/cache.ts)",
+          "description": "Create a new cache.ts file with LRU cache implementation supporting TTL and size limits",
+          "status": "pending",
+          "estimated_time": "45m",
+          "dependencies": [
+            "1.1",
+            "1.2",
+            "1.3"
+          ],
+          "files_to_modify": [
+            "src/cache.ts"
+          ],
+          "acceptance_criteria": [
+            "CacheEntry interface with value, timestamp, ttl fields",
+            "LRUCache class with generic type support",
+            "get() method that checks TTL expiration",
+            "set() method that updates timestamp and enforces size limit",
+            "delete() method for manual invalidation",
+            "clear() method to wipe cache",
+            "has() method to check existence without retrieving",
+            "size property and max limit enforcement",
+            "LRU eviction when limit reached"
+          ]
+        },
+        {
+          "id": "2.2",
+          "name": "Add cache statistics and monitoring",
+          "description": "Add hit/miss tracking and statistics to monitor cache effectiveness",
+          "status": "pending",
+          "estimated_time": "20m",
+          "dependencies": [
+            "2.1"
+          ],
+          "files_to_modify": [
+            "src/cache.ts"
+          ],
+          "acceptance_criteria": [
+            "hits counter incremented on successful cache retrieval",
+            "misses counter incremented on cache miss or expired entry",
+            "getStats() method returning hits, misses, hitRate, size",
+            "resetStats() method for testing",
+            "All methods thread-safe for concurrent access"
+          ]
+        },
+        {
+          "id": "2.3",
+          "name": "Create singleton cache instance for API keys",
+          "description": "Create a singleton instance of the cache specifically for API keys with appropriate configuration",
+          "status": "pending",
+          "estimated_time": "15m",
+          "dependencies": [
+            "2.1"
+          ],
+          "files_to_modify": [
+            "src/cache.ts"
+          ],
+          "acceptance_criteria": [
+            "Export singleton apiKeyCache instance",
+            "TTL configured to 5 minutes (300000ms)",
+            "Max size configured (e.g., 1000 entries)",
+            "Cache pre-warmed on initialization if possible"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Phase 3: Integrate Cache with Storage Layer",
+      "description": "Integrate the cache into the existing storage.ts file to intercept findApiKey calls",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "3.1",
+          "name": "Modify findApiKey to use cache",
+          "description": "Update findApiKey function to check cache first before hitting disk",
+          "status": "pending",
+          "estimated_time": "30m",
+          "dependencies": [
+            "2.3"
+          ],
+          "files_to_modify": [
+            "src/storage.ts"
+          ],
+          "acceptance_criteria": [
+            "findApiKey checks cache before calling withLock",
+            "Cache hit returns cached ApiKey immediately",
+            "Cache miss falls back to existing file read logic",
+            "Successful file read populates cache",
+            "Not-found keys cached as null to prevent repeated lookups"
+          ]
+        },
+        {
+          "id": "3.2",
+          "name": "Add cache invalidation on write operations",
+          "description": "Invalidate or update cache entries when API keys are modified",
+          "status": "pending",
+          "estimated_time": "25m",
+          "dependencies": [
+            "3.1"
+          ],
+          "files_to_modify": [
+            "src/storage.ts"
+          ],
+          "acceptance_criteria": [
+            "updateApiKeyUsage invalidates or updates cache entry",
+            "Any write operations trigger cache invalidation",
+            "Consider selective invalidation vs full cache clear",
+            "Cache coherency maintained on concurrent updates"
+          ]
+        },
+        {
+          "id": "3.3",
+          "name": "Add cache warm-up on startup",
+          "description": "Optionally pre-load cache with all API keys on application startup",
+          "status": "pending",
+          "estimated_time": "20m",
+          "dependencies": [
+            "3.1"
+          ],
+          "files_to_modify": [
+            "src/storage.ts",
+            "src/index.ts"
+          ],
+          "acceptance_criteria": [
+            "Optional warm-up function to load all keys on startup",
+            "Configurable via environment variable",
+            "Non-blocking warm-up (doesn't prevent app startup)",
+            "Logs cache size after warm-up"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Phase 4: Testing",
+      "description": "Write comprehensive tests to ensure cache works correctly and doesn't break existing functionality",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "4.1",
+          "name": "Write unit tests for cache module",
+          "description": "Create comprehensive unit tests for the LRU cache implementation",
+          "status": "pending",
+          "estimated_time": "45m",
+          "dependencies": [
+            "2.3"
+          ],
+          "files_to_create": [
+            "test/cache.test.ts"
+          ],
+          "acceptance_criteria": [
+            "Test basic get/set operations",
+            "Test TTL expiration (entries expire after 5 minutes)",
+            "Test LRU eviction when size limit reached",
+            "Test cache statistics tracking",
+            "Test delete and clear operations",
+            "Test edge cases (null values, duplicate keys, concurrent access)"
+          ]
+        },
+        {
+          "id": "4.2",
+          "name": "Write integration tests for storage layer",
+          "description": "Test that findApiKey correctly uses cache and falls back to disk when needed",
+          "status": "pending",
+          "estimated_time": "40m",
+          "dependencies": [
+            "3.3"
+          ],
+          "files_to_modify": [
+            "test/storage.test.ts"
+          ],
+          "acceptance_criteria": [
+            "Test cache hit path returns correct ApiKey",
+            "Test cache miss triggers file read",
+            "Test cache population after miss",
+            "Test not-found keys cached as null",
+            "Test cache invalidation on updates",
+            "All existing storage tests still pass"
+          ]
+        },
+        {
+          "id": "4.3",
+          "name": "Write performance benchmarks",
+          "description": "Create benchmarks to measure performance improvement with cache",
+          "status": "pending",
+          "estimated_time": "30m",
+          "dependencies": [
+            "3.3"
+          ],
+          "files_to_create": [
+            "test/benchmarks/cache-benchmark.test.ts"
+          ],
+          "acceptance_criteria": [
+            "Benchmark findApiKey with cache vs without",
+            "Measure latency reduction (target: <1ms for cache hit)",
+            "Measure throughput improvement under concurrent load",
+            "Measure I/O reduction (target: >95% reduction)",
+            "Document results in comments or README"
+          ]
+        },
+        {
+          "id": "4.4",
+          "name": "Run all existing tests",
+          "description": "Ensure cache integration doesn't break any existing functionality",
+          "status": "pending",
+          "estimated_time": "15m",
+          "dependencies": [
+            "3.3"
+          ],
+          "acceptance_criteria": [
+            "All existing tests pass",
+            "No regressions in authentication",
+            "No regressions in rate limiting",
+            "No regressions in proxy functionality"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Phase 5: Documentation and Monitoring",
+      "description": "Add documentation, logging, and monitoring support for the cache",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "5.1",
+          "name": "Add cache statistics endpoint",
+          "description": "Add an endpoint to expose cache statistics for monitoring",
+          "status": "pending",
+          "estimated_time": "25m",
+          "dependencies": [
+            "2.2"
+          ],
+          "files_to_modify": [
+            "src/index.ts"
+          ],
+          "acceptance_criteria": [
+            "GET /cache/stats endpoint returns cache statistics",
+            "Includes hits, misses, hitRate, size, maxSize",
+            "Requires authentication (admin-only)",
+            "Returns JSON format"
+          ]
+        },
+        {
+          "id": "5.2",
+          "name": "Add logging for cache operations",
+          "description": "Add structured logging for cache operations (optional, debug-level)",
+          "status": "pending",
+          "estimated_time": "15m",
+          "dependencies": [
+            "3.3"
+          ],
+          "files_to_modify": [
+            "src/storage.ts"
+          ],
+          "acceptance_criteria": [
+            "Debug log on cache hit",
+            "Debug log on cache miss",
+            "Info log on cache invalidation",
+            "Configurable via environment variable (CACHE_LOG_LEVEL)"
+          ]
+        },
+        {
+          "id": "5.3",
+          "name": "Update documentation",
+          "description": "Document the cache implementation, configuration, and monitoring",
+          "status": "pending",
+          "estimated_time": "20m",
+          "dependencies": [
+            "5.1",
+            "5.2"
+          ],
+          "files_to_modify": [
+            "README.md"
+          ],
+          "acceptance_criteria": [
+            "Cache architecture documented",
+            "Configuration options documented (TTL, max size)",
+            "Monitoring endpoints documented",
+            "Troubleshooting guide added"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "name": "Phase 6: Validation and Deployment",
+      "description": "Final validation, load testing, and deployment preparation",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "6.1",
+          "name": "Perform load testing",
+          "description": "Run load tests to verify cache handles high concurrency and eliminates I/O contention",
+          "status": "pending",
+          "estimated_time": "30m",
+          "dependencies": [
+            "4.4",
+            "5.3"
+          ],
+          "acceptance_criteria": [
+            "Test with 100+ concurrent requests",
+            "Verify no file locking timeouts",
+            "Measure cache hit rate under load",
+            "Verify memory usage stays within bounds"
+          ]
+        },
+        {
+          "id": "6.2",
+          "name": "Test cache behavior on failure scenarios",
+          "description": "Test how cache handles edge cases and failures",
+          "status": "pending",
+          "estimated_time": "20m",
+          "dependencies": [
+            "6.1"
+          ],
+          "acceptance_criteria": [
+            "Cache degrades gracefully on file read errors",
+            "Stale entries expire correctly via TTL",
+            "Cache doesn't prevent file updates",
+            "Application starts correctly with empty cache"
+          ]
+        },
+        {
+          "id": "6.3",
+          "name": "Final QA and sign-off",
+          "description": "Final review, testing, and sign-off before deployment",
+          "status": "pending",
+          "estimated_time": "15m",
+          "dependencies": [
+            "6.1",
+            "6.2"
+          ],
+          "acceptance_criteria": [
+            "All acceptance criteria met",
+            "Code review completed",
+            "Performance benchmarks documented",
+            "Ready for deployment"
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": {
+    "total_estimated_time": "6.5 hours",
+    "critical_path": [
+      "1.1",
+      "2.1",
+      "2.3",
+      "3.1",
+      "4.1",
+      "4.2",
+      "6.1",
+      "6.3"
+    ],
+    "risk_factors": [
+      "Cache coherency with concurrent file updates",
+      "Memory usage if many unique API keys exist",
+      "TTL expiration accuracy under high load",
+      "Ensuring cache doesn't break existing authentication flow"
+    ],
+    "mitigation_strategies": [
+      "Use null caching for not-found keys to prevent repeated lookups",
+      "Set reasonable max size limit (e.g., 1000 entries)",
+      "Use timestamp-based TTL checks on every get operation",
+      "Comprehensive integration tests to ensure no regressions",
+      "Feature flag to disable cache if issues arise"
+    ],
+    "configuration_options": {
+      "CACHE_TTL_MS": "300000 (5 minutes, default)",
+      "CACHE_MAX_SIZE": "1000 (entries, default)",
+      "CACHE_ENABLED": "true (default)",
+      "CACHE_WARMUP_ON_START": "false (default)",
+      "CACHE_LOG_LEVEL": "none (default, options: debug/info)"
+    }
+  }
+}
