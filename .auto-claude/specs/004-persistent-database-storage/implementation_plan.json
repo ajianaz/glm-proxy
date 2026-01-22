@@ -218,16 +218,19 @@
           "id": "3.4",
           "name": "Create storage factory",
           "description": "Implement getStorage() function that selects storage based on environment configuration",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "src/storage/index.ts"
+            "src/storage/index.ts",
+            "src/storage/index.test.ts"
           ],
           "acceptance_criteria": [
             "Environment-based selection (DATABASE_URL or STORAGE_TYPE)",
             "Defaults to file-based for backward compatibility",
             "Singleton pattern for storage instance",
             "Graceful fallback on database errors"
-          ]
+          ],
+          "completed_at": "2026-01-22T12:30:00.000Z",
+          "notes": "Implemented storage factory with comprehensive environment-based selection:\n\n**Core Functionality:**\n- getStorage(): Factory function that returns singleton storage instance\n- Environment-based selection logic:\n  - DATABASE_URL set → DatabaseStorage (PostgreSQL)\n  - DATABASE_PATH set → DatabaseStorage (SQLite)\n  - STORAGE_TYPE=database → DatabaseStorage\n  - STORAGE_TYPE=file → FileStorage\n  - No env vars → FileStorage (default for backward compatibility)\n- Graceful fallback: DatabaseStorage initialization failures fall back to FileStorage\n- Singleton pattern ensures one instance per process\n\n**Helper Functions:**\n- resetStorage(): Clears singleton for testing/configuration changes\n- getStorageType(): Returns configured storage type without initializing\n\n**Error Handling:**\n- Database initialization failures trigger graceful fallback to FileStorage\n- console.warn for configuration issues (no console.log)\n- Comprehensive error messages with context\n\n**Testing:**\n- 25 comprehensive tests covering:\n  - Environment-based selection (DATABASE_URL, DATABASE_PATH, STORAGE_TYPE)\n  - Default behavior (backward compatibility)\n  - Singleton pattern verification\n  - Reset functionality\n  - Graceful fallback behavior\n  - Priority of configuration options\n  - Storage functionality verification\n  - Error handling scenarios\n- All 25 tests passing\n\n**Code Quality:**\n- ESLint validation passed\n- Comprehensive JSDoc documentation with usage examples\n- Type-safe implementation with TypeScript\n- Follows existing code patterns and conventions\n- No console.log statements\n\nAll acceptance criteria met:\n✅ Environment-based selection (DATABASE_URL, DATABASE_PATH, STORAGE_TYPE)\n✅ Defaults to file-based for backward compatibility\n✅ Singleton pattern for storage instance\n✅ Graceful fallback on database errors"
         },
         {
           "id": "3.5",
