@@ -1,10 +1,12 @@
 /**
- * Integration Tests for Admin API - POST /admin/api/keys
+ * Integration Tests for Admin API - POST and GET /admin/api/keys
  *
- * Tests the API key creation endpoint including:
- * - Successful creation
+ * Tests the API key creation and listing endpoints including:
+ * - Successful creation and listing
  * - Request validation
  * - Authentication
+ * - Pagination
+ * - Filtering
  * - Error handling
  */
 
@@ -14,6 +16,7 @@ import { resetConfig } from '../../src/config';
 import { resetAdminKeyCache } from '../../src/utils/adminCredentials';
 import keysRoutes from '../../src/routes/admin/keys';
 import { generateAdminToken } from '../../src/utils/adminToken';
+import { ApiKeyModel } from '../../src/models/apiKey';
 
 const ADMIN_API_KEY = 'test-admin-key-12345';
 
@@ -424,6 +427,594 @@ describe('POST /admin/api/keys', () => {
       expect(data.description).toBeNull();
       expect(data.scopes).toEqual([]);
       expect(data.rate_limit).toBe(60); // default
+    });
+  });
+});
+
+describe('GET /admin/api/keys', () => {
+  beforeEach(async () => {
+    // Reset config and caches
+    resetConfig();
+    resetAdminKeyCache();
+
+    // Set up environment for testing
+    process.env.ADMIN_API_KEY = ADMIN_API_KEY;
+    process.env.ADMIN_API_ENABLED = 'true';
+    process.env.ZAI_API_KEY = 'test-zai-key';
+    process.env.DATABASE_PATH = ':memory:';
+
+    // Close and reset database for clean state
+    closeDatabase();
+    resetDatabase();
+  });
+
+  /**
+   * Helper function to make authenticated requests to the GET endpoint
+   */
+  async function makeGetRequest(queryParams: Record<string, string> = {}, authToken?: string) {
+    const headers: Record<string, string> = {};
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    // Build query string
+    const queryString = new URLSearchParams(queryParams).toString();
+    const url = `http://localhost/${queryString ? '?' + queryString : ''}`;
+
+    const request = new Request(new URL(url), {
+      method: 'GET',
+      headers,
+    });
+
+    return keysRoutes.fetch(request);
+  }
+
+  /**
+   * Helper function to create test API keys
+   */
+  async function createTestKey(data: Partial<{
+    key: string;
+    name: string;
+    description: string | null;
+    scopes: string[];
+    rate_limit: number;
+    is_active: boolean;
+  }> = {}) {
+    const key = data.key || `sk-test-${Math.random().toString(36).substring(2, 15)}-${Math.random().toString(36).substring(2, 15)}`;
+    return ApiKeyModel.create({
+      key,
+      name: data.name || 'Test Key',
+      description: data.description ?? null,
+      scopes: data.scopes ?? [],
+      rate_limit: data.rate_limit ?? 60,
+    });
+  }
+
+  describe('Authentication', () => {
+    it('should list API keys with valid admin API key', async () => {
+      // Create a test key first
+      await createTestKey({ name: 'Test Key 1' });
+
+      const response = await makeGetRequest({}, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('data');
+      expect(data).toHaveProperty('page');
+      expect(data).toHaveProperty('limit');
+      expect(data).toHaveProperty('total');
+      expect(data).toHaveProperty('pages');
+      expect(Array.isArray(data.data)).toBe(true);
+      expect(data.data.length).toBeGreaterThan(0);
+    });
+
+    it('should list API keys with valid admin token', async () => {
+      const token = await generateAdminToken();
+
+      // Create a test key
+      await createTestKey({ name: 'Token Test Key' });
+
+      const response = await makeGetRequest({}, token);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('data');
+      expect(Array.isArray(data.data)).toBe(true);
+    });
+
+    it('should return 401 when admin API key is missing', async () => {
+      const response = await makeGetRequest({});
+
+      expect(response.status).toBe(401);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error');
+    });
+
+    it('should return 401 when admin API key is invalid', async () => {
+      const response = await makeGetRequest({}, 'invalid-admin-key');
+
+      expect(response.status).toBe(401);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error');
+    });
+  });
+
+  describe('Pagination', () => {
+    beforeEach(async () => {
+      // Create 25 test keys for pagination testing
+      for (let i = 1; i <= 25; i++) {
+        await createTestKey({ name: `Key ${i}` });
+      }
+    });
+
+    it('should return first page with default pagination', async () => {
+      const response = await makeGetRequest({}, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.page).toBe(1);
+      expect(data.limit).toBe(10);
+      expect(data.data).toHaveLength(10);
+      expect(data.total).toBe(25);
+      expect(data.pages).toBe(3);
+    });
+
+    it('should return second page correctly', async () => {
+      const response = await makeGetRequest({ page: '2' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.page).toBe(2);
+      expect(data.limit).toBe(10);
+      expect(data.data).toHaveLength(10);
+      expect(data.total).toBe(25);
+      expect(data.pages).toBe(3);
+    });
+
+    it('should return last page with remaining items', async () => {
+      const response = await makeGetRequest({ page: '3' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.page).toBe(3);
+      expect(data.limit).toBe(10);
+      expect(data.data).toHaveLength(5); // Only 5 items on last page
+      expect(data.total).toBe(25);
+      expect(data.pages).toBe(3);
+    });
+
+    it('should respect custom limit parameter', async () => {
+      const response = await makeGetRequest({ limit: '20' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.page).toBe(1);
+      expect(data.limit).toBe(20);
+      expect(data.data).toHaveLength(20);
+      expect(data.pages).toBe(2);
+    });
+
+    it('should return empty array for page beyond total pages', async () => {
+      const response = await makeGetRequest({ page: '10' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.page).toBe(10);
+      expect(data.limit).toBe(10);
+      expect(data.data).toHaveLength(0);
+      expect(data.total).toBe(25);
+      expect(data.pages).toBe(3);
+    });
+
+    it('should combine page and limit parameters', async () => {
+      const response = await makeGetRequest({ page: '2', limit: '5' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.page).toBe(2);
+      expect(data.limit).toBe(5);
+      expect(data.data).toHaveLength(5);
+      expect(data.pages).toBe(5); // 25 items / 5 per page = 5 pages
+    });
+  });
+
+  describe('Query Parameter Validation', () => {
+    it('should return 400 when page is not a positive integer', async () => {
+      const response = await makeGetRequest({ page: '0' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data).toHaveProperty('details');
+      expect(data.details).toBeInstanceOf(Array);
+    });
+
+    it('should return 400 when page is negative', async () => {
+      const response = await makeGetRequest({ page: '-1' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'page')).toBe(true);
+    });
+
+    it('should return 400 when limit is less than 1', async () => {
+      const response = await makeGetRequest({ limit: '0' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'limit')).toBe(true);
+    });
+
+    it('should return 400 when limit exceeds maximum', async () => {
+      const response = await makeGetRequest({ limit: '101' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'limit')).toBe(true);
+    });
+
+    it('should return 400 when is_active is not true or false', async () => {
+      const response = await makeGetRequest({ is_active: 'invalid' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'is_active')).toBe(true);
+    });
+
+    it('should return 400 when page is not a number', async () => {
+      const response = await makeGetRequest({ page: 'abc' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'page')).toBe(true);
+    });
+
+    it('should return 400 when limit is not a number', async () => {
+      const response = await makeGetRequest({ limit: 'abc' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'limit')).toBe(true);
+    });
+  });
+
+  describe('Filtering', () => {
+    beforeEach(async () => {
+      // Create test keys with different states
+      await createTestKey({ name: 'Active Key 1' });
+      await createTestKey({ name: 'Active Key 2' });
+      await createTestKey({ name: 'Test Key 1' });
+      await createTestKey({ name: 'Test Key 2' });
+    });
+
+    it('should filter by is_active=true', async () => {
+      const response = await makeGetRequest({ is_active: 'true' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.data).toHaveLength(4); // All keys are active by default
+      data.data.forEach((key: any) => {
+        expect(key.is_active).toBe(true);
+      });
+    });
+
+    it('should filter by is_active=false', async () => {
+      // Deactivate one key
+      const allKeys = ApiKeyModel.list({});
+      if (allKeys.data.length > 0) {
+        ApiKeyModel.update(allKeys.data[0].id, { is_active: false });
+      }
+
+      const response = await makeGetRequest({ is_active: 'false' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.data.length).toBeGreaterThan(0);
+      data.data.forEach((key: any) => {
+        expect(key.is_active).toBe(false);
+      });
+    });
+
+    it('should search by name (partial match)', async () => {
+      const response = await makeGetRequest({ search: 'Active' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.data).toHaveLength(2);
+      data.data.forEach((key: any) => {
+        expect(key.name).toContain('Active');
+      });
+    });
+
+    it('should search case-insensitively', async () => {
+      const response = await makeGetRequest({ search: 'test' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.data).toHaveLength(2);
+      data.data.forEach((key: any) => {
+        expect(key.name.toLowerCase()).toContain('test');
+      });
+    });
+
+    it('should return empty array when search has no matches', async () => {
+      const response = await makeGetRequest({ search: 'nonexistent' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.data).toHaveLength(0);
+      expect(data.total).toBe(0);
+    });
+
+    it('should combine is_active and search filters', async () => {
+      const response = await makeGetRequest(
+        { is_active: 'true', search: 'Key' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.data.length).toBeGreaterThan(0);
+      data.data.forEach((key: any) => {
+        expect(key.is_active).toBe(true);
+        expect(key.name).toContain('Key');
+      });
+    });
+
+    it('should combine pagination with filters', async () => {
+      // Create more keys
+      for (let i = 0; i < 10; i++) {
+        await createTestKey({ name: `Filter Key ${i}` });
+      }
+
+      const response = await makeGetRequest(
+        { search: 'Filter', limit: '5', page: '1' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.page).toBe(1);
+      expect(data.limit).toBe(5);
+      expect(data.data).toHaveLength(5);
+      expect(data.total).toBe(10);
+      data.data.forEach((key: any) => {
+        expect(key.name).toContain('Filter');
+      });
+    });
+  });
+
+  describe('Response Format', () => {
+    beforeEach(async () => {
+      await createTestKey({
+        name: 'Response Test Key',
+        description: 'Testing list response format',
+        scopes: ['read', 'write'],
+        rate_limit: 100,
+      });
+    });
+
+    it('should return correctly formatted list response', async () => {
+      const response = await makeGetRequest({}, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+
+      // Check response structure
+      expect(data).toHaveProperty('data');
+      expect(data).toHaveProperty('page');
+      expect(data).toHaveProperty('limit');
+      expect(data).toHaveProperty('total');
+      expect(data).toHaveProperty('pages');
+
+      // Check types
+      expect(Array.isArray(data.data)).toBe(true);
+      expect(typeof data.page).toBe('number');
+      expect(typeof data.limit).toBe('number');
+      expect(typeof data.total).toBe('number');
+      expect(typeof data.pages).toBe('number');
+    });
+
+    it('should return correct API key item structure', async () => {
+      const response = await makeGetRequest({}, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      const key = data.data[0];
+
+      // Check all expected fields are present
+      expect(key).toHaveProperty('id');
+      expect(typeof key.id).toBe('number');
+
+      expect(key).toHaveProperty('name');
+      expect(typeof key.name).toBe('string');
+
+      expect(key).toHaveProperty('description');
+      // description can be null or string
+
+      expect(key).toHaveProperty('scopes');
+      expect(Array.isArray(key.scopes)).toBe(true);
+
+      expect(key).toHaveProperty('rate_limit');
+      expect(typeof key.rate_limit).toBe('number');
+
+      expect(key).toHaveProperty('is_active');
+      expect(typeof key.is_active).toBe('boolean');
+
+      expect(key).toHaveProperty('created_at');
+      expect(typeof key.created_at).toBe('string');
+
+      expect(key).toHaveProperty('updated_at');
+      expect(typeof key.updated_at).toBe('string');
+
+      // Check sensitive fields are NOT present
+      expect(key).not.toHaveProperty('key');
+      expect(key).not.toHaveProperty('key_hash');
+      expect(key).not.toHaveProperty('key_preview');
+    });
+
+    it('should return items ordered by created_at DESC', async () => {
+      // Reset database to ensure clean state
+      closeDatabase();
+      resetDatabase();
+
+      // Create keys in sequence with delays to ensure different timestamps
+      const key1 = await createTestKey({ name: 'First Ordering Key' });
+      await new Promise(resolve => setTimeout(resolve, 1100)); // 1.1 second delay to ensure different timestamps
+      const key2 = await createTestKey({ name: 'Second Ordering Key' });
+      await new Promise(resolve => setTimeout(resolve, 1100)); // 1.1 second delay to ensure different timestamps
+      const key3 = await createTestKey({ name: 'Third Ordering Key' });
+
+      const response = await makeGetRequest({}, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+
+      // Find our test keys in the response
+      const testKeys = data.data.filter((k: any) =>
+        ['First Ordering Key', 'Second Ordering Key', 'Third Ordering Key'].includes(k.name)
+      );
+
+      // Should be in reverse chronological order (most recent first)
+      expect(testKeys.length).toBe(3);
+      expect(testKeys[0].name).toBe('Third Ordering Key');
+      expect(testKeys[1].name).toBe('Second Ordering Key');
+      expect(testKeys[2].name).toBe('First Ordering Key');
+
+      // Verify timestamps are in descending order (newest first)
+      const time0 = new Date(testKeys[0].created_at).getTime();
+      const time1 = new Date(testKeys[1].created_at).getTime();
+      const time2 = new Date(testKeys[2].created_at).getTime();
+
+      expect(time0).toBeGreaterThan(time1);
+      expect(time1).toBeGreaterThan(time2);
+    });
+
+    it('should handle empty database', async () => {
+      // Reset database to ensure it's empty
+      closeDatabase();
+      resetDatabase();
+
+      const response = await makeGetRequest({}, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.data).toHaveLength(0);
+      expect(data.total).toBe(0);
+      expect(data.pages).toBe(0);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle special characters in search', async () => {
+      await createTestKey({ name: 'Key with (parentheses)' });
+      await createTestKey({ name: 'Key with [brackets]' });
+      await createTestKey({ name: 'Key with "quotes"' });
+
+      const response = await makeGetRequest({ search: '(' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.data).toHaveLength(1);
+      expect(data.data[0].name).toContain('(');
+    });
+
+    it('should handle unicode characters in search', async () => {
+      await createTestKey({ name: 'Key with emoji 🚀' });
+      await createTestKey({ name: 'Key with chinese 中文' });
+
+      const response = await makeGetRequest({ search: 'emoji' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.data).toHaveLength(1);
+      expect(data.data[0].name).toContain('emoji');
+    });
+
+    it('should trim whitespace from search parameter', async () => {
+      await createTestKey({ name: 'Test Key' });
+
+      const response = await makeGetRequest({ search: '  Test  ' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.data).toHaveLength(1);
+      expect(data.data[0].name).toBe('Test Key');
+    });
+
+    it('should handle very large page numbers gracefully', async () => {
+      const response = await makeGetRequest({ page: '999999' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.page).toBe(999999);
+      expect(data.data).toHaveLength(0);
+    });
+
+    it('should handle minimum limit value', async () => {
+      await createTestKey({ name: 'Test Key' });
+
+      const response = await makeGetRequest({ limit: '1' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.limit).toBe(1);
+      expect(data.data).toHaveLength(1);
+    });
+
+    it('should handle maximum limit value', async () => {
+      // Create enough keys
+      for (let i = 0; i < 105; i++) {
+        await createTestKey({ name: `Key ${i}` });
+      }
+
+      const response = await makeGetRequest({ limit: '100' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.limit).toBe(100);
+      expect(data.data).toHaveLength(100);
     });
   });
 });

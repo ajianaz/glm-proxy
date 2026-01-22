@@ -48,6 +48,44 @@ const createApiKeySchema = z.object({
 type CreateApiKeyRequest = z.infer<typeof createApiKeySchema>;
 
 /**
+ * Request validation schema for listing API keys (query parameters)
+ */
+const listApiKeysSchema = z.object({
+  page: z.string()
+    .optional()
+    .transform((val) => val ? parseInt(val, 10) : undefined)
+    .refine((val) => val === undefined || (Number.isInteger(val) && val >= 1), {
+      message: 'Page must be a positive integer',
+    }),
+
+  limit: z.string()
+    .optional()
+    .transform((val) => val ? parseInt(val, 10) : undefined)
+    .refine((val) => val === undefined || (Number.isInteger(val) && val >= 1 && val <= 100), {
+      message: 'Limit must be an integer between 1 and 100',
+    }),
+
+  is_active: z.string()
+    .optional()
+    .refine((val) => !val || val === 'true' || val === 'false', {
+      message: 'is_active must be true or false',
+    })
+    .transform((val) => val === 'true' ? true : val === 'false' ? false : undefined),
+
+  search: z.string()
+    .optional()
+    .transform((val) => val ? val.trim() : undefined)
+    .refine((val) => val === undefined || val.length > 0, {
+      message: 'Search cannot be empty',
+    }),
+});
+
+/**
+ * Type for list API keys query parameters
+ */
+type ListApiKeysQuery = z.infer<typeof listApiKeysSchema>;
+
+/**
  * Format validation errors for API response
  */
 function formatValidationErrors(error: z.ZodError): { field: string; message: string }[] {
@@ -140,6 +178,59 @@ app.post('/', adminAuthMiddleware, async (c) => {
       {
         error: 'Internal server error',
         details: 'An unexpected error occurred while creating the API key',
+      },
+      500
+    );
+  }
+});
+
+/**
+ * GET /admin/api/keys
+ *
+ * List all API keys with pagination and filtering.
+ *
+ * @example
+ * ```bash
+ * curl -X GET "http://localhost:3000/admin/api/keys?page=1&limit=10&is_active=true&search=test" \
+ *   -H "Authorization: Bearer <admin-api-key>"
+ * ```
+ */
+app.get('/', adminAuthMiddleware, async (c) => {
+  try {
+    // Parse and validate query parameters
+    const queryParams = c.req.query();
+    const validationResult = listApiKeysSchema.safeParse(queryParams);
+
+    if (!validationResult.success) {
+      const errors = formatValidationErrors(validationResult.error);
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: errors,
+        },
+        400
+      );
+    }
+
+    const params = validationResult.data;
+
+    // List API keys using model
+    const result = ApiKeyModel.list({
+      page: params.page,
+      limit: params.limit,
+      is_active: params.is_active,
+      search: params.search,
+    });
+
+    // Return 200 OK with paginated list
+    return c.json(result, 200);
+  } catch (error) {
+    // Handle unexpected errors
+    console.error('Unexpected error listing API keys:', error);
+    return c.json(
+      {
+        error: 'Internal server error',
+        details: 'An unexpected error occurred while listing API keys',
       },
       500
     );

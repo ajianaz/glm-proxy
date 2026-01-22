@@ -82,7 +82,7 @@ app.get('/', (c) => {
     endpoints: {
       health: 'GET /health',
       stats: 'GET /stats',
-      admin_api: 'POST /admin/api/keys',
+      admin_api: 'GET, POST /admin/api/keys',
       openai_compatible: 'ALL /v1/* (except /v1/messages)',
       anthropic_compatible: 'POST /v1/messages',
     },
