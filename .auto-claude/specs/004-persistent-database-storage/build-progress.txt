@@ -1,24 +1,24 @@
 # Build Progress: Persistent Database Storage
 
 **Started:** 2026-01-22
-**Status:** In Progress - Phase 1
+**Status:** In Progress - Phase 2
 
 ## Overview
 Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizontal scaling and production readiness.
 
 ## Phase Status
 
-### Phase 1: Database Setup & Schema Design [IN PROGRESS]
+### Phase 1: Database Setup & Schema Design [COMPLETED]
 - ✅ Install Drizzle ORM and drivers (COMPLETED: 1.1)
 - ✅ Create configuration (COMPLETED: 1.2)
 - ✅ Define schema matching ApiKey interface (COMPLETED: 1.3)
 - ✅ Create connection module (COMPLETED: 1.4)
 
-### Phase 2: Database Operations [IN PROGRESS]
+### Phase 2: Database Operations [COMPLETED]
 - ✅ CRUD operations (COMPLETED: 2.1)
 - ✅ Usage tracking with transactions (COMPLETED: 2.2)
 - ✅ Statistics queries (COMPLETED: 2.3)
-- Helper functions
+- ✅ Helper functions (COMPLETED: 2.4)
 
 ### Phase 3: Storage Abstraction [PENDING]
 - Define IStorage interface
@@ -76,7 +76,8 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 2. ✅ ~~Set up Drizzle configuration~~
 3. ✅ ~~Define database schema~~
 4. ✅ ~~Create database connection module~~
-5. Implement database operations (NEXT: Phase 2)
+5. ✅ ~~Implement database operations (Phase 2)~~
+6. Implement storage abstraction layer (NEXT: Phase 3)
 
 ## Completed Tasks
 - **1.1** Install Drizzle ORM and drivers
@@ -147,3 +148,23 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
   - All 24 total tests passing (17 existing + 7 new)
   - TypeScript compilation verified
   - Full JSDoc documentation with usage examples
+- **2.4** Add query helper functions (COMPLETED)
+  - Implemented four utility functions for common database queries
+  - getAllApiKeys: Retrieve all API keys with pagination support (limit/offset parameters, default limit: 100)
+  - findKeysByModel: Find API keys by model name (e.g., 'claude-3-5-sonnet-20241022')
+  - findExpiredKeys: Find all expired API keys (expiry_date < now), ordered by expiry date
+  - findActiveKeys: Find all active/non-expired API keys (expiry_date >= now), ordered by creation date
+  - All functions support both SQLite and PostgreSQL databases
+  - All functions include usage_windows for each returned key
+  - Comprehensive parameter validation (limit > 0, offset >= 0, model non-empty)
+  - Proper error handling with meaningful error messages
+  - Full JSDoc documentation with usage examples for each function
+  - 10 comprehensive test cases covering all four helper functions:
+    - Basic functionality (getAllApiKeys, findKeysByModel, findExpiredKeys, findActiveKeys)
+    - Pagination for getAllApiKeys (limit/offset validation, no overlap between pages)
+    - Parameter validation (model, limit, offset)
+    - Empty results handling (non-existent model)
+    - Usage windows inclusion in results
+    - Proper cleanup of test data
+  - All 34 total tests passing (24 existing + 10 new)
+  - TypeScript compilation verified, ESLint validation passed
