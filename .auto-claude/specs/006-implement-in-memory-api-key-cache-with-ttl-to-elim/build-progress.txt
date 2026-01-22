@@ -4,7 +4,7 @@
 **Status:** Phase 5 In Progress - Documentation and Monitoring
 **Created:** 2026-01-22
 **Estimated Time:** 6.5 hours
-**Last Updated:** 2026-01-22T14:00:00.000Z
+**Last Updated:** 2026-01-22T14:30:00.000Z
 
 ---
 
@@ -184,10 +184,11 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
   - Return JSON format ✅
   - **Implementation:** Added GET /cache-stats endpoint in src/index.ts. Returns CacheStatsResponse with hits, misses, hitRate, size, maxSize, and enabled flag. Requires authMiddleware. Updated root endpoint documentation. All tests pass (122/122).
 
-- [ ] 5.2 Add logging for cache operations (15m)
-  - Debug log on hit/miss
-  - Info log on invalidation
-  - Make configurable via env var
+- [x] 5.2 Add logging for cache operations (15m) ✅
+  - Debug log on hit/miss ✅
+  - Info log on invalidation ✅
+  - Make configurable via env var ✅
+  - **Implementation:** Added structured logging in src/storage.ts with logCache() utility function. Debug logs for cache hits/misses in findApiKey(), info logs for cache updates in updateApiKeyUsage(), info logs for cache warm-up. Configurable via CACHE_LOG_LEVEL (none/info/debug). Verified all levels work correctly. All 122 tests pass.
 
 - [ ] 5.3 Update documentation (20m)
   - Document cache architecture
@@ -253,7 +254,6 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
 ---
 
 **Next Steps:** Complete Phase 5 - Documentation and Monitoring
-- Subtask 5.2: Add logging for cache operations
 - Subtask 5.3: Update documentation
 
 **Completed Phases:**
@@ -263,4 +263,4 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
 - ✅ Phase 3: Integrate Cache with Storage Layer
 - ✅ Phase 4: Testing (Complete)
 
-**Current Status:** Phase 5 in progress. Subtask 5.1 (cache statistics endpoint) completed successfully. Added GET /cache-stats endpoint requiring authentication, returns cache statistics (hits, misses, hitRate, size, maxSize, enabled). All 122 tests pass. Ready to proceed with subtask 5.2 (logging) and 5.3 (documentation).
+**Current Status:** Phase 5 in progress. Subtask 5.2 (logging for cache operations) completed successfully. Added structured logging in src/storage.ts with logCache() utility function supporting CACHE_LOG_LEVEL (none/info/debug). Debug logs for cache hits/misses, info logs for cache updates and warm-up. All 122 tests pass. Ready to proceed with subtask 5.3 (documentation).
