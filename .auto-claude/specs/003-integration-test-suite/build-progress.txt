@@ -1,6 +1,6 @@
 # Integration Test Suite - Build Progress
 
-## Current Status: Phase 1 In Progress 🔄
+## Current Status: Phase 2 In Progress 🔄
 
 ### Completed Steps
 
@@ -15,7 +15,7 @@
    - Defined 8 phases with 32 subtasks
    - Estimated total time: ~10 hours (595 minutes)
 
-3. **Phase 1: Foundation & Infrastructure** ✅ (50 min)
+3. **Phase 1: Foundation & Infrastructure** ✅ COMPLETE (50 min)
    - **Subtask 1.1: Test utilities and helper functions** ✓
      - Created `test/integration/helpers.ts` with server setup/teardown utilities
      - Implemented HTTP request builders for OpenAI and Anthropic formats
@@ -35,6 +35,19 @@
      - Created test scenario setup utilities
      - Added backup/restore functionality for test state
 
+4. **Phase 2: API Endpoint Tests** 🔄 IN PROGRESS (10 min done, 90 min remaining)
+   - **Subtask 2.1: Test /health endpoint** ✅ COMPLETE
+     - Created `test/integration/health.test.ts` with 16 comprehensive tests
+     - Tests verify 200 OK status, correct response format (status + timestamp)
+     - Validates ISO 8601 timestamp format and recency
+     - Checks JSON content type and CORS headers
+     - Tests OPTIONS preflight requests
+     - Confirms endpoint works without authentication
+     - Tests requests from different origins and HTTP methods
+     - Validates response consistency across multiple requests
+     - Edge cases: query params, trailing slash, custom headers, performance
+     - All 16 tests passing in 44ms ✅
+
 ### Implementation Plan Summary
 
 **Phase 1: Foundation & Infrastructure** ✅ COMPLETE (50 min)
@@ -42,9 +55,9 @@
 - Test fixtures and data ✓
 - Environment setup/teardown ✓
 
-**Phase 2: API Endpoint Tests** (100 min) - NEXT
-- /health endpoint
-- /stats endpoint
+**Phase 2: API Endpoint Tests** (100 min) - IN PROGRESS
+- /health endpoint ✅ COMPLETE (16 tests passing)
+- /stats endpoint (NEXT)
 - /v1/chat/completions (OpenAI)
 - /v1/messages (Anthropic)
 - Root endpoint
@@ -88,8 +101,8 @@
 ### Next Steps
 
 1. ✅ Start Phase 2: API Endpoint Tests
-2. Create test for /health endpoint
-3. Create test for /stats endpoint
+2. ✅ Create test for /health endpoint (COMPLETED)
+3. Create test for /stats endpoint (NEXT)
 4. Create test for /v1/chat/completions endpoint
 
 ### Acceptance Criteria Status
@@ -113,4 +126,5 @@
 - Mock upstream API responses to avoid external dependencies
 - Focus on deterministic, order-independent tests
 - ✅ All helper utilities verified with passing tests (18/18 passing)
-- Git commit created: ee9e1f9
+- ✅ Health endpoint tests created and passing (16/16 passing)
+- Git commits created: ee9e1f9 (helpers), 3d19a76 (health)

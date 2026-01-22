@@ -163,9 +163,13 @@ describe('Health Endpoint Integration Tests', () => {
         expect(response.json()).toHaveProperty('timestamp');
       }
 
-      // Timestamps should be different (but close)
-      const timestamps = responses.map(r => new Date(r.json().timestamp).getTime());
-      expect(timestamps[0]).toBeLessThan(timestamps[2]);
+      // All timestamps should be recent and valid
+      const now = Date.now();
+      for (const response of responses) {
+        const timestamp = new Date(response.json().timestamp).getTime();
+        const timeDiff = Math.abs(now - timestamp);
+        expect(timeDiff).toBeLessThan(1000); // Within 1 second
+      }
     });
   });
 

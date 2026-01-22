@@ -1,7 +1,7 @@
 {
   "spec_id": "003-integration-test-suite",
   "created_at": "2026-01-22T03:27:47.106652+00:00",
-  "updated_at": "2026-01-22T03:40:41.901091+00:00",
+  "updated_at": "2026-01-22T03:41:50.826190+00:00",
   "phases": {
     "planning": {
       "phase": "planning",
@@ -1538,6 +1538,220 @@
           "phase": "coding",
           "tool_name": "Bash",
           "tool_input": "git commit -m \"$(cat <<'EOF'\nauto-claude: 2.1 -...",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:40:43.716834+00:00",
+          "type": "tool_end",
+          "content": "[Bash] Done",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "session": 1,
+          "detail": "",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T03:40:48.927825+00:00",
+          "type": "text",
+          "content": "Now let me update the implementation plan to mark this subtask as completed:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:40:48.935197+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...integration-test-suite/implementation_plan.json",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...integration-test-suite/implementation_plan.json",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:40:48.946767+00:00",
+          "type": "tool_end",
+          "content": "[Read] Error: BLOCKED",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "     1→{\n     2→  \"spec_id\": \"003-integration-test-suite\",\n     3→  \"spec_title\": \"Integration Test Suite\",\n     4→  \"description\": \"# Integration Test Suite\\n\\nComprehensive integration tests covering all API endpoints, rate limiting behavior, streaming responses, error scenarios, and multi-user interactions.\\n\\n## Rationale\\nAddresses technical debt of no integration tests. Ensures reliability and prevents regressions. Critical for production confidence and distinguishes from competitors with buggy implementations (Portkey).\\n\\n## User Stories\\n- As a developer, I want integration tests so that I can confidently make changes without breaking functionality\\n- As a maintainer, I want automated tests in CI/CD so that pull requests are automatically validated\\n- As a user, I want reliable software so that I don't encounter unexpected bugs\\n\\n## Acceptance Criteria\\n- [ ] Tests cover all API endpoints (/v1/chat/completions, /v1/messages, /stats, /health)\\n- [ ] Tests verify rate limiting enforcement with rolling window\\n- [ ] Tests validate streaming responses for both OpenAI and Anthropic formats\\n- [ ] Tests verify error handling for all error types\\n- [ ] Tests check authentication and authorization\\n- [ ] Tests validate API key expiry handling\\n- [ ] Tests verify concurrent request handling\\n- [ ] Tests can be run in CI/CD pipeline\\n- [ ] Test coverage report available\\n- [ ] Tests complete in under 60 seconds\\n\",\n     5→  \"created_at\": \"2026-01-22T03:27:43.251Z\",\n     6→  \"updated_at\": \"2026-01-22T03:31:52.516Z\",\n     7→  \"status\": \"in_progress\",\n     8→  \"planStatus\": \"in_progress\",\n     9→  \"phases\": [\n    10→    {\n    11→      \"phase_id\": 1,\n    12→      \"phase_name\": \"Foundation & Infrastructure\",\n    13→      \"phase_description\": \"Set up the testing infrastructure, utilities, and fixtures needed for integration tests\",\n    14→      \"status\": \"pending\",\n    15→      \"subtasks\": [\n    16→        {\n    17→          \"subtask_id\": \"1.1\",\n    18→          \"title\": \"Create test utilities and helper functions\",\n    19→          \"description\": \"Build reusable test utilities including test server setup/teardown, API key fixtures, request builders, and response validators\",\n    20→          \"status\": \"completed\",\n    21→          \"file\": \"test/integration/helpers.ts\",\n    22→          \"estimated_minutes\": 20\n    23→        },\n    24→        {\n    25→          \"subtask_id\": \"1.2\",\n    26→          \"title\": \"Set up test fixtures and data\",\n    27→          \"description\": \"Create mock API keys with various configurations (expired, active, rate-limited) for testing different scenarios\",\n    28→          \"status\": \"completed\",\n    29→          \"file\": \"test/integration/fixtures.ts\",\n    30→          \"estimated_minutes\": 15\n    31→        },\n    32→        {\n    33→          \"subtask_id\": \"1.3\",\n    34→          \"title\": \"Configure test environment setup\",\n    35→          \"description\": \"Create test setup script that initializes temporary data directory, environment variables, and cleans up after tests\",\n    36→          \"status\": \"completed\",\n    37→          \"file\": \"test/integration/setup.ts\",\n    38→          \"estimated_minutes\": 15\n    39→        }\n    40→      ]\n    41→    },\n    42→    {\n    43→      \"phase_id\": 2,\n    44→      \"phase_name\": \"API Endpoint Tests\",\n    45→      \"phase_description\": \"Create integration tests for all API endpoints\",\n    46→      \"status\": \"pending\",\n    47→      \"subtasks\": [\n    48→        {\n    49→          \"subtask_id\": \"2.1\",\n    50→          \"title\": \"Test /health endpoint\",\n    51→          \"description\": \"Verify health endpoint returns correct status and format, handles CORS properly\",\n    52→          \"status\": \"pending\",\n    53→          \"file\": \"test/integration/health.test.ts\",\n    54→          \"estimated_minutes\": 10\n    55→        },\n    56→        {\n    57→          \"subtask_id\": \"2.2\",\n    58→          \"title\": \"Test /stats endpoint\",\n    59→          \"description\": \"Verify stats endpoint returns correct API key information, usage statistics, rate limit data, and expiry status\",\n    60→          \"status\": \"pending\",\n    61→          \"file\": \"test/integration/stats.test.ts\",\n    62→          \"estimated_minutes\": 20\n    63→        },\n    64→        {\n    65→          \"subtask_id\": \"2.3\",\n    66→          \"title\": \"Test /v1/chat/completions (OpenAI format)\",\n    67→          \"description\": \"Verify OpenAI-compatible chat completions endpoint with various request formats, model overrides, and response handling\",\n    68→          \"status\": \"pending\",\n    69→          \"file\": \"test/integration/openai-chat.test.ts\",\n    70→          \"estimated_minutes\": 30\n    71→        },\n    72→        {\n    73→          \"subtask_id\": \"2.4\",\n    74→          \"title\": \"Test /v1/messages (Anthropic format)\",\n    75→          \"description\": \"Verify Anthropic-compatible messages endpoint with proper request/response format conversion\",\n    76→          \"status\": \"pending\",\n    77→          \"file\": \"test/integration/anthropic-messages.test.ts\",\n    78→          \"estimated_minutes\": 30\n    79→        },\n    80→        {\n    81→          \"subtask_id\": \"2.5\",\n    82→          \"title\": \"Test root endpoint documentation\",\n    83→          \"description\": \"Verify root endpoint returns proper API documentation and endpoint listing\",\n    84→          \"status\": \"pending\",\n    85→          \"file\": \"test/integration/root.test.ts\",\n    86→          \"estimated_minutes\": 10\n    87→        }\n    88→      ]\n    89→    },\n    90→    {\n    91→      \"phase_id\": 3,\n    92→      \"phase_name\": \"Authentication & Authorization Tests\",\n    93→      \"phase_description\": \"Test authentication middleware and API key validation\",\n    94→      \"status\": \"pending\",\n    95→      \"subtasks\": [\n    96→        {\n    97→          \"subtask_id\": \"3.1\",\n    98→          \"title\": \"Test valid API key authentication\",\n    99→          \"description\": \"Verify requests with valid API keys are properly authenticated and processed\",\n   100→          \"status\": \"pending\",\n   101→          \"file\": \"test/integration/auth.test.ts\",\n   102→          \"estimated_minutes\": 15\n   103→        },\n   104→        {\n   105→          \"subtask_id\": \"3.2\",\n   106→          \"title\": \"Test invalid API key rejection\",\n   107→          \"description\": \"Verify requests with invalid, missing, or malformed API keys are rejected with proper error messages\",\n   108→          \"status\": \"pending\",\n   109→          \"file\": \"test/integration/auth.test.ts\",\n   110→          \"estimated_minutes\": 15\n   111→        },\n   112→        {\n   113→          \"subtask_id\": \"3.3\",\n   114→          \"title\": \"Test API key expiry handling\",\n   115→          \"description\": \"Verify expired API keys are rejected and upcoming expiry is properly handled\",\n   116→          \"status\": \"pending\",\n   117→          \"file\": \"test/integration/auth-expiry.test.ts\",\n   118→          \"estimated_minutes\": 20\n   119→        },\n   120→        {\n   121→          \"subtask_id\": \"3.4\",\n   122→          \"title\": \"Test authentication via x-api-key header\",\n   123→          \"description\": \"Verify authentication works with x-api-key header in addition to Authorization header\",\n   124→          \"status\": \"pending\",\n   125→          \"file\": \"test/integration/auth.test.ts\",\n   126→          \"estimated_minutes\": 10\n   127→        }\n   128→      ]\n   129→    },\n   130→    {\n   131→      \"phase_id\": 4,\n   132→      \"phase_name\": \"Rate Limiting Tests\",\n   133→      \"phase_description\": \"Test rate limiting behavior with rolling window implementation\",\n   134→      \"status\": \"pending\",\n   135→      \"subtasks\": [\n   136→        {\n   137→          \"subtask_id\": \"4.1\",\n   138→          \"title\": \"Test rate limit enforcement\",\n   139→          \"description\": \"Verify requests are blocked when token limit is exceeded within 5-hour window\",\n   140→          \"status\": \"pending\",\n   141→          \"file\": \"test/integration/ratelimit.test.ts\",\n   142→          \"estimated_minutes\": 25\n   143→        },\n   144→        {\n   145→          \"subtask_id\": \"4.2\",\n   146→          \"title\": \"Test rolling window behavior\",\n   147→          \"description\": \"Verify old usage windows are cleaned up and new windows are created correctly\",\n   148→          \"status\": \"pending\",\n   149→          \"file\": \"test/integration/ratelimit-rolling.test.ts\",\n   150→          \"estimated_minutes\": 25\n   151→        },\n   152→        {\n   153→          \"subtask_id\": \"4.3\",\n   154→          \"title\": \"Test rate limit reset after window expires\",\n   155→          \"description\": \"Verify token usage is properly reset when 5-hour window expires\",\n   156→          \"status\": \"pending\",\n   157→          \"file\": \"test/integration/ratelimit-rolling.test.ts\",\n   158→          \"estimated_minutes\": 20\n   159→        },\n   160→        {\n   161→          \"subtask_id\": \"4.4\",\n   162→          \"title\": \"Test concurrent request rate limiting\",\n   163→          \"description\": \"Verify rate limiting works correctly with multiple simultaneous requests\",\n   164→          \"status\": \"pending\",\n   165→          \"file\": \"test/integration/ratelimit-concurrent.test.ts\",\n   166→          \"estimated_minutes\": 20\n   167→        }\n   168→      ]\n   169→    },\n   170→    {\n   171→      \"phase_id\": 5,\n   172→      \"phase_name\": \"Streaming Response Tests\",\n   173→      \"phase_description\": \"Test streaming response handling for both OpenAI and Anthropic formats\",\n   174→      \"status\": \"pending\",\n   175→      \"subtasks\": [\n   176→        {\n   177→          \"subtask_id\": \"5.1\",\n   178→          \"title\": \"Test OpenAI streaming responses\",\n   179→          \"description\": \"Verify SSE streaming for OpenAI chat completions with proper chunk formatting and delta updates\",\n   180→          \"status\": \"pending\",\n   181→          \"file\": \"test/integration/streaming-openai.test.ts\",\n   182→          \"estimated_minutes\": 30\n   183→        },\n   184→        {\n   185→          \"subtask_id\": \"5.2\",\n   186→          \"title\": \"Test Anthropic streaming responses\",\n   187→          \"description\": \"Verify SSE streaming for Anthropic messages with proper event types and chunk handling\",\n   188→          \"status\": \"pending\",\n   189→          \"file\": \"test/integr\n\n... [truncated - full output was 18191 chars]",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T03:40:59.959801+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...integration-test-suite/implementation_plan.json",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...integration-test-suite/implementation_plan.json",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:40:59.967910+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...integration-test-suite/implementation_plan.json",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...integration-test-suite/implementation_plan.json",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:40:59.988950+00:00",
+          "type": "tool_end",
+          "content": "[Edit] Done",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "session": 1,
+          "detail": "The file ./.auto-claude/specs/003-integration-test-suite/implementation_plan.json has been updated successfully.",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T03:41:20.167802+00:00",
+          "type": "text",
+          "content": "Now let me update the build progress file:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:20.179537+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:20.198211+00:00",
+          "type": "tool_end",
+          "content": "[Edit] Done",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "session": 1,
+          "detail": "The file ./.auto-claude/specs/003-integration-test-suite/build-progress.txt has been updated successfully.",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T03:41:31.240236+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:31.248206+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:31.254928+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:31.266890+00:00",
+          "type": "tool_end",
+          "content": "[Edit] Done",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "session": 1,
+          "detail": "The file ./.auto-claude/specs/003-integration-test-suite/build-progress.txt has been updated successfully.",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T03:41:34.280323+00:00",
+          "type": "text",
+          "content": "Now let me run all tests to ensure everything works correctly:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:34.286066+00:00",
+          "type": "tool_start",
+          "content": "[Bash] bun test test/integration/",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "tool_input": "bun test test/integration/",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:35.431520+00:00",
+          "type": "tool_end",
+          "content": "[Bash] Error: Exit code 1\n\ntest/integration/health.test.ts:\n163 |         expect(response.json()).toHaveProperty('",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "session": 1,
+          "detail": "Exit code 1\n\ntest/integration/health.test.ts:\n163 |         expect(response.json()).toHaveProperty('timestamp');\n164 |       }\n165 | \n166 |       // Timestamps should be different (but close)\n167 |       const timestamps = responses.map(r => new Date(r.json().timestamp).getTime());\n168 |       expect(timestamps[0]).toBeLessThan(timestamps[2]);\n                                  ^\nerror: expect(received).toBeLessThan(expected)\n\nExpected: < 1769053295411\nReceived: 1769053295411\n\n      at <anonymous> (/Users/mis-puragroup/development/riset-ai/glm-proxy/.auto-claude/worktrees/tasks/003-integration-test-suite/test/integration/health.test.ts:168:29)\n(fail) Health Endpoint Integration Tests > GET /health > should be consistent across multiple requests [1.09ms]\n\n 33 pass\n 1 fail\n 84 expect() calls\nRan 34 tests across 2 files. [42.00ms]\n\nbun test v1.2.23 (cf136713)\nProxy Gateway starting on port 3000",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T03:41:44.037693+00:00",
+          "type": "text",
+          "content": "I need to fix a flaky test. The timestamps are identical because requests are too fast. Let me update the test:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:44.046937+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ./test/integration/health.test.ts",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "./test/integration/health.test.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:44.059852+00:00",
+          "type": "tool_end",
+          "content": "[Edit] Done",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "session": 1,
+          "detail": "The file ./test/integration/health.test.ts has been updated successfully.",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T03:41:46.195702+00:00",
+          "type": "tool_start",
+          "content": "[Bash] bun test test/integration/",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "tool_input": "bun test test/integration/",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:46.335468+00:00",
+          "type": "tool_end",
+          "content": "[Bash] Done",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "session": 1,
+          "detail": "bun test v1.2.23 (cf136713)\nProxy Gateway starting on port 3000\n\n 34 pass\n 0 fail\n 86 expect() calls\nRan 34 tests across 2 files. [39.00ms]",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T03:41:50.818971+00:00",
+          "type": "text",
+          "content": "Perfect! All tests passing. Let me commit the fix:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T03:41:50.826166+00:00",
+          "type": "tool_start",
+          "content": "[Bash] git add . && git commit -m \"$(cat <<'EOF'\nauto-...",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "tool_input": "git add . && git commit -m \"$(cat <<'EOF'\nauto-...",
           "session": 1
         }
       ]
