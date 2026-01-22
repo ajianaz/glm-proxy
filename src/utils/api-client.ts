@@ -8,6 +8,29 @@
 import type { ApiKey } from '../types.js';
 
 /**
+ * Get authorization headers from sessionStorage
+ *
+ * Retrieves the stored authentication credentials and returns the appropriate
+ * Authorization header for Bearer token or Basic auth.
+ *
+ * @returns Headers object with Authorization if authenticated, empty object otherwise
+ */
+function getAuthHeaders(): Record<string, string> {
+  const token = sessionStorage.getItem('dashboard_auth_token');
+  const authType = sessionStorage.getItem('dashboard_auth_type');
+
+  if (!token || !authType) {
+    return {};
+  }
+
+  if (authType === 'bearer') {
+    return { 'Authorization': `Bearer ${token}` };
+  } else {
+    return { 'Authorization': `Basic ${token}` };
+  }
+}
+
+/**
  * API Error class for handling API-specific errors
  */
 export class ApiClientError extends Error {
@@ -49,6 +72,7 @@ export async function fetchApiKeys(
   try {
     const response = await fetch('/api/keys', {
       signal: options?.signal,
+      headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -92,6 +116,7 @@ export async function createApiKey(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify(keyData),
       signal: options?.signal,
@@ -134,6 +159,7 @@ export async function updateApiKey(
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify(updates),
       signal: options?.signal,
@@ -172,6 +198,7 @@ export async function deleteApiKey(
   try {
     const response = await fetch(`/api/keys/${encodeURIComponent(keyId)}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
       signal: options?.signal,
     });
 
@@ -208,6 +235,7 @@ export async function fetchApiKeyUsage(
 ): Promise<unknown> {
   try {
     const response = await fetch(`/api/keys/${encodeURIComponent(keyId)}/usage`, {
+      headers: getAuthHeaders(),
       signal: options?.signal,
     });
 

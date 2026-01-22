@@ -23648,18 +23648,320 @@ var require_jsx_dev_runtime = __commonJS((exports, module) => {
 });
 
 // frontend.tsx
-var import_react6 = __toESM(require_react(), 1);
+var import_react7 = __toESM(require_react(), 1);
 var import_client = __toESM(require_client(), 1);
 
 // src/components/App.tsx
-var import_react5 = __toESM(require_react(), 1);
+var import_react6 = __toESM(require_react(), 1);
 
-// src/components/ApiKeyTable.tsx
-var import_react2 = __toESM(require_react(), 1);
-
-// src/components/ConfirmDialog.tsx
+// src/components/LoginPage.tsx
 var import_react = __toESM(require_react(), 1);
 var jsx_dev_runtime = __toESM(require_jsx_dev_runtime(), 1);
+function encodeBasicAuth(username, password) {
+  const credentials = `${username}:${password}`;
+  return btoa(credentials);
+}
+function LoginPage({ onLoginSuccess }) {
+  const [formData, setFormData] = import_react.useState({
+    authType: "bearer",
+    token: "",
+    username: "",
+    password: ""
+  });
+  const [errors, setErrors] = import_react.useState({});
+  const [isLoading, setIsLoading] = import_react.useState(false);
+  const [showPassword, setShowPassword] = import_react.useState(false);
+  function validateForm() {
+    const newErrors = {};
+    if (formData.authType === "bearer") {
+      if (!formData.token.trim()) {
+        newErrors.token = "Bearer token is required";
+      } else if (formData.token.length < 8) {
+        newErrors.token = "Token must be at least 8 characters long";
+      }
+    } else {
+      if (!formData.username.trim()) {
+        newErrors.username = "Username is required";
+      }
+      if (!formData.password.trim()) {
+        newErrors.password = "Password is required";
+      }
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
+    setIsLoading(true);
+    setErrors({});
+    try {
+      let authToken = "";
+      let authType = formData.authType;
+      if (formData.authType === "bearer") {
+        authToken = formData.token.trim();
+      } else {
+        authToken = encodeBasicAuth(formData.username.trim(), formData.password.trim());
+      }
+      const response = await fetch("/api/keys", {
+        method: "GET",
+        headers: {
+          Authorization: formData.authType === "bearer" ? `Bearer ${authToken}` : `Basic ${authToken}`,
+          "Content-Type": "application/json"
+        }
+      });
+      if (response.ok) {
+        sessionStorage.setItem("dashboard_auth_token", authToken);
+        sessionStorage.setItem("dashboard_auth_type", authType);
+        onLoginSuccess(authToken, authType);
+      } else if (response.status === 401) {
+        setErrors({
+          general: "Authentication failed. Please check your credentials and try again."
+        });
+      } else {
+        setErrors({
+          general: `Authentication error: ${response.statusText}`
+        });
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setErrors({
+        general: "Network error. Please check your connection and try again."
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+  function handleInputChange(event) {
+    const { name, value } = event.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+    if (name in errors) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  }
+  return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+    className: "login-page",
+    children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+      className: "login-container",
+      children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+        className: "login-card",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+            className: "login-header",
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("h1", {
+                children: "API Key Dashboard"
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
+                className: "login-subtitle",
+                children: "Please authenticate to access the dashboard"
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("form", {
+            onSubmit: handleSubmit,
+            className: "login-form",
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+                className: "form-group",
+                children: [
+                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
+                    htmlFor: "authType",
+                    children: "Authentication Method"
+                  }, undefined, false, undefined, this),
+                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("select", {
+                    id: "authType",
+                    name: "authType",
+                    value: formData.authType,
+                    onChange: handleInputChange,
+                    className: "form-control",
+                    children: [
+                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("option", {
+                        value: "bearer",
+                        children: "Bearer Token"
+                      }, undefined, false, undefined, this),
+                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("option", {
+                        value: "basic",
+                        children: "Basic Authentication"
+                      }, undefined, false, undefined, this)
+                    ]
+                  }, undefined, true, undefined, this),
+                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("small", {
+                    className: "form-hint",
+                    children: formData.authType === "bearer" ? "Enter your bearer token for authentication" : "Enter your username and password for authentication"
+                  }, undefined, false, undefined, this)
+                ]
+              }, undefined, true, undefined, this),
+              formData.authType === "bearer" && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+                className: "form-group",
+                children: [
+                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
+                    htmlFor: "token",
+                    children: [
+                      "Bearer Token ",
+                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                        className: "required",
+                        children: "*"
+                      }, undefined, false, undefined, this)
+                    ]
+                  }, undefined, true, undefined, this),
+                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("input", {
+                    type: "password",
+                    id: "token",
+                    name: "token",
+                    value: formData.token,
+                    onChange: handleInputChange,
+                    className: `form-control ${errors.token ? "input-error" : ""}`,
+                    placeholder: "Enter your bearer token",
+                    disabled: isLoading,
+                    autoComplete: "current-password"
+                  }, undefined, false, undefined, this),
+                  errors.token && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                    className: "error-message",
+                    children: errors.token
+                  }, undefined, false, undefined, this),
+                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("small", {
+                    className: "form-hint",
+                    children: "The token will be stored in your browser session"
+                  }, undefined, false, undefined, this)
+                ]
+              }, undefined, true, undefined, this),
+              formData.authType === "basic" && /* @__PURE__ */ jsx_dev_runtime.jsxDEV(jsx_dev_runtime.Fragment, {
+                children: [
+                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+                    className: "form-group",
+                    children: [
+                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
+                        htmlFor: "username",
+                        children: [
+                          "Username ",
+                          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                            className: "required",
+                            children: "*"
+                          }, undefined, false, undefined, this)
+                        ]
+                      }, undefined, true, undefined, this),
+                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("input", {
+                        type: "text",
+                        id: "username",
+                        name: "username",
+                        value: formData.username,
+                        onChange: handleInputChange,
+                        className: `form-control ${errors.username ? "input-error" : ""}`,
+                        placeholder: "Enter your username",
+                        disabled: isLoading,
+                        autoComplete: "username"
+                      }, undefined, false, undefined, this),
+                      errors.username && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                        className: "error-message",
+                        children: errors.username
+                      }, undefined, false, undefined, this)
+                    ]
+                  }, undefined, true, undefined, this),
+                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+                    className: "form-group",
+                    children: [
+                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
+                        htmlFor: "password",
+                        children: [
+                          "Password ",
+                          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                            className: "required",
+                            children: "*"
+                          }, undefined, false, undefined, this)
+                        ]
+                      }, undefined, true, undefined, this),
+                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+                        className: "input-group",
+                        children: [
+                          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("input", {
+                            type: showPassword ? "text" : "password",
+                            id: "password",
+                            name: "password",
+                            value: formData.password,
+                            onChange: handleInputChange,
+                            className: `form-control ${errors.password ? "input-error" : ""}`,
+                            placeholder: "Enter your password",
+                            disabled: isLoading,
+                            autoComplete: "current-password"
+                          }, undefined, false, undefined, this),
+                          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
+                            type: "button",
+                            className: "btn btn-secondary",
+                            onClick: () => setShowPassword(!showPassword),
+                            disabled: isLoading,
+                            tabIndex: -1,
+                            children: showPassword ? "\uD83D\uDE48" : "\uD83D\uDC41️"
+                          }, undefined, false, undefined, this)
+                        ]
+                      }, undefined, true, undefined, this),
+                      errors.password && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                        className: "error-message",
+                        children: errors.password
+                      }, undefined, false, undefined, this)
+                    ]
+                  }, undefined, true, undefined, this)
+                ]
+              }, undefined, true, undefined, this),
+              errors.general && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+                className: "alert alert-error",
+                children: [
+                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                    className: "alert-icon",
+                    children: "⚠️"
+                  }, undefined, false, undefined, this),
+                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                    className: "alert-text",
+                    children: errors.general
+                  }, undefined, false, undefined, this)
+                ]
+              }, undefined, true, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+                className: "form-actions",
+                children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
+                  type: "submit",
+                  className: "btn btn-primary btn-block",
+                  disabled: isLoading,
+                  children: isLoading ? /* @__PURE__ */ jsx_dev_runtime.jsxDEV(jsx_dev_runtime.Fragment, {
+                    children: [
+                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                        className: "spinner spinner-small"
+                      }, undefined, false, undefined, this),
+                      "Authenticating..."
+                    ]
+                  }, undefined, true, undefined, this) : "Sign In"
+                }, undefined, false, undefined, this)
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+            className: "login-security-notice",
+            children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
+              className: "security-text",
+              children: "\uD83D\uDD12 Your credentials are stored securely in your browser session only"
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+}
+
+// src/components/ApiKeyTable.tsx
+var import_react3 = __toESM(require_react(), 1);
+
+// src/components/ConfirmDialog.tsx
+var import_react2 = __toESM(require_react(), 1);
+var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
 function ConfirmDialog({
   title,
   message,
@@ -23684,12 +23986,12 @@ function ConfirmDialog({
   async function handleConfirm() {
     await onConfirm();
   }
-  return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
     className: "modal-backdrop",
     onClick: handleBackdropClick,
     onKeyDown: handleKeyDown,
     role: "presentation",
-    children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
       className: "modal",
       onClick: (e) => e.stopPropagation(),
       role: "dialog",
@@ -23697,15 +23999,15 @@ function ConfirmDialog({
       "aria-labelledby": "confirm-dialog-title",
       "aria-describedby": "confirm-dialog-message",
       children: [
-        /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+        /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
           className: "modal-header",
           children: [
-            /* @__PURE__ */ jsx_dev_runtime.jsxDEV("h2", {
+            /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("h2", {
               id: "confirm-dialog-title",
               className: "modal-title",
               children: title
             }, undefined, false, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
+            /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
               className: "modal-close",
               onClick: onCancel,
               disabled: isConfirming,
@@ -23715,48 +24017,48 @@ function ConfirmDialog({
             }, undefined, false, undefined, this)
           ]
         }, undefined, true, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+        /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
           className: "modal-body",
           children: [
-            /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
+            /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("p", {
               id: "confirm-dialog-message",
               className: "confirm-message",
               children: message
             }, undefined, false, undefined, this),
-            warning && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+            warning && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
               className: "alert alert-warning",
               role: "alert",
               children: [
-                /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
                   className: "alert-icon",
                   children: "⚠"
                 }, undefined, false, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
                   className: "alert-text",
                   children: warning
                 }, undefined, false, undefined, this)
               ]
             }, undefined, true, undefined, this),
-            details && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+            details && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
               className: "confirm-details",
-              children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("small", {
+              children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("small", {
                 className: "text-muted",
                 children: details
               }, undefined, false, undefined, this)
             }, undefined, false, undefined, this)
           ]
         }, undefined, true, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+        /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
           className: "modal-footer",
           children: [
-            /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
+            /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
               type: "button",
               className: "btn btn-secondary",
               onClick: onCancel,
               disabled: isConfirming,
               children: "Cancel"
             }, undefined, false, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
+            /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
               type: "button",
               className: `btn btn-${confirmVariant}`,
               onClick: handleConfirm,
@@ -23771,7 +24073,7 @@ function ConfirmDialog({
 }
 
 // src/components/ApiKeyTable.tsx
-var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
 function formatDate(dateString) {
   const date = new Date(dateString);
   return date.toLocaleDateString("en-US", {
@@ -23806,18 +24108,18 @@ function isKeyExpired(key) {
 }
 function ApiKeyTable({ onEdit, onFocus }) {
   const { apiKeys, updateKey, deleteKey } = useApp();
-  const [sortConfig, setSortConfig] = import_react2.useState({ key: null, direction: null });
-  const [filters, setFilters] = import_react2.useState({
+  const [sortConfig, setSortConfig] = import_react3.useState({ key: null, direction: null });
+  const [filters, setFilters] = import_react3.useState({
     search: "",
     model: "",
     showExpired: true
   });
-  const [deleteConfirm, setDeleteConfirm] = import_react2.useState({
+  const [deleteConfirm, setDeleteConfirm] = import_react3.useState({
     isOpen: false,
     keyId: "",
     keyName: ""
   });
-  const models = import_react2.useMemo(() => {
+  const models = import_react3.useMemo(() => {
     const modelSet = new Set;
     apiKeys.forEach((key) => {
       if (key.model) {
@@ -23826,7 +24128,7 @@ function ApiKeyTable({ onEdit, onFocus }) {
     });
     return Array.from(modelSet).sort();
   }, [apiKeys]);
-  const filteredAndSortedKeys = import_react2.useMemo(() => {
+  const filteredAndSortedKeys = import_react3.useMemo(() => {
     let filtered = [...apiKeys];
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
@@ -23904,34 +24206,34 @@ function ApiKeyTable({ onEdit, onFocus }) {
   }
   function renderSortIndicator(columnKey) {
     if (sortConfig.key !== columnKey) {
-      return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+      return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
         className: "sort-indicator",
-        children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+        children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
           className: "sort-icon",
           children: "⇅"
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this);
     }
-    return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+    return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
       className: "sort-indicator active",
-      children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+      children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
         className: "sort-icon",
         children: sortConfig.direction === "asc" ? "↑" : "↓"
       }, undefined, false, undefined, this)
     }, undefined, false, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
     className: "api-keys-table",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
         className: "table-controls",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
             className: "table-controls-left",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                 className: "search-box",
-                children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("input", {
+                children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("input", {
                   type: "text",
                   className: "form-input",
                   placeholder: "Search by name or key...",
@@ -23939,34 +24241,34 @@ function ApiKeyTable({ onEdit, onFocus }) {
                   onChange: (e) => setFilters((prev) => ({ ...prev, search: e.target.value }))
                 }, undefined, false, undefined, this)
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                 className: "filter-box",
-                children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("select", {
+                children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("select", {
                   className: "form-select",
                   value: filters.model,
                   onChange: (e) => setFilters((prev) => ({ ...prev, model: e.target.value })),
                   children: [
-                    /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("option", {
+                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("option", {
                       value: "",
                       children: "All Models"
                     }, undefined, false, undefined, this),
-                    models.map((model) => /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("option", {
+                    models.map((model) => /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("option", {
                       value: model,
                       children: model
                     }, model, false, undefined, this))
                   ]
                 }, undefined, true, undefined, this)
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                 className: "filter-checkbox",
-                children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("label", {
+                children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("label", {
                   children: [
-                    /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("input", {
+                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("input", {
                       type: "checkbox",
                       checked: filters.showExpired,
                       onChange: (e) => setFilters((prev) => ({ ...prev, showExpired: e.target.checked }))
                     }, undefined, false, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
                       children: "Show Expired"
                     }, undefined, false, undefined, this)
                   ]
@@ -23974,9 +24276,9 @@ function ApiKeyTable({ onEdit, onFocus }) {
               }, undefined, false, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
             className: "table-controls-right",
-            children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+            children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
               className: "results-count",
               children: [
                 filteredAndSortedKeys.length,
@@ -23988,19 +24290,19 @@ function ApiKeyTable({ onEdit, onFocus }) {
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
         className: "table-container",
-        children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("table", {
+        children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("table", {
           className: "table",
           children: [
-            /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("thead", {
-              children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("tr", {
+            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("thead", {
+              children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("tr", {
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("th", {
+                  /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("th", {
                     className: "sortable",
                     onClick: () => handleSort("key"),
                     title: "Click to sort by key",
-                    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                       className: "th-content",
                       children: [
                         "Key ID",
@@ -24008,11 +24310,11 @@ function ApiKeyTable({ onEdit, onFocus }) {
                       ]
                     }, undefined, true, undefined, this)
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("th", {
+                  /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("th", {
                     className: "sortable",
                     onClick: () => handleSort("name"),
                     title: "Click to sort by name",
-                    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                       className: "th-content",
                       children: [
                         "Name",
@@ -24020,11 +24322,11 @@ function ApiKeyTable({ onEdit, onFocus }) {
                       ]
                     }, undefined, true, undefined, this)
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("th", {
+                  /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("th", {
                     className: "sortable",
                     onClick: () => handleSort("model"),
                     title: "Click to sort by model",
-                    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                       className: "th-content",
                       children: [
                         "Model",
@@ -24032,11 +24334,11 @@ function ApiKeyTable({ onEdit, onFocus }) {
                       ]
                     }, undefined, true, undefined, this)
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("th", {
+                  /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("th", {
                     className: "sortable",
                     onClick: () => handleSort("token_limit_per_5h"),
                     title: "Click to sort by quota",
-                    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                       className: "th-content",
                       children: [
                         "Quota (5h)",
@@ -24044,11 +24346,11 @@ function ApiKeyTable({ onEdit, onFocus }) {
                       ]
                     }, undefined, true, undefined, this)
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("th", {
+                  /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("th", {
                     className: "sortable",
                     onClick: () => handleSort("usage_percent"),
                     title: "Click to sort by usage",
-                    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                       className: "th-content",
                       children: [
                         "Usage",
@@ -24056,11 +24358,11 @@ function ApiKeyTable({ onEdit, onFocus }) {
                       ]
                     }, undefined, true, undefined, this)
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("th", {
+                  /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("th", {
                     className: "sortable",
                     onClick: () => handleSort("expiry_date"),
                     title: "Click to sort by expiry",
-                    children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                       className: "th-content",
                       children: [
                         "Expires",
@@ -24068,16 +24370,16 @@ function ApiKeyTable({ onEdit, onFocus }) {
                       ]
                     }, undefined, true, undefined, this)
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("th", {
+                  /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("th", {
                     className: "actions-header",
                     children: "Actions"
                   }, undefined, false, undefined, this)
                 ]
               }, undefined, true, undefined, this)
             }, undefined, false, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("tbody", {
-              children: filteredAndSortedKeys.length === 0 ? /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("tr", {
-                children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("td", {
+            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("tbody", {
+              children: filteredAndSortedKeys.length === 0 ? /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("tr", {
+                children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("td", {
                   colSpan: 7,
                   className: "no-data",
                   children: apiKeys.length === 0 ? "No API keys found. Create your first key to get started." : "No API keys match your filters."
@@ -24085,64 +24387,64 @@ function ApiKeyTable({ onEdit, onFocus }) {
               }, undefined, false, undefined, this) : filteredAndSortedKeys.map((key) => {
                 const usagePercent = calculateUsagePercent(key);
                 const expired = isKeyExpired(key);
-                return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("tr", {
+                return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("tr", {
                   className: expired ? "row-expired" : "",
                   children: [
-                    /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("td", {
+                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("td", {
                       className: "cell-key",
-                      children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("code", {
+                      children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("code", {
                         className: "key-code",
                         children: key.key
                       }, undefined, false, undefined, this)
                     }, undefined, false, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("td", {
+                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("td", {
                       className: "cell-name",
-                      children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                      children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                         className: "name-container",
                         children: [
-                          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
                             className: "name-text",
                             children: key.name
                           }, undefined, false, undefined, this),
-                          expired && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                          expired && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
                             className: "badge badge-danger",
                             children: "Expired"
                           }, undefined, false, undefined, this)
                         ]
                       }, undefined, true, undefined, this)
                     }, undefined, false, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("td", {
+                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("td", {
                       className: "cell-model",
-                      children: key.model ? /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                      children: key.model ? /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
                         className: "badge badge-primary",
                         children: key.model
-                      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
                         className: "text-muted",
                         children: "Default"
                       }, undefined, false, undefined, this)
                     }, undefined, false, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("td", {
+                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("td", {
                       className: "cell-quota",
-                      children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                      children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
                         className: "quota-text",
                         children: formatNumber(key.token_limit_per_5h)
                       }, undefined, false, undefined, this)
                     }, undefined, false, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("td", {
+                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("td", {
                       className: "cell-usage",
                       children: [
-                        /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                           className: "usage-container",
                           children: [
-                            /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                               className: "usage-bar-wrapper",
-                              children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                              children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                                 className: `usage-bar ${usagePercent > 90 ? "usage-bar-warning" : usagePercent > 70 ? "usage-bar-caution" : ""}`,
                                 style: { width: `${usagePercent}%` },
                                 title: `${usagePercent.toFixed(1)}% used`
                               }, undefined, false, undefined, this)
                             }, undefined, false, undefined, this),
-                            /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
                               className: "usage-text",
                               children: [
                                 usagePercent.toFixed(1),
@@ -24151,7 +24453,7 @@ function ApiKeyTable({ onEdit, onFocus }) {
                             }, undefined, true, undefined, this)
                           ]
                         }, undefined, true, undefined, this),
-                        /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                           className: "usage-lifetime",
                           title: "Lifetime usage",
                           children: [
@@ -24161,31 +24463,31 @@ function ApiKeyTable({ onEdit, onFocus }) {
                         }, undefined, true, undefined, this)
                       ]
                     }, undefined, true, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("td", {
+                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("td", {
                       className: "cell-expiry",
-                      children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+                      children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
                         className: `expiry-date ${expired ? "text-error" : ""}`,
                         children: formatDate(key.expiry_date)
                       }, undefined, false, undefined, this)
                     }, undefined, false, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("td", {
+                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("td", {
                       className: "cell-actions",
-                      children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+                      children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
                         className: "action-buttons",
                         children: [
-                          onFocus && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
+                          onFocus && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("button", {
                             className: "btn btn-sm btn-ghost",
                             onClick: () => onFocus(key.key),
                             title: "View details",
                             children: "\uD83D\uDCCA"
                           }, undefined, false, undefined, this),
-                          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
+                          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("button", {
                             className: "btn btn-sm btn-ghost",
                             onClick: () => handleEdit(key.key),
                             title: "Edit key",
                             children: "✎"
                           }, undefined, false, undefined, this),
-                          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
+                          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("button", {
                             className: "btn btn-sm btn-ghost btn-danger",
                             onClick: () => handleDelete(key.key, key.name),
                             title: "Delete key",
@@ -24201,7 +24503,7 @@ function ApiKeyTable({ onEdit, onFocus }) {
           ]
         }, undefined, true, undefined, this)
       }, undefined, false, undefined, this),
-      deleteConfirm.isOpen && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(ConfirmDialog, {
+      deleteConfirm.isOpen && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(ConfirmDialog, {
         title: "Delete API Key",
         message: `Are you sure you want to delete the API key "${deleteConfirm.keyName}"?`,
         warning: "This action cannot be undone.",
@@ -24216,8 +24518,8 @@ function ApiKeyTable({ onEdit, onFocus }) {
 }
 
 // src/components/ApiKeyForm.tsx
-var import_react3 = __toESM(require_react(), 1);
-var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
+var import_react4 = __toESM(require_react(), 1);
+var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
 var VALIDATION = {
   key: {
     minLength: 8,
@@ -24328,16 +24630,16 @@ function validateForm(data, isEditMode) {
 function ApiKeyForm({ existingKey, onClose, onSuccess }) {
   const { createKey, updateKey } = useApp();
   const isEditMode = Boolean(existingKey);
-  const [formData, setFormData] = import_react3.useState({
+  const [formData, setFormData] = import_react4.useState({
     key: existingKey?.key || "",
     name: existingKey?.name || "",
     model: existingKey?.model || "",
     token_limit_per_5h: existingKey?.token_limit_per_5h.toString() || "",
     expiry_date: existingKey?.expiry_date || ""
   });
-  const [errors, setErrors] = import_react3.useState({});
-  const [isSubmitting, setIsSubmitting] = import_react3.useState(false);
-  const [serverError, setServerError] = import_react3.useState(null);
+  const [errors, setErrors] = import_react4.useState({});
+  const [isSubmitting, setIsSubmitting] = import_react4.useState(false);
+  const [serverError, setServerError] = import_react4.useState(null);
   function handleFieldBlur(field) {
     const error = validateField(field, formData[field], isEditMode);
     setErrors((prev) => ({
@@ -24403,26 +24705,26 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
     const isoString = date.toISOString().slice(0, 16);
     handleFieldChange("expiry_date", isoString);
   }
-  import_react3.useEffect(() => {
+  import_react4.useEffect(() => {
     if (!isEditMode && !formData.expiry_date) {
       handleSetDefaultExpiry();
     }
   }, []);
-  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
     className: "modal-backdrop",
     onClick: onClose,
-    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+    children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
       className: "modal",
       onClick: (e) => e.stopPropagation(),
       children: [
-        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+        /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
           className: "modal-header",
           children: [
-            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("h2", {
+            /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("h2", {
               className: "modal-title",
               children: isEditMode ? "Edit API Key" : "Create New API Key"
             }, undefined, false, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("button", {
+            /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("button", {
               className: "modal-close",
               onClick: onClose,
               title: "Close",
@@ -24430,38 +24732,38 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
             }, undefined, false, undefined, this)
           ]
         }, undefined, true, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+        /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
           className: "modal-body",
           children: [
-            serverError && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+            serverError && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
               className: "alert alert-error",
               role: "alert",
-              children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
+              children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
                 children: serverError
               }, undefined, false, undefined, this)
             }, undefined, false, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("form", {
+            /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("form", {
               id: "api-key-form",
               onSubmit: handleSubmit,
               children: [
-                !isEditMode && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                !isEditMode && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                   className: "form-group",
                   children: [
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("label", {
+                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("label", {
                       htmlFor: "key",
                       className: "form-label",
                       children: [
                         "API Key ",
-                        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
+                        /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
                           className: "required",
                           children: "*"
                         }, undefined, false, undefined, this)
                       ]
                     }, undefined, true, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "input-group",
                       children: [
-                        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("input", {
+                        /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("input", {
                           type: "text",
                           id: "key",
                           className: `form-input ${errors.key ? "input-error" : ""}`,
@@ -24471,7 +24773,7 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
                           placeholder: "Enter or generate API key",
                           disabled: isSubmitting
                         }, undefined, false, undefined, this),
-                        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("button", {
+                        /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("button", {
                           type: "button",
                           className: "btn btn-secondary",
                           onClick: handleGenerateKey,
@@ -24481,31 +24783,31 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
                         }, undefined, false, undefined, this)
                       ]
                     }, undefined, true, undefined, this),
-                    errors.key && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    errors.key && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "form-error",
                       children: errors.key
                     }, undefined, false, undefined, this),
-                    !errors.key && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    !errors.key && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "form-hint",
                       children: "Must be 8-256 characters, letters, numbers, hyphens, and underscores only"
                     }, undefined, false, undefined, this)
                   ]
                 }, undefined, true, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                   className: "form-group",
                   children: [
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("label", {
+                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("label", {
                       htmlFor: "name",
                       className: "form-label",
                       children: [
                         "Name ",
-                        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
+                        /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
                           className: "required",
                           children: "*"
                         }, undefined, false, undefined, this)
                       ]
                     }, undefined, true, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("input", {
+                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("input", {
                       type: "text",
                       id: "name",
                       className: `form-input ${errors.name ? "input-error" : ""}`,
@@ -24516,11 +24818,11 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
                       disabled: isSubmitting,
                       maxLength: VALIDATION.name.maxLength
                     }, undefined, false, undefined, this),
-                    errors.name && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    errors.name && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "form-error",
                       children: errors.name
                     }, undefined, false, undefined, this),
-                    !errors.name && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    !errors.name && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "form-hint",
                       children: [
                         "A descriptive name for this API key (max ",
@@ -24530,15 +24832,15 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
                     }, undefined, true, undefined, this)
                   ]
                 }, undefined, true, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                   className: "form-group",
                   children: [
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("label", {
+                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("label", {
                       htmlFor: "model",
                       className: "form-label",
                       children: "Model"
                     }, undefined, false, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("input", {
+                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("input", {
                       type: "text",
                       id: "model",
                       className: `form-input ${errors.model ? "input-error" : ""}`,
@@ -24549,11 +24851,11 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
                       disabled: isSubmitting,
                       maxLength: VALIDATION.model.maxLength
                     }, undefined, false, undefined, this),
-                    errors.model && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    errors.model && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "form-error",
                       children: errors.model
                     }, undefined, false, undefined, this),
-                    !errors.model && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    !errors.model && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "form-hint",
                       children: [
                         "Optional: Specify a model to restrict this key to (max ",
@@ -24563,21 +24865,21 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
                     }, undefined, true, undefined, this)
                   ]
                 }, undefined, true, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                   className: "form-group",
                   children: [
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("label", {
+                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("label", {
                       htmlFor: "token_limit_per_5h",
                       className: "form-label",
                       children: [
                         "Token Limit (per 5 hours) ",
-                        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
+                        /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
                           className: "required",
                           children: "*"
                         }, undefined, false, undefined, this)
                       ]
                     }, undefined, true, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("input", {
+                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("input", {
                       type: "number",
                       id: "token_limit_per_5h",
                       className: `form-input ${errors.token_limit_per_5h ? "input-error" : ""}`,
@@ -24590,11 +24892,11 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
                       max: VALIDATION.quota.max,
                       step: "1"
                     }, undefined, false, undefined, this),
-                    errors.token_limit_per_5h && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    errors.token_limit_per_5h && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "form-error",
                       children: errors.token_limit_per_5h
                     }, undefined, false, undefined, this),
-                    !errors.token_limit_per_5h && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    !errors.token_limit_per_5h && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "form-hint",
                       children: [
                         "Maximum tokens allowed per 5-hour window (0-",
@@ -24604,21 +24906,21 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
                     }, undefined, true, undefined, this)
                   ]
                 }, undefined, true, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                   className: "form-group",
                   children: [
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("label", {
+                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("label", {
                       htmlFor: "expiry_date",
                       className: "form-label",
                       children: [
                         "Expiry Date ",
-                        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("span", {
+                        /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
                           className: "required",
                           children: "*"
                         }, undefined, false, undefined, this)
                       ]
                     }, undefined, true, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("input", {
+                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("input", {
                       type: "datetime-local",
                       id: "expiry_date",
                       className: `form-input ${errors.expiry_date ? "input-error" : ""}`,
@@ -24627,11 +24929,11 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
                       onBlur: () => handleFieldBlur("expiry_date"),
                       disabled: isSubmitting
                     }, undefined, false, undefined, this),
-                    errors.expiry_date && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    errors.expiry_date && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "form-error",
                       children: errors.expiry_date
                     }, undefined, false, undefined, this),
-                    !errors.expiry_date && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+                    !errors.expiry_date && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
                       className: "form-hint",
                       children: "When this API key will expire (must be in the future)"
                     }, undefined, false, undefined, this)
@@ -24641,17 +24943,17 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
             }, undefined, true, undefined, this)
           ]
         }, undefined, true, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+        /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
           className: "modal-footer",
           children: [
-            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("button", {
+            /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("button", {
               type: "button",
               className: "btn btn-secondary",
               onClick: onClose,
               disabled: isSubmitting,
               children: "Cancel"
             }, undefined, false, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("button", {
+            /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("button", {
               type: "submit",
               form: "api-key-form",
               className: "btn btn-primary",
@@ -24666,8 +24968,8 @@ function ApiKeyForm({ existingKey, onClose, onSuccess }) {
 }
 
 // src/components/UsageVisualization.tsx
-var import_react4 = __toESM(require_react(), 1);
-var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
+var import_react5 = __toESM(require_react(), 1);
+var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
 function formatNumber2(num) {
   return num.toLocaleString("en-US");
 }
@@ -24722,7 +25024,7 @@ function getUsageColor(percent) {
 }
 function UsageVisualization({ focusKey }) {
   const { apiKeys } = useApp();
-  const stats = import_react4.useMemo(() => {
+  const stats = import_react5.useMemo(() => {
     const totalKeys = apiKeys.length;
     const activeKeys = apiKeys.filter((key) => !isKeyExpired2(key)).length;
     const expiredKeys = totalKeys - activeKeys;
@@ -24749,10 +25051,10 @@ function UsageVisualization({ focusKey }) {
       topConsumer
     };
   }, [apiKeys]);
-  const topKeysByUsage = import_react4.useMemo(() => {
+  const topKeysByUsage = import_react5.useMemo(() => {
     return [...apiKeys].filter((key) => !isKeyExpired2(key)).sort((a, b) => calculateUsagePercent2(b) - calculateUsagePercent2(a)).slice(0, 10);
   }, [apiKeys]);
-  const quotaDistribution = import_react4.useMemo(() => {
+  const quotaDistribution = import_react5.useMemo(() => {
     const withModel = apiKeys.filter((key) => key.model && !isKeyExpired2(key));
     const modelUsage = {};
     withModel.forEach((key) => {
@@ -24770,7 +25072,7 @@ function UsageVisualization({ focusKey }) {
       percent: data.quota > 0 ? data.used / data.quota * 100 : 0
     })).sort((a, b) => b.used - a.used);
   }, [apiKeys]);
-  const focusedKeyStats = import_react4.useMemo(() => {
+  const focusedKeyStats = import_react5.useMemo(() => {
     if (!focusKey)
       return null;
     const key = apiKeys.find((k) => k.key === focusKey);
@@ -24790,48 +25092,48 @@ function UsageVisualization({ focusKey }) {
       windowEnd: formatDate2(new Date(windowEnd).toISOString())
     };
   }, [focusKey, apiKeys]);
-  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
     className: "usage-visualization",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
         className: "stats-grid",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "stat-card stat-card-primary",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "stat-header",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("h3", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h3", {
                     children: "Total API Keys"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "stat-icon",
                     children: "\uD83D\uDD11"
                   }, undefined, false, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("p", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
                 className: "stat-value",
                 children: stats.totalKeys
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "stat-breakdown",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "stat-breakdown-item",
                     children: [
-                      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                         className: "stat-dot stat-dot-success"
                       }, undefined, false, undefined, this),
                       stats.activeKeys,
                       " active"
                     ]
                   }, undefined, true, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "stat-breakdown-item",
                     children: [
-                      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                         className: "stat-dot stat-dot-error"
                       }, undefined, false, undefined, this),
                       stats.expiredKeys,
@@ -24842,56 +25144,56 @@ function UsageVisualization({ focusKey }) {
               }, undefined, true, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "stat-card stat-card-success",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "stat-header",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("h3", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h3", {
                     children: "Total Quota (5h)"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "stat-icon",
                     children: "\uD83D\uDCCA"
                   }, undefined, false, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("p", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
                 className: "stat-value",
                 children: formatNumber2(Math.round(stats.totalQuota))
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("p", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
                 className: "stat-subtitle",
                 children: "tokens across all keys"
               }, undefined, false, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "stat-card stat-card-warning",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "stat-header",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("h3", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h3", {
                     children: "Current Usage (5h)"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "stat-icon",
                     children: "⚡"
                   }, undefined, false, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("p", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
                 className: "stat-value",
                 children: formatNumber2(Math.round(stats.totalUsage))
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "stat-progress",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                     className: "progress-bar",
-                    children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                    children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                       className: "progress-bar-fill",
                       style: {
                         width: `${stats.avgUsagePercent}%`,
@@ -24899,7 +25201,7 @@ function UsageVisualization({ focusKey }) {
                       }
                     }, undefined, false, undefined, this)
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "stat-progress-text",
                     children: [
                       stats.avgUsagePercent.toFixed(1),
@@ -24910,26 +25212,26 @@ function UsageVisualization({ focusKey }) {
               }, undefined, true, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "stat-card stat-card-info",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "stat-header",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("h3", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h3", {
                     children: "Lifetime Tokens"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "stat-icon",
                     children: "\uD83D\uDCC8"
                   }, undefined, false, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("p", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
                 className: "stat-value",
                 children: formatNumber2(stats.totalLifetimeTokens)
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("p", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
                 className: "stat-subtitle",
                 children: "total tokens consumed"
               }, undefined, false, undefined, this)
@@ -24937,52 +25239,52 @@ function UsageVisualization({ focusKey }) {
           }, undefined, true, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      stats.topConsumer && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+      stats.topConsumer && /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
         className: "top-consumer-card",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "top-consumer-header",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("h3", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h3", {
                 children: "\uD83C\uDFC6 Top Consumer"
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                 className: "top-consumer-badge",
                 children: "Current Window"
               }, undefined, false, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "top-consumer-content",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "top-consumer-info",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                     className: "top-consumer-name",
                     children: stats.topConsumer.name
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                     className: "top-consumer-key",
-                    children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("code", {
+                    children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("code", {
                       children: stats.topConsumer.key
                     }, undefined, false, undefined, this)
                   }, undefined, false, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "top-consumer-usage",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                     className: "top-consumer-percent",
                     children: [
                       calculateUsagePercent2(stats.topConsumer).toFixed(1),
                       "%"
                     ]
                   }, undefined, true, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                     className: "top-consumer-bar",
-                    children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                    children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                       className: "progress-bar-fill",
                       style: {
                         width: `${calculateUsagePercent2(stats.topConsumer)}%`,
@@ -24990,7 +25292,7 @@ function UsageVisualization({ focusKey }) {
                       }
                     }, undefined, false, undefined, this)
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                     className: "top-consumer-tokens",
                     children: [
                       formatNumber2(Math.round(stats.topConsumer.token_limit_per_5h * (calculateUsagePercent2(stats.topConsumer) / 100))),
@@ -25005,41 +25307,41 @@ function UsageVisualization({ focusKey }) {
           }, undefined, true, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      topKeysByUsage.length > 0 && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+      topKeysByUsage.length > 0 && /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
         className: "usage-chart-card",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "chart-header",
-            children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("h3", {
+            children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h3", {
               children: "\uD83D\uDCCA Top Keys by Usage (Current 5h Window)"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "chart-body",
             children: topKeysByUsage.map((key, index) => {
               const usagePercent = calculateUsagePercent2(key);
               const used = key.token_limit_per_5h * (usagePercent / 100);
-              return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "chart-row",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                     className: "chart-row-label",
                     children: [
-                      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                         className: "chart-rank",
                         children: [
                           "#",
                           index + 1
                         ]
                       }, undefined, true, undefined, this),
-                      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                         className: "chart-key-info",
                         children: [
-                          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                             className: "chart-key-name",
                             children: key.name
                           }, undefined, false, undefined, this),
-                          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                             className: "chart-key-model",
                             children: key.model || "Default"
                           }, undefined, false, undefined, this)
@@ -25047,12 +25349,12 @@ function UsageVisualization({ focusKey }) {
                       }, undefined, true, undefined, this)
                     ]
                   }, undefined, true, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                     className: "chart-row-bar",
                     children: [
-                      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                         className: "chart-bar-wrapper",
-                        children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                        children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                           className: "chart-bar-fill",
                           style: {
                             width: `${usagePercent}%`,
@@ -25060,7 +25362,7 @@ function UsageVisualization({ focusKey }) {
                           }
                         }, undefined, false, undefined, this)
                       }, undefined, false, undefined, this),
-                      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                         className: "chart-row-value",
                         children: [
                           usagePercent.toFixed(1),
@@ -25069,7 +25371,7 @@ function UsageVisualization({ focusKey }) {
                       }, undefined, true, undefined, this)
                     ]
                   }, undefined, true, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                     className: "chart-row-tokens",
                     children: [
                       formatNumber2(Math.round(used)),
@@ -25082,33 +25384,33 @@ function UsageVisualization({ focusKey }) {
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      quotaDistribution.length > 0 && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+      quotaDistribution.length > 0 && /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
         className: "quota-distribution-card",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "chart-header",
-            children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("h3", {
+            children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h3", {
               children: "\uD83C\uDFAF Quota Distribution by Model"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "chart-body",
-            children: quotaDistribution.map((item) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+            children: quotaDistribution.map((item) => /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
               className: "chart-row",
               children: [
-                /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                   className: "chart-row-label",
-                  children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "model-badge",
                     children: item.model
                   }, undefined, false, undefined, this)
                 }, undefined, false, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                   className: "chart-row-bar",
                   children: [
-                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                    /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                       className: "chart-bar-wrapper",
-                      children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                      children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                         className: "chart-bar-fill",
                         style: {
                           width: `${Math.min(100, item.percent)}%`,
@@ -25116,7 +25418,7 @@ function UsageVisualization({ focusKey }) {
                         }
                       }, undefined, false, undefined, this)
                     }, undefined, false, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                    /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                       className: "chart-row-value",
                       children: [
                         item.percent.toFixed(1),
@@ -25125,7 +25427,7 @@ function UsageVisualization({ focusKey }) {
                     }, undefined, true, undefined, this)
                   ]
                 }, undefined, true, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+                /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                   className: "chart-row-tokens",
                   children: [
                     formatNumber2(Math.round(item.used)),
@@ -25138,57 +25440,57 @@ function UsageVisualization({ focusKey }) {
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      focusedKeyStats && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+      focusedKeyStats && /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
         className: "key-detail-card",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "chart-header",
-            children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("h3", {
+            children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h3", {
               children: [
                 "\uD83D\uDD0D Detailed Usage: ",
                 focusedKeyStats.key.name
               ]
             }, undefined, true, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
             className: "key-detail-content",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "key-detail-row",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-label",
                     children: "Key ID"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-value",
-                    children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("code", {
+                    children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("code", {
                       children: focusedKeyStats.key.key
                     }, undefined, false, undefined, this)
                   }, undefined, false, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "key-detail-row",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-label",
                     children: "Model"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-value",
                     children: focusedKeyStats.key.model || "Default"
                   }, undefined, false, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "key-detail-row",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-label",
                     children: "Quota Limit"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-value",
                     children: [
                       formatNumber2(focusedKeyStats.key.token_limit_per_5h),
@@ -25197,14 +25499,14 @@ function UsageVisualization({ focusKey }) {
                   }, undefined, true, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "key-detail-row",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-label",
                     children: "Current Window"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-value text-sm",
                     children: [
                       focusedKeyStats.windowStart,
@@ -25214,14 +25516,14 @@ function UsageVisualization({ focusKey }) {
                   }, undefined, true, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "key-detail-row",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-label",
                     children: "Usage This Window"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-value",
                     children: [
                       focusedKeyStats.usagePercent.toFixed(1),
@@ -25230,14 +25532,14 @@ function UsageVisualization({ focusKey }) {
                   }, undefined, true, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "key-detail-row",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-label",
                     children: "Remaining Quota"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-value",
                     children: [
                       formatNumber2(Math.round(focusedKeyStats.remaining)),
@@ -25246,14 +25548,14 @@ function UsageVisualization({ focusKey }) {
                   }, undefined, true, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "key-detail-row",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-label",
                     children: "Lifetime Usage"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-value",
                     children: [
                       formatNumber2(focusedKeyStats.key.total_lifetime_tokens),
@@ -25262,14 +25564,14 @@ function UsageVisualization({ focusKey }) {
                   }, undefined, true, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
                 className: "key-detail-row",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-label",
                     children: "Last Used"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
                     className: "key-detail-value",
                     children: formatDate2(focusedKeyStats.key.last_used)
                   }, undefined, false, undefined, this)
@@ -25284,6 +25586,19 @@ function UsageVisualization({ focusKey }) {
 }
 
 // src/utils/api-client.ts
+function getAuthHeaders() {
+  const token = sessionStorage.getItem("dashboard_auth_token");
+  const authType = sessionStorage.getItem("dashboard_auth_type");
+  if (!token || !authType) {
+    return {};
+  }
+  if (authType === "bearer") {
+    return { Authorization: `Bearer ${token}` };
+  } else {
+    return { Authorization: `Basic ${token}` };
+  }
+}
+
 class ApiClientError extends Error {
   statusCode;
   response;
@@ -25297,7 +25612,8 @@ class ApiClientError extends Error {
 async function fetchApiKeys(options) {
   try {
     const response = await fetch("/api/keys", {
-      signal: options?.signal
+      signal: options?.signal,
+      headers: getAuthHeaders()
     });
     if (!response.ok) {
       const errorData = await response.json();
@@ -25322,7 +25638,8 @@ async function createApiKey(keyData, options) {
     const response = await fetch("/api/keys", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...getAuthHeaders()
       },
       body: JSON.stringify(keyData),
       signal: options?.signal
@@ -25345,7 +25662,8 @@ async function updateApiKey(keyId, updates, options) {
     const response = await fetch(`/api/keys/${encodeURIComponent(keyId)}`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...getAuthHeaders()
       },
       body: JSON.stringify(updates),
       signal: options?.signal
@@ -25367,6 +25685,7 @@ async function deleteApiKey(keyId, options) {
   try {
     const response = await fetch(`/api/keys/${encodeURIComponent(keyId)}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
       signal: options?.signal
     });
     if (!response.ok && response.status !== 204) {
@@ -25546,21 +25865,22 @@ function createWebSocketClient(config) {
 }
 
 // src/components/App.tsx
-var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
-var AppContext = import_react5.createContext(undefined);
+var jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
+var AppContext = import_react6.createContext(undefined);
 function useApp() {
-  const context = import_react5.useContext(AppContext);
+  const context = import_react6.useContext(AppContext);
   if (!context) {
     throw new Error("useApp must be used within an AppProvider");
   }
   return context;
 }
 function AppProvider({ children }) {
-  const [apiKeys, setApiKeys] = import_react5.useState([]);
-  const [isLoading, setIsLoading] = import_react5.useState(true);
-  const [error, setError] = import_react5.useState(null);
-  const [isConnected, setIsConnected] = import_react5.useState(false);
-  const wsClientRef = import_react5.useRef(null);
+  const [apiKeys, setApiKeys] = import_react6.useState([]);
+  const [isLoading, setIsLoading] = import_react6.useState(true);
+  const [error, setError] = import_react6.useState(null);
+  const [isConnected, setIsConnected] = import_react6.useState(false);
+  const [isAuthenticated, setIsAuthenticated] = import_react6.useState(false);
+  const wsClientRef = import_react6.useRef(null);
   async function fetchKeys() {
     try {
       const keys = await fetchApiKeys();
@@ -25617,7 +25937,13 @@ function AppProvider({ children }) {
   function clearError() {
     setError(null);
   }
-  import_react5.useEffect(() => {
+  function logout2() {
+    sessionStorage.removeItem("dashboard_auth_token");
+    sessionStorage.removeItem("dashboard_auth_type");
+    setIsAuthenticated(false);
+    setApiKeys([]);
+  }
+  import_react6.useEffect(() => {
     const wsClient = createWebSocketClient({
       autoReconnect: true,
       reconnectDelay: 3000
@@ -25650,7 +25976,7 @@ function AppProvider({ children }) {
       wsClientRef.current = null;
     };
   }, []);
-  import_react5.useEffect(() => {
+  import_react6.useEffect(() => {
     fetchKeys();
   }, []);
   const contextValue = {
@@ -25658,124 +25984,153 @@ function AppProvider({ children }) {
     isLoading,
     error,
     isConnected,
+    isAuthenticated,
     refreshKeys,
     createKey,
     updateKey,
     deleteKey,
-    clearError
+    clearError,
+    logout: logout2,
+    setIsAuthenticated
   };
-  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(AppContext.Provider, {
+  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(AppContext.Provider, {
     value: contextValue,
     children
   }, undefined, false, undefined, this);
 }
 function App() {
-  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(AppProvider, {
-    children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-      className: "app",
-      children: [
-        /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("header", {
-          className: "app-header",
-          children: [
-            /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h1", {
-              children: "API Key Management Dashboard"
-            }, undefined, false, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
-              className: "app-subtitle",
-              children: "Create, view, edit, and manage API keys with real-time usage monitoring"
-            }, undefined, false, undefined, this)
-          ]
-        }, undefined, true, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("main", {
-          className: "app-main",
-          children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-            className: "placeholder-content",
-            children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(AppContent, {}, undefined, false, undefined, this)
-          }, undefined, false, undefined, this)
-        }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("footer", {
-          className: "app-footer",
-          children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
-            children: "API Key Dashboard v1.0.0 • Powered by React & Bun"
-          }, undefined, false, undefined, this)
-        }, undefined, false, undefined, this)
-      ]
-    }, undefined, true, undefined, this)
+  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(AppProvider, {
+    children: /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(AppContentWrapper, {}, undefined, false, undefined, this)
   }, undefined, false, undefined, this);
 }
+function AppContentWrapper() {
+  const { isAuthenticated, setIsAuthenticated } = useApp();
+  import_react6.useEffect(() => {
+    const storedToken = sessionStorage.getItem("dashboard_auth_token");
+    const storedAuthType = sessionStorage.getItem("dashboard_auth_type");
+    if (storedToken && storedAuthType) {
+      setIsAuthenticated(true);
+    }
+  }, [setIsAuthenticated]);
+  if (!isAuthenticated) {
+    return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(LoginPage, {
+      onLoginSuccess: (token, authType) => setIsAuthenticated(true)
+    }, undefined, false, undefined, this);
+  }
+  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
+    className: "app",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("header", {
+        className: "app-header",
+        children: /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
+          className: "header-content",
+          children: [
+            /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
+              children: [
+                /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("h1", {
+                  children: "API Key Management Dashboard"
+                }, undefined, false, undefined, this),
+                /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("p", {
+                  className: "app-subtitle",
+                  children: "Create, view, edit, and manage API keys with real-time usage monitoring"
+                }, undefined, false, undefined, this)
+              ]
+            }, undefined, true, undefined, this),
+            /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("button", {
+              className: "btn btn-secondary logout-btn",
+              onClick: logout,
+              title: "Logout from dashboard",
+              children: "Logout"
+            }, undefined, false, undefined, this)
+          ]
+        }, undefined, true, undefined, this)
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("main", {
+        className: "app-main",
+        children: /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(AppContent, {}, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("footer", {
+        className: "app-footer",
+        children: /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("p", {
+          children: "API Key Dashboard v1.0.0 • Powered by React & Bun"
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
 function AppContent() {
-  const { apiKeys, isLoading, error, isConnected } = useApp();
-  const [showCreateForm, setShowCreateForm] = import_react5.useState(false);
-  const [editingKey, setEditingKey] = import_react5.useState(undefined);
-  const [focusKey, setFocusKey] = import_react5.useState(null);
+  const { apiKeys, isLoading, error, isConnected, logout: logout2 } = useApp();
+  const [showCreateForm, setShowCreateForm] = import_react6.useState(false);
+  const [editingKey, setEditingKey] = import_react6.useState(undefined);
+  const [focusKey, setFocusKey] = import_react6.useState(null);
   if (isLoading) {
-    return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+    return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
       className: "loading-state",
       children: [
-        /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+        /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
           className: "spinner"
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
+        /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("p", {
           children: "Loading API keys..."
         }, undefined, false, undefined, this)
       ]
     }, undefined, true, undefined, this);
   }
   if (error) {
-    return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+    return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
       className: "error-state",
       children: [
-        /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h2", {
+        /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("h2", {
           children: "Error"
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
+        /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("p", {
           children: error
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
+        /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("p", {
           className: "error-hint",
           children: "Please check your connection and try again."
         }, undefined, false, undefined, this)
       ]
     }, undefined, true, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
     className: "dashboard-content",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
         className: `connection-status ${isConnected ? "connected" : "disconnected"}`,
         children: [
-          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("span", {
             className: "status-indicator"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("span", {
             className: "status-text",
             children: isConnected ? "Real-time updates active" : "Real-time updates inactive"
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(UsageVisualization, {
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(UsageVisualization, {
         focusKey
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
         className: "action-bar",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("button", {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("button", {
             className: "btn btn-primary",
             onClick: () => setShowCreateForm(true),
             children: "+ Create New Key"
           }, undefined, false, undefined, this),
-          focusKey && /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("button", {
+          focusKey && /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("button", {
             className: "btn btn-secondary",
             onClick: () => setFocusKey(null),
             children: "Clear Focus"
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(ApiKeyTable, {
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(ApiKeyTable, {
         onEdit: (key) => setEditingKey(key),
         onFocus: (keyId) => setFocusKey(keyId)
       }, undefined, false, undefined, this),
-      (showCreateForm || editingKey) && /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(ApiKeyForm, {
+      (showCreateForm || editingKey) && /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(ApiKeyForm, {
         existingKey: editingKey,
         onClose: () => {
           setShowCreateForm(false);
@@ -25791,12 +26146,12 @@ function AppContent() {
 }
 
 // frontend.tsx
-var jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime7 = __toESM(require_jsx_dev_runtime(), 1);
 var rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error("Failed to find the root element. #root div is missing in index.html");
 }
 var root = import_client.createRoot(rootElement);
-root.render(/* @__PURE__ */ jsx_dev_runtime6.jsxDEV(import_react6.default.StrictMode, {
-  children: /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(App, {}, undefined, false, undefined, this)
+root.render(/* @__PURE__ */ jsx_dev_runtime7.jsxDEV(import_react7.default.StrictMode, {
+  children: /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(App, {}, undefined, false, undefined, this)
 }, undefined, false, undefined, this));

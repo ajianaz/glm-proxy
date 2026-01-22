@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import LoginPage from './LoginPage';
 import ApiKeyTable from './ApiKeyTable';
 import ApiKeyForm from './ApiKeyForm';
 import UsageVisualization from './UsageVisualization';
@@ -27,6 +28,7 @@ interface AppContextType {
   isLoading: boolean;
   error: string | null;
   isConnected: boolean;
+  isAuthenticated: boolean;
 
   // Actions
   refreshKeys: () => Promise<void>;
@@ -34,6 +36,8 @@ interface AppContextType {
   updateKey: (keyId: string, updates: Partial<Omit<ApiKey, 'key' | 'created_at'>>) => Promise<void>;
   deleteKey: (keyId: string) => Promise<void>;
   clearError: () => void;
+  logout: () => void;
+  setIsAuthenticated: (authenticated: boolean) => void;
 }
 
 // Create the context with undefined as default
@@ -66,6 +70,7 @@ function AppProvider({ children }: AppProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // WebSocket client ref to persist across re-renders
   const wsClientRef = useRef<ReturnType<typeof createWebSocketClient> | null>(null);
@@ -159,6 +164,16 @@ function AppProvider({ children }: AppProviderProps) {
   }
 
   /**
+   * Logout and clear authentication
+   */
+  function logout(): void {
+    sessionStorage.removeItem('dashboard_auth_token');
+    sessionStorage.removeItem('dashboard_auth_type');
+    setIsAuthenticated(false);
+    setApiKeys([]);
+  }
+
+  /**
    * Initialize WebSocket connection for real-time updates
    */
   useEffect(() => {
@@ -231,11 +246,14 @@ function AppProvider({ children }: AppProviderProps) {
     isLoading,
     error,
     isConnected,
+    isAuthenticated,
     refreshKeys,
     createKey,
     updateKey,
     deleteKey,
     clearError,
+    logout,
+    setIsAuthenticated,
   };
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
@@ -250,27 +268,64 @@ function AppProvider({ children }: AppProviderProps) {
 export default function App(): React.JSX.Element {
   return (
     <AppProvider>
-      <div className="app">
-        {/* Header */}
-        <header className="app-header">
-          <h1>API Key Management Dashboard</h1>
-          <p className="app-subtitle">Create, view, edit, and manage API keys with real-time usage monitoring</p>
-        </header>
-
-        {/* Main Content Area */}
-        <main className="app-main">
-          {/* Placeholder content - will be replaced by components in later subtasks */}
-          <div className="placeholder-content">
-            <AppContent />
-          </div>
-        </main>
-
-        {/* Footer */}
-        <footer className="app-footer">
-          <p>API Key Dashboard v1.0.0 • Powered by React & Bun</p>
-        </footer>
-      </div>
+      <AppContentWrapper />
     </AppProvider>
+  );
+}
+
+/**
+ * App Content Wrapper Component
+ *
+ * Handles authentication flow and renders either LoginPage or Dashboard.
+ */
+function AppContentWrapper(): React.JSX.Element {
+  const { isAuthenticated, setIsAuthenticated } = useApp();
+
+  // Check for existing authentication on mount
+  useEffect(() => {
+    const storedToken = sessionStorage.getItem('dashboard_auth_token');
+    const storedAuthType = sessionStorage.getItem('dashboard_auth_type');
+
+    if (storedToken && storedAuthType) {
+      setIsAuthenticated(true);
+    }
+  }, [setIsAuthenticated]);
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={(token, authType) => setIsAuthenticated(true)} />;
+  }
+
+  // Show dashboard if authenticated
+  return (
+    <div className="app">
+      {/* Header */}
+      <header className="app-header">
+        <div className="header-content">
+          <div>
+            <h1>API Key Management Dashboard</h1>
+            <p className="app-subtitle">Create, view, edit, and manage API keys with real-time usage monitoring</p>
+          </div>
+          <button
+            className="btn btn-secondary logout-btn"
+            onClick={logout}
+            title="Logout from dashboard"
+          >
+            Logout
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="app-main">
+        <AppContent />
+      </main>
+
+      {/* Footer */}
+      <footer className="app-footer">
+        <p>API Key Dashboard v1.0.0 • Powered by React & Bun</p>
+      </footer>
+    </div>
   );
 }
 
@@ -281,7 +336,7 @@ export default function App(): React.JSX.Element {
  * Will be expanded with actual components in subsequent subtasks.
  */
 function AppContent(): React.JSX.Element {
-  const { apiKeys, isLoading, error, isConnected } = useApp();
+  const { apiKeys, isLoading, error, isConnected, logout } = useApp();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingKey, setEditingKey] = useState<ApiKey | undefined>(undefined);
   const [focusKey, setFocusKey] = useState<string | null>(null);
