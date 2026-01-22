@@ -9,6 +9,8 @@ import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { createProxyHandler } from './handlers/proxyHandler.js';
 import type { StatsResponse } from './types.js';
 import { startScheduler, loadSchedulerConfigFromEnv, type ScheduledBackupResult } from './db/scheduler.js';
+import { checkHealth, type HealthCheckResult } from './db/health.js';
+import { getStorageType, isInFallbackMode, getFallbackState } from './storage/index.js';
 
 type Bindings = {
   ZAI_API_KEY: string;
@@ -66,9 +68,101 @@ app.post('/v1/messages', authMiddleware, rateLimitMiddleware, anthropicProxyHand
 // OpenAI-Compatible API - catch-all for /v1/*
 app.all('/v1/*', authMiddleware, rateLimitMiddleware, openaiProxyHandler);
 
-// Health check
-app.get('/health', (c) => {
-  return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health check endpoint with database status
+app.get('/health', async (c) => {
+  const storageType = getStorageType();
+  const inFallbackMode = isInFallbackMode();
+  const timestamp = new Date().toISOString();
+
+  // Build base health response
+  const healthResponse: Record<string, any> = {
+    status: 'ok',
+    timestamp,
+    storage: {
+      type: storageType,
+      inFallbackMode,
+    },
+  };
+
+  // Add fallback state details if in fallback mode
+  if (inFallbackMode) {
+    const fallbackState = getFallbackState();
+    if (fallbackState) {
+      healthResponse.storage.fallback = {
+        retryCount: fallbackState.retryCount,
+        lastRetryAt: fallbackState.lastRetryAt,
+      };
+    }
+  }
+
+  // Check database health if using database storage
+  if (storageType === 'database') {
+    try {
+      const dbHealth: HealthCheckResult = await checkHealth({
+        includeKeyCount: false, // Don't count keys for faster health checks
+        slowQueryThreshold: 1000,
+      });
+
+      // Add database health details to response
+      healthResponse.database = {
+        type: dbHealth.databaseType,
+        connected: dbHealth.connected,
+        responseTimeMs: dbHealth.responseTimeMs,
+        status: dbHealth.status,
+      };
+
+      // Add error details if unhealthy
+      if (dbHealth.error) {
+        healthResponse.database.error = dbHealth.error;
+      }
+
+      // Determine overall health status and HTTP status code
+      if (!dbHealth.connected || dbHealth.status === 'unhealthy') {
+        // Database is unhealthy
+        if (inFallbackMode) {
+          // Using file storage fallback, service is degraded but operational
+          healthResponse.status = 'degraded';
+          healthResponse.message = 'Service is running in fallback mode using file storage';
+          return c.json(healthResponse, 200); // Return 200 because service is still operational
+        } else {
+          // No fallback available, service is unhealthy
+          healthResponse.status = 'unhealthy';
+          healthResponse.message = 'Database connection failed and no fallback available';
+          return c.json(healthResponse, 503); // Return 503 for load balancers
+        }
+      } else if (dbHealth.status === 'degraded') {
+        // Database is slow but connected
+        healthResponse.status = 'degraded';
+        healthResponse.message = 'Database is slow but operational';
+        return c.json(healthResponse, 200); // Return 200 because service is operational
+      }
+
+      // Database is healthy
+      healthResponse.message = inFallbackMode
+        ? 'Service is running in fallback mode (database recovering)'
+        : 'All systems operational';
+      return c.json(healthResponse, 200);
+    } catch (error) {
+      // Health check itself failed (unexpected error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      healthResponse.status = 'unhealthy';
+      healthResponse.database = {
+        error: errorMessage,
+      };
+
+      if (inFallbackMode) {
+        healthResponse.message = 'Health check failed but service is running in fallback mode';
+        return c.json(healthResponse, 200); // Return 200 because fallback is working
+      } else {
+        healthResponse.message = 'Health check failed and no fallback available';
+        return c.json(healthResponse, 503);
+      }
+    }
+  }
+
+  // Using file storage (no database)
+  healthResponse.message = 'Service is running with file storage';
+  return c.json(healthResponse, 200);
 });
 
 // Root

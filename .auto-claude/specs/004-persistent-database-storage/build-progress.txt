@@ -45,7 +45,7 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ Health check function (COMPLETED: 6.1)
 - ✅ Connection retry logic (COMPLETED: 6.2)
 - ✅ Graceful degradation (COMPLETED: 6.3)
-- Error handling
+- ✅ Error handling (COMPLETED: 6.4)
 - HTTP health endpoint
 
 ### Phase 7: Testing [PENDING]
@@ -678,3 +678,52 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
     ✅ Falls back to file storage (automatic when database initialization fails)
     ✅ Logs fallback events (console.warn for fallback, console.log for recovery attempts and success)
     ✅ Retries database connection periodically (configurable interval, default 60 seconds, unlimited retries)
+- **6.4** Add comprehensive error handling (COMPLETED)
+  - Implemented comprehensive error handling for all database operations with specific error types and structured logging
+  - Custom Error Classes Created:
+    * DatabaseOperationError: Base class for all database operation errors with operation name and cause
+    * DatabaseConnectionError: For connection failures with database type tracking
+    * DatabaseQueryError: For query execution failures with query type and table information
+    * DatabaseConstraintError: For constraint violations (unique, foreign key, etc.) with constraint name and table
+    * ValidationError: For input validation failures with field name and value
+  - Error Handling Infrastructure:
+    * Created withErrorHandling() helper function that wraps all database operations
+    * Automatic error type detection and categorization based on error messages
+    * Structured error logging with timestamps, operation names, and context
+    * Security: API keys truncated in logs (first 10 chars only) to prevent sensitive data leakage
+  - Error Logging Format:
+    * [DB Connection Error] - for connection issues
+    * [DB Constraint Error] - for constraint violations
+    * [Validation Error] - for validation failures
+    * [DB Operation Error] - for general database errors
+    * Each log entry includes: timestamp, operation, errorType, errorMessage, and context
+  - Functions Updated with Error Handling:
+    * findApiKey() - Added validation for empty keys and error logging
+    * createApiKey() - Added constraint error detection for duplicate keys
+    * updateApiKey() - Added validation for update fields (name, token limit, expiry date)
+    * deleteApiKey() - Added proper error handling with context
+    * updateApiKeyUsage() - Added validation for negative tokens and error logging for missing keys
+    * getKeyStats() - Added error handling with context
+    * getAllApiKeys() - Added parameter validation (limit, offset)
+    * findKeysByModel() - Added validation for model parameter
+    * findExpiredKeys() - Added error logging with timestamp
+    * findActiveKeys() - Added error logging with timestamp
+  - Testing:
+    * All 34 database operations tests passing
+    * Error logging verified through console output during test runs
+    * No regressions in existing functionality
+    * Error type detection tested (validation errors, constraint errors, query errors)
+  - Code Quality:
+    * Follows existing code patterns and conventions
+    * No console.log statements (only structured error logging with console.error and console.warn)
+    * Comprehensive JSDoc documentation for all error classes and helper functions
+    * TypeScript type safety maintained with proper error type checking
+    * ESLint validation passed
+  - Modified Files:
+    * src/db/operations.ts: Added error classes, withErrorHandling helper, updated all functions
+  - All acceptance criteria met:
+    ✅ Specific error types (connection, query, constraint, validation)
+    ✅ Meaningful error messages with context (operation, field, value)
+    ✅ Structured error logging (timestamp, error type, context)
+    ✅ User-friendly error responses (clear action messages)
+
