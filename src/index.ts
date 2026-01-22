@@ -7,8 +7,9 @@ import { checkRateLimit } from './ratelimit.js';
 import { authMiddleware, getApiKeyFromContext, type AuthContext } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { createProxyHandler } from './handlers/proxyHandler.js';
-import type { StatsResponse } from './types.js';
+import type { StatsResponse, CacheStatsResponse } from './types.js';
 import { warmupCache } from './storage.js';
+import { apiKeyCache } from './cache.js';
 
 type Bindings = {
   ZAI_API_KEY: string;
@@ -56,6 +57,19 @@ app.get('/stats', authMiddleware, async (c) => {
   return c.json(stats);
 });
 
+// Cache statistics endpoint
+app.get('/cache-stats', authMiddleware, async (c) => {
+  const cacheStats = apiKeyCache.getStats();
+  const cacheEnabled = process.env.CACHE_ENABLED !== 'false';
+
+  const stats: CacheStatsResponse = {
+    ...cacheStats,
+    enabled: cacheEnabled,
+  };
+
+  return c.json(stats);
+});
+
 // Create proxy handlers
 const openaiProxyHandler = createProxyHandler(proxyRequest);
 const anthropicProxyHandler = createProxyHandler(proxyAnthropicRequest);
@@ -79,6 +93,7 @@ app.get('/', (c) => {
     endpoints: {
       health: 'GET /health',
       stats: 'GET /stats',
+      cache_stats: 'GET /cache-stats',
       openai_compatible: 'ALL /v1/* (except /v1/messages)',
       anthropic_compatible: 'POST /v1/messages',
     },
