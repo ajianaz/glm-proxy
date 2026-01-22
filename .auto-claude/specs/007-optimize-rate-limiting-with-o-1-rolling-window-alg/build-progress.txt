@@ -35,15 +35,43 @@ Optimize rate limiting from O(n) to O(1) complexity by implementing a rolling wi
   - Validated with 10 comprehensive test cases (100% pass rate)
   - Verified migration produces same results as old algorithm
 
+#### Phase 2: Implement Rolling Window Data Structure (In Progress) ✅ COMPLETED
+- [x] **phase-2-subtask-1**: Create RollingWindow class in new file
+  - Created src/rolling-window.ts with full O(1) implementation
+  - Implemented TimeBucket and RollingWindowData interfaces
+  - Implemented RollingWindow class with all required methods:
+    * addTokens() - O(1) token addition to buckets
+    * getTotalTokens() - O(1) total retrieval with automatic cleanup
+    * cleanup() - O(k) expired bucket removal (amortized O(1))
+    * toSerializable() / fromSerializable() - Serialization support
+    * validate() - Running total consistency verification
+  - Uses Map-based sparse bucket storage for efficiency
+- [x] **phase-2-subtask-2**: Add unit tests for RollingWindow class ✅ COMPLETED
+  - Created comprehensive test suite with 37 tests
+  - All tests passing (100% success rate)
+  - Test coverage includes:
+    * Constructor tests (default and custom configurations)
+    * Token addition and bucket management
+    * Token summation across multiple buckets
+    * Bucket expiration and running total updates
+    * Cleanup operations
+    * Serialization/deserialization
+    * Running total validation
+    * Performance benchmarks (O(1) verification)
+    * Edge cases (same timestamp, boundaries, large values, UTC)
+    * Method interactions and consistency
+  - Verified O(1) performance with < 1ms for 60 buckets
+  - Verified O(1) performance with < 10ms for 1000 checks
+
 ### Implementation Plan Summary
 
-**Phase 1: Design and Planning** (2 subtasks)
+**Phase 1: Design and Planning** (2 subtasks) ✅ COMPLETED
 - Design O(1) rolling window data structure using time buckets
 - Plan backwards compatibility strategy
 
-**Phase 2: Implement Rolling Window Data Structure** (2 subtasks)
-- Create RollingWindow class in src/rolling-window.ts
-- Add comprehensive unit tests
+**Phase 2: Implement Rolling Window Data Structure** (2 subtasks) ✅ COMPLETED
+- Create RollingWindow class in src/rolling-window.ts ✅
+- Add comprehensive unit tests ✅
 
 **Phase 3: Integrate with ApiKey Type** (1 subtask)
 - Extend ApiKey type with rolling window cache field
