@@ -6,15 +6,15 @@
 - Date: 2025-01-22
 - Phases: 9
 - Total Subtasks: 27
-- Completed: 1
+- Completed: 2
 - In Progress: 0
-- Pending: 26
+- Pending: 25
 
 ### Plan Overview
 
 **Phase 1: Baseline Measurement & Profiling** (3 subtasks)
 - ✅ Create benchmark suite (COMPLETED - 2025-01-22)
-- ⏳ Measure baseline performance
+- ✅ Measure baseline performance (COMPLETED - 2025-01-22)
 - ⏳ Add profiling instrumentation
 
 **Phase 2: Connection Pool & Network Optimization** (3 subtasks)
@@ -68,10 +68,28 @@
 - Created documentation (README.md)
 - Added `bun run benchmark` script to package.json
 
+**Subtask 1.2: Baseline Performance Measurement** ✅ COMPLETED
+- Created run-baseline.ts script for automated baseline measurement
+- Established comprehensive performance baseline
+- Measured latency: 67.27ms mean (target: <10ms) - ❌ FAIL
+- Measured throughput: Peak 12,621 RPS at concurrency 10
+- Measured memory: 6.30MB base (target: <100MB) - ✅ PASS
+- Measured CPU: 0.000387s average - ✅ PASS
+- Identified scaling efficiency: 0.7% (target: >70%)
+- Created detailed baseline report with optimization roadmap
+- Added mock upstream server for testing
+- Updated proxy.ts to support ZAI_API_BASE environment variable
+
+**Key Findings:**
+- High latency overhead (6.7x over target) - critical bottleneck
+- Excellent memory efficiency (93.7% under target)
+- Poor scaling under high concurrency
+- Identified primary bottlenecks: no connection pooling, no HTTP/2, JSON overhead
+
 ### Next Steps
-1. Subtask 1.2: Measure baseline performance using the benchmark suite
-2. Subtask 1.3: Add profiling instrumentation to codebase
-3. Begin Phase 2: Connection Pool & Network Optimization
+1. Subtask 1.3: Add profiling instrumentation to codebase
+2. Begin Phase 2: Connection Pool & Network Optimization
+3. Implement connection pool (expected: 30-50ms latency reduction)
 
 ### Configuration Targets
 - Target latency overhead: < 10ms
