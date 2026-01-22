@@ -46,7 +46,7 @@
           "id": "1.3",
           "name": "Define database schema",
           "description": "Create schema files for api_keys table matching current ApiKey interface including usage_windows as a separate table",
-          "status": "pending",
+          "status": "completed",
           "files": [
             "src/db/schema.ts"
           ],
@@ -55,7 +55,9 @@
             "usage_windows table with foreign key to api_keys",
             "Indexes on key field for lookups",
             "Indexes on last_used and expiry_date for queries"
-          ]
+          ],
+          "notes": "Created src/db/schema.ts with SQLite and PostgreSQL schemas:\n- api_keys table: key (PK), name, model, token_limit_per_5h, expiry_date, created_at, last_used, total_lifetime_tokens\n- usage_windows table: id (PK), api_key (FK), window_start, tokens_used\n- Indexes on last_used, expiry_date, api_key, and window_start for efficient queries\n- Foreign key cascade delete for referential integrity\n- TypeScript compilation verified",
+          "updated_at": "2026-01-22T03:45:35.652053+00:00"
         },
         {
           "id": "1.4",
@@ -690,5 +692,6 @@
     "tested_by": "",
     "tested_at": ""
   },
-  "planStatus": "in_progress"
+  "planStatus": "in_progress",
+  "last_updated": "2026-01-22T03:45:35.652061+00:00"
 }
