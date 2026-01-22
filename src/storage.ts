@@ -3,7 +3,10 @@ import path from 'path';
 import type { ApiKeysData, ApiKey } from './types.js';
 import { apiKeyCache } from './cache.js';
 
-const CACHE_ENABLED = process.env.CACHE_ENABLED !== 'false';
+// Helper function to check if cache is enabled (reads env var at runtime)
+function isCacheEnabled(): boolean {
+  return process.env.CACHE_ENABLED !== 'false';
+}
 
 // Cache logging configuration
 const CACHE_LOG_LEVEL = process.env.CACHE_LOG_LEVEL || 'none';
@@ -85,7 +88,7 @@ export async function writeApiKeys(data: ApiKeysData): Promise<void> {
 
 export async function findApiKey(key: string): Promise<ApiKey | null> {
   // Check cache first if enabled
-  if (CACHE_ENABLED) {
+  if (isCacheEnabled()) {
     // Use has() to check if key exists in cache (distinguishes miss from cached null)
     if (apiKeyCache.has(key)) {
       // Key exists in cache, retrieve it (may be null for not-found keys)
@@ -112,7 +115,7 @@ export async function findApiKey(key: string): Promise<ApiKey | null> {
     const apiKey = data.keys.find(k => k.key === key) || null;
 
     // Populate cache for future requests (including null for not-found keys)
-    if (CACHE_ENABLED) {
+    if (isCacheEnabled()) {
       apiKeyCache.set(key, apiKey);
 
       // Debug log cache population
@@ -165,7 +168,7 @@ export async function updateApiKeyUsage(
     await writeApiKeys(data);
 
     // Update cache with modified API key to maintain coherency
-    if (CACHE_ENABLED) {
+    if (isCacheEnabled()) {
       apiKeyCache.set(key, apiKey);
 
       // Info log cache invalidation/update
@@ -188,7 +191,7 @@ export async function getKeyStats(key: string): Promise<ApiKey | null> {
  * Runs asynchronously and doesn't block the startup process.
  */
 export async function warmupCache(): Promise<void> {
-  if (!CACHE_ENABLED) {
+  if (!isCacheEnabled()) {
     return;
   }
 
