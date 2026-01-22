@@ -916,7 +916,94 @@ All admin API endpoints now have:
 - No console.log statements in production middleware code (only in dedicated logging middleware)
 
 ### Next Steps
-- test-5: Write integration tests for GET endpoints
-- test-6: Write integration tests for PUT endpoint
-- test-7: Write integration tests for DELETE endpoint
 - test-8: Write authentication tests
+
+## 2026-01-22 - Phase 6 (test-5, test-6, test-7): Integration Tests for GET, PUT, and DELETE Endpoints
+
+### Completed
+- ✅ **test-5: Write integration tests for GET endpoints**
+  - Verified comprehensive test suite already implemented in test/integration/adminApiKeys.test.ts
+  - 53 tests covering both GET endpoints:
+    - GET /admin/api/keys (list endpoint): ~35 tests
+      - Authentication tests (4 tests) - API key and token authentication
+      - Pagination tests (6 tests) - default, custom, edge cases, empty pages
+      - Query parameter validation tests (7 tests) - page, limit, is_active, search validation
+      - Filtering tests (7 tests) - is_active filter, search by name, combined filters
+      - Response format tests (5 tests) - structure, ordering, empty database handling
+      - Edge case tests (6 tests) - special chars, unicode, whitespace, large numbers
+    - GET /admin/api/keys/:id (retrieve by ID endpoint): ~18 tests
+      - Authentication tests (4 tests) - API key and token authentication
+      - ID parameter validation tests (5 tests) - format, type, range, special characters
+      - Not found scenario tests (2 tests) - non-existent resources
+      - Response format tests (4 tests) - all fields, null handling, defaults
+      - Edge case tests (4 tests) - large IDs, leading zeros, consistency, inactive keys
+  - Test coverage includes:
+    - Authentication with both API key and JWT token
+    - Pagination with default and custom parameters
+    - Query parameter validation (page, limit, is_active, search)
+    - Filtering by active status and searching by name
+    - Response format verification (structure, types, ordering)
+    - Edge cases (special characters, unicode, large numbers, empty results)
+    - Error handling (401, 400, 404 status codes)
+  - All 53 GET endpoint tests passing (139 total tests in file)
+  - TypeScript compilation successful for test file
+  - Updated implementation plan to mark test-5 as completed
+
+- ✅ **test-6: Write integration tests for PUT endpoint**
+  - Verified comprehensive test suite already implemented in test/integration/adminApiKeys.test.ts
+  - 47 tests covering PUT endpoint:
+    - Authentication tests (4 tests) - API key and token authentication
+    - ID parameter validation tests (4 tests) - format, type, range
+    - Request body validation tests (9 tests) - all fields and edge cases
+    - Successful update scenarios (11 tests) - single field, multiple fields, partial updates
+    - Not found scenario tests (2 tests) - non-existent resources
+    - Response format tests (2 tests) - all fields, updated_at timestamp
+    - Edge case tests (15 tests) - special chars, unicode, consecutive updates, min/max values
+  - Test coverage includes:
+    - Authentication with both API key and JWT token
+    - ID validation (format, type, range, special characters)
+    - Request body validation (name, description, scopes, rate_limit, is_active)
+    - Partial updates (one field, multiple fields, empty body)
+    - Whitespace trimming (name, description)
+    - Null handling (description can be set to null)
+    - All field types and boundary values
+    - Error handling (401, 400, 404 status codes)
+    - Automatic updated_at timestamp management
+  - All 139 tests passing (including 47 PUT endpoint tests)
+  - Updated implementation plan to mark test-6 as completed
+
+- ✅ **test-7: Write integration tests for DELETE endpoint**
+  - Verified comprehensive test suite already implemented in test/integration/adminApiKeys.test.ts
+  - 24 tests covering DELETE endpoint:
+    - Authentication tests (4 tests) - API key and token authentication
+    - ID parameter validation tests (6 tests) - format, type, range, leading zeros
+    - Successful deletion tests (4 tests) - 204 status, database verification
+    - Not found scenario tests (4 tests) - non-existent resources, double delete
+    - Edge case tests (6 tests) - special chars, unicode, consecutive deletions, list verification
+  - Test coverage includes:
+    - Authentication with both API key and JWT token
+    - ID validation (format, type, range, special characters, leading zeros)
+    - Successful deletion (204 No Content response)
+    - Database verification (key actually deleted)
+    - Deletion of inactive keys and keys with all property types
+    - Not found scenarios (non-existent IDs, already deleted keys)
+    - Edge cases (only key, one of many, consecutive deletions, special chars, unicode)
+    - Integration with list endpoint (deletion affects list results)
+  - All 139 tests passing (including 24 DELETE endpoint tests)
+  - Updated implementation plan to mark test-7 as completed
+
+### Implementation Notes
+- All three test subtasks (test-5, test-6, test-7) were already implemented as part of the CRUD API endpoint development
+- Test file is well-organized with clear describe blocks for each endpoint
+- Tests follow existing patterns with proper beforeEach setup and helper functions
+- Comprehensive coverage includes authentication, validation, success cases, error cases, and edge cases
+- All tests use the createTestKey helper for consistent test data creation
+- Tests verify both positive scenarios and negative test cases
+- Response format tests ensure API contracts are maintained
+- No console.log statements in production code (only in dedicated logging middleware)
+- Tests are fast and complete in ~2.4 seconds
+- Total test coverage: 139 tests covering POST, GET (list & retrieve), PUT, and DELETE endpoints
+
+### Next Steps
+- test-8: Write authentication tests
+
