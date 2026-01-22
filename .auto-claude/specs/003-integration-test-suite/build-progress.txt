@@ -134,7 +134,7 @@
 **Phase 5: Streaming Response Tests** (100 min)
 - OpenAI streaming ✅ COMPLETE (31 tests passing in 17.12s)
 - Anthropic streaming ✅ COMPLETE (31 tests passing in 4.01s)
-- Streaming error handling
+- Streaming error handling ✅ COMPLETE (32 tests passing in 8.82s)
 - Streaming with rate limiting
 
 **Phase 6: Error Handling Tests** (70 min)
@@ -168,14 +168,15 @@
 9. ✅ Start Phase 5: Streaming Response Tests (IN PROGRESS)
 10. ✅ Subtask 5.1: OpenAI streaming tests (COMPLETED)
 11. ✅ Subtask 5.2: Anthropic streaming tests (COMPLETED)
-12. Subtask 5.3: Streaming error handling (NEXT)
+12. ✅ Subtask 5.3: Streaming error handling (COMPLETED)
+13. Subtask 5.4: Streaming with rate limiting (NEXT)
 
 ### Acceptance Criteria Status
 
 - [x] Tests cover all API endpoints
 - [x] Tests verify rate limiting enforcement with rolling window
 - [x] Tests validate streaming responses (OpenAI ✅, Anthropic ✅)
-- [ ] Tests verify error handling
+- [ ] Tests verify error handling (streaming errors ✅, upstream/validation/network/timeouts pending)
 - [x] Tests check authentication/authorization
 - [x] Tests validate API key expiry handling
 - [x] Tests verify concurrent request handling (rate limiting concurrent tests done)
@@ -214,3 +215,12 @@
 - Git commit created: 4ed634f (OpenAI streaming tests)
 - ✅ Subtask 5.2 Complete: Anthropic streaming response tests (31 tests passing)
 - Git commit created: 42eb3f8 (Anthropic streaming tests)
+- ✅ Subtask 5.3 Complete: Streaming error handling tests (32 tests passing)
+- Tests verify authentication errors during streaming (missing, invalid, expired API keys)
+- Tests verify rate limit errors during streaming (429 responses, retry-after headers)
+- Tests verify malformed request errors (invalid JSON, missing fields)
+- Tests verify upstream error propagation (API errors, timeouts)
+- Tests verify connection error handling (client disconnect, incomplete streams)
+- Tests verify error response format (proper error objects and messages)
+- Tests verify content type errors (wrong or missing content-type)
+- All 32 tests passing in 8.82s
