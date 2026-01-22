@@ -140,7 +140,7 @@
 **Phase 6: Error Handling Tests** (70 min)
 - Upstream API errors ✅ COMPLETE (26 tests passing in 12.91s)
 - Git commit created: ebb6af5 (upstream error propagation tests)
-- Malformed request handling
+- Malformed request handling ✅ COMPLETE (50 tests passing in 22.35s)
 - Timeout errors
 - Network errors
 
@@ -178,7 +178,7 @@
 - [x] Tests cover all API endpoints
 - [x] Tests verify rate limiting enforcement with rolling window
 - [x] Tests validate streaming responses (OpenAI ✅, Anthropic ✅)
-- [ ] Tests verify error handling (streaming errors ✅, upstream errors ✅, validation/network/timeouts pending)
+- [ ] Tests verify error handling (streaming errors ✅, upstream errors ✅, validation errors ✅, network/timeouts pending)
 - [x] Tests check authentication/authorization
 - [x] Tests validate API key expiry handling
 - [x] Tests verify concurrent request handling (rate limiting concurrent tests done)
@@ -250,3 +250,16 @@
 - Tests verify HTTP status codes are preserved from upstream
 - All 26 tests passing in 12.91s
 - Git commit created: ebb6af5 (upstream error propagation tests)
+- ✅ Subtask 6.2 Complete: Malformed request handling tests (50 tests passing in 22.35s)
+- Tests verify invalid JSON is properly rejected (empty, malformed, incomplete, trailing commas, non-JSON content)
+- Tests verify missing required fields are properly reported (messages, model, max_tokens)
+- Tests verify invalid field types are detected (string instead of array, number instead of string, etc.)
+- Tests verify invalid message roles are rejected (invalid, null, numeric roles)
+- Tests verify invalid parameter values are rejected (negative temperature, temperature out of range, negative max_tokens, etc.)
+- Tests verify null and empty values are properly handled
+- Tests verify content type validation works correctly
+- Tests verify error response format is correct (JSON content type, error object structure)
+- Tests verify CORS headers are included on validation errors
+- Tests verify complex validation scenarios (mixed valid/invalid messages, deeply nested structures, extra fields)
+- All 50 tests passing in 22.35s
+- Git commit to be created: (validation error tests)
