@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { ApiKeysData, ApiKey } from './types.js';
+import { RollingWindow } from './rolling-window.js';
 
 const DATA_FILE = process.env.DATA_FILE || path.join(process.cwd(), 'data/apikeys.json');
 const LOCK_FILE = DATA_FILE + '.lock';
@@ -68,6 +69,7 @@ export async function updateApiKeyUsage(
 
     const apiKey = data.keys[keyIndex];
     const now = new Date().toISOString();
+    const nowDate = new Date();
 
     // Update last_used and total tokens
     apiKey.last_used = now;
@@ -90,6 +92,27 @@ export async function updateApiKeyUsage(
     apiKey.usage_windows = apiKey.usage_windows.filter(
       w => w.window_start >= fiveHoursAgo
     );
+
+    // Update rolling window cache for O(1) rate limit checks
+    let rollingWindow: RollingWindow;
+    if (apiKey.rolling_window_cache) {
+      // Load existing cache
+      rollingWindow = RollingWindow.fromSerializable(apiKey.rolling_window_cache);
+    } else {
+      // Create new cache from existing usage_windows
+      rollingWindow = new RollingWindow(5 * 60 * 60 * 1000, 5 * 60 * 1000); // 5 hour window, 5 min buckets
+      // Populate cache from existing usage_windows
+      for (const window of apiKey.usage_windows) {
+        const windowTime = new Date(window.window_start);
+        rollingWindow.addTokens(windowTime, window.tokens_used);
+      }
+    }
+
+    // Add current usage to rolling window cache
+    rollingWindow.addTokens(nowDate, tokensUsed);
+
+    // Serialize and store cache
+    apiKey.rolling_window_cache = rollingWindow.toSerializable();
 
     await writeApiKeys(data);
   });
