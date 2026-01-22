@@ -1,0 +1,543 @@
+{
+  "feature": "Performance Optimization and Low-Latency Architecture",
+  "description": "# Performance Optimization and Low-Latency Architecture\n\nComprehensive performance optimization including connection pooling, request pipelining, efficient JSON parsing, and minimal overhead to achieve < 10ms latency overhead (beating LiteLLM's 15-30ms).\n\n## Rationale\nDirectly addresses LiteLLM's high latency pain point (pain-1-1). Major competitive differentiator. Critical for user experience in high-throughput applications. Aligns with market trend of moving away from high-latency gateways.\n\n## User Stories\n- As a developer, I want low latency overhead so that my applications feel responsive\n- As a performance engineer, I want benchmarks so that I can compare GLM Proxy to alternatives\n- As a user, I want the proxy to be faster than competing solutions so that I choose GLM Proxy\n\n## Acceptance Criteria\n- [ ] Latency overhead < 10ms measured from proxy request to Z.AI request\n- [ ] Connection pooling to Z.AI API with configurable pool size\n- [ ] Efficient streaming implementation with minimal buffering\n- [ ] Optimized JSON parsing and serialization\n- [ ] Profiling and benchmarking suite to track performance\n- [ ] Performance comparison dashboard vs direct Z.AI API\n- [ ] Load testing results showing sustained performance under load\n- [ ] Memory usage optimization (< 100MB base memory)\n- [ ] CPU usage profiling to identify hotspots\n",
+  "created_at": "2026-01-22T03:29:41.145Z",
+  "updated_at": "2026-01-22T03:33:36.375Z",
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Baseline Measurement & Profiling",
+      "description": "Establish current performance baseline and identify bottlenecks",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "1.1",
+          "title": "Create Benchmark Suite",
+          "description": "Build comprehensive benchmarking framework to measure latency, throughput, and resource usage",
+          "status": "completed",
+          "files": [
+            "test/benchmark/index.ts",
+            "test/benchmark/proxy-benchmark.ts",
+            "test/benchmark/memory-benchmark.ts",
+            "test/benchmark/types.ts",
+            "test/benchmark/benchmark.test.ts",
+            "test/benchmark/README.md"
+          ],
+          "acceptance_criteria": [
+            "Can measure end-to-end latency from proxy request to upstream response",
+            "Can measure proxy overhead (upstream vs direct API call)",
+            "Can simulate concurrent requests (10, 50, 100, 500 concurrent)",
+            "Can measure memory usage over time",
+            "Can measure CPU usage during load",
+            "Benchmark results exported to JSON for comparison"
+          ]
+        },
+        {
+          "id": "1.2",
+          "title": "Baseline Performance Measurement",
+          "description": "Measure current proxy performance to establish baseline metrics",
+          "status": "pending",
+          "files": [
+            "test/benchmark/baseline-results.json"
+          ],
+          "acceptance_criteria": [
+            "Document average latency for single request",
+            "Document latency under various concurrency levels",
+            "Document current memory footprint",
+            "Document current CPU usage patterns",
+            "Identify current bottlenecks (JSON parsing, network, auth, etc.)",
+            "Baseline report saved for comparison"
+          ]
+        },
+        {
+          "id": "1.3",
+          "title": "Profiling Instrumentation",
+          "description": "Add profiling markers and hooks throughout the codebase",
+          "status": "pending",
+          "files": [
+            "src/profiling/index.ts",
+            "src/profiling/Profiler.ts",
+            "src/middleware/profiling.ts"
+          ],
+          "acceptance_criteria": [
+            "Profiling middleware to track request lifecycle",
+            "Performance markers for key operations (auth, validation, proxying)",
+            "Configurable profiling (on/off for production)",
+            "Profiling data export endpoint",
+            "Integration with existing middleware chain"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Connection Pool & Network Optimization",
+      "description": "Implement HTTP/2 connection pooling and optimize network layer",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "2.1",
+          "title": "HTTP/2 Connection Pool Implementation",
+          "description": "Create a reusable connection pool for Z.AI API connections",
+          "status": "pending",
+          "files": [
+            "src/pool/ConnectionPool.ts",
+            "src/pool/PoolManager.ts",
+            "src/pool/types.ts"
+          ],
+          "acceptance_criteria": [
+            "Configurable pool size (min, max connections)",
+            "Connection reuse with keep-alive",
+            "Automatic connection health checking",
+            "Pool warming on startup",
+            "Graceful connection cleanup on shutdown",
+            "Thread-safe connection acquisition",
+            "Metrics: pool utilization, wait time, active connections"
+          ]
+        },
+        {
+          "id": "2.2",
+          "title": "Integrate Connection Pool into Proxy",
+          "description": "Replace fetch() calls with pooled connections",
+          "status": "pending",
+          "files": [
+            "src/proxy.ts",
+            "src/anthropic.ts"
+          ],
+          "acceptance_criteria": [
+            "Proxy uses connection pool for all upstream requests",
+            "Fallback to regular fetch if pool exhausted",
+            "Proper error handling for pool failures",
+            "No breaking changes to API",
+            "Unit tests for pool integration"
+          ]
+        },
+        {
+          "id": "2.3",
+          "title": "Request Pipelining Support",
+          "description": "Implement HTTP/2 pipelining for concurrent requests on same connection",
+          "status": "pending",
+          "files": [
+            "src/pool/PipeliningManager.ts"
+          ],
+          "acceptance_criteria": [
+            "Support multiple in-flight requests per connection",
+            "Request queuing when connection at capacity",
+            "Priority-based request scheduling",
+            "Backpressure handling",
+            "Pipelining metrics: concurrent requests, queue depth"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "JSON & Serialization Optimization",
+      "description": "Optimize JSON parsing and serialization for minimal overhead",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "3.1",
+          "title": "Fast JSON Parser Integration",
+          "description": "Evaluate and integrate high-performance JSON parser",
+          "status": "pending",
+          "files": [
+            "src/json/parser.ts",
+            "src/json/serializer.ts"
+          ],
+          "acceptance_criteria": [
+            "Benchmark JSON.parse vs alternatives",
+            "Integrate fastest parser if >20% improvement",
+            "Fallback to native JSON.parse on errors",
+            "Streaming JSON parsing for large responses",
+            "Type-safe parser wrappers"
+          ]
+        },
+        {
+          "id": "3.2",
+          "title": "Request Body Streaming",
+          "description": "Implement streaming request/response bodies to avoid buffering",
+          "status": "pending",
+          "files": [
+            "src/streaming/request-streamer.ts",
+            "src/streaming/response-streamer.ts",
+            "src/handlers/proxyHandler.ts"
+          ],
+          "acceptance_criteria": [
+            "Stream request body to upstream without full buffering",
+            "Stream response body to client without full buffering",
+            "Handle chunked transfer encoding",
+            "Backpressure support",
+            "Memory usage stays constant regardless of payload size"
+          ]
+        },
+        {
+          "id": "3.3",
+          "title": "Optimized JSON Transformation",
+          "description": "Minimize JSON parse/stringify cycles in proxy logic",
+          "status": "pending",
+          "files": [
+            "src/proxy.ts",
+            "src/anthropic.ts",
+            "src/json/transformer.ts"
+          ],
+          "acceptance_criteria": [
+            "Single parse for model injection (current: parse+stringify)",
+            "Direct JSON manipulation without full re-serialization",
+            "Lazy JSON parsing only when needed",
+            "Benchmark shows reduced CPU time in JSON operations"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Caching & Request Optimization",
+      "description": "Implement smart caching and request optimization",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "4.1",
+          "title": "Response Caching Layer",
+          "description": "Add optional caching for identical requests",
+          "status": "pending",
+          "files": [
+            "src/cache/CacheManager.ts",
+            "src/cache/CacheKey.ts",
+            "src/cache/CacheStore.ts"
+          ],
+          "acceptance_criteria": [
+            "Configurable cache (disabled by default)",
+            "Cache key based on model + messages + params",
+            "TTL-based cache invalidation",
+            "Cache size limits with LRU eviction",
+            "Cache hit/miss metrics",
+            "Support for streaming cache responses"
+          ]
+        },
+        {
+          "id": "4.2",
+          "title": "Request Batching",
+          "description": "Batch similar requests when possible",
+          "status": "pending",
+          "files": [
+            "src/batching/BatchManager.ts",
+            "src/batching/BatchQueue.ts"
+          ],
+          "acceptance_criteria": [
+            "Configurable batching window (ms)",
+            "Batch by model and similar requests",
+            "Individual response routing from batch result",
+            "Fallback to immediate request on timeout",
+            "Batching metrics: batch size, wait time reduction"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Middleware & Auth Optimization",
+      "description": "Optimize authentication and middleware pipeline",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "5.1",
+          "title": "In-Memory API Key Cache",
+          "description": "Cache API key lookups to avoid storage reads",
+          "status": "pending",
+          "files": [
+            "src/cache/ApiKeyCache.ts",
+            "src/storage.ts"
+          ],
+          "acceptance_criteria": [
+            "LRU cache for recently used API keys",
+            "Configurable cache size (default: 1000 keys)",
+            "Cache TTL with refresh on access",
+            "Invalidation on key updates",
+            "Cache hit/miss metrics",
+            "Fallback to storage on cache miss"
+          ]
+        },
+        {
+          "id": "5.2",
+          "title": "Rate Limit Optimization",
+          "description": "Optimize rate limit checking with efficient data structures",
+          "status": "pending",
+          "files": [
+            "src/ratelimit.ts",
+            "src/storage.ts"
+          ],
+          "acceptance_criteria": [
+            "Use efficient sliding window algorithm",
+            "Minimize storage operations",
+            "Pre-compute window boundaries",
+            "Batch rate limit updates",
+            "Show reduced CPU time in profiling"
+          ]
+        },
+        {
+          "id": "5.3",
+          "title": "Middleware Pipeline Optimization",
+          "description": "Reduce overhead in middleware chain execution",
+          "status": "pending",
+          "files": [
+            "src/middleware/auth.ts",
+            "src/middleware/rateLimit.ts",
+            "src/middleware/profiling.ts"
+          ],
+          "acceptance_criteria": [
+            "Early exit on auth failure",
+            "Minimize context lookups",
+            "Reuse parsed data across middleware",
+            "Lazy initialization of expensive operations",
+            "Benchmark shows reduced middleware overhead"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "name": "Memory & Resource Optimization",
+      "description": "Minimize memory footprint and optimize resource usage",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "6.1",
+          "title": "Memory Profiling & Leak Detection",
+          "description": "Identify memory leaks and optimize memory usage",
+          "status": "pending",
+          "files": [
+            "test/memory/leak-detector.ts",
+            "test/memory/profiler.ts"
+          ],
+          "acceptance_criteria": [
+            "Memory usage tracking over time",
+            "Detection of memory leaks",
+            "Heap snapshot analysis",
+            "Identification of large object allocations",
+            "Memory optimization recommendations report"
+          ]
+        },
+        {
+          "id": "6.2",
+          "title": "Object Pool Pattern",
+          "description": "Reuse frequently allocated objects to reduce GC pressure",
+          "status": "pending",
+          "files": [
+            "src/pool/ObjectPool.ts",
+            "src/pool/BufferPool.ts"
+          ],
+          "acceptance_criteria": [
+            "Pool for request/response objects",
+            "Buffer pool for JSON parsing",
+            "Configurable pool sizes",
+            "Automatic pool expansion/contraction",
+            "Show reduced GC time in profiling"
+          ]
+        },
+        {
+          "id": "6.3",
+          "title": "Stream Buffer Optimization",
+          "description": "Optimize buffer sizes for streaming operations",
+          "status": "pending",
+          "files": [
+            "src/streaming/request-streamer.ts",
+            "src/streaming/response-streamer.ts"
+          ],
+          "acceptance_criteria": [
+            "Optimal buffer size determined through benchmarking",
+            "Configurable buffer sizes",
+            "Buffer reuse where possible",
+            "Show reduced memory allocations"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "name": "Load Testing & Validation",
+      "description": "Comprehensive load testing to validate < 10ms overhead",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "7.1",
+          "title": "Load Testing Framework",
+          "description": "Create automated load testing suite",
+          "status": "pending",
+          "files": [
+            "test/load/load-test.ts",
+            "test/load/scenarios.ts",
+            "test/load/reporter.ts"
+          ],
+          "acceptance_criteria": [
+            "Test scenarios: 1, 10, 50, 100, 500, 1000 concurrent users",
+            "Sustained load tests (5 min, 15 min, 1 hour)",
+            "Ramp-up/ramp-down load patterns",
+            "Failure and timeout testing",
+            "Automated report generation"
+          ]
+        },
+        {
+          "id": "7.2",
+          "title": "Latency Target Validation",
+          "description": "Validate < 10ms overhead across all scenarios",
+          "status": "pending",
+          "files": [
+            "test/load/latency-validation.ts"
+          ],
+          "acceptance_criteria": [
+            "P50 latency < 10ms overhead",
+            "P95 latency < 15ms overhead",
+            "P99 latency < 25ms overhead",
+            "No latency spikes > 50ms under normal load",
+            "Latency stays stable under sustained load"
+          ]
+        },
+        {
+          "id": "7.3",
+          "title": "Memory & CPU Validation",
+          "description": "Validate resource usage under load",
+          "status": "pending",
+          "files": [
+            "test/load/resource-validation.ts"
+          ],
+          "acceptance_criteria": [
+            "Base memory < 100MB",
+            "Memory growth < 10MB/hour under load",
+            "No memory leaks detected",
+            "CPU usage scales linearly with load",
+            "Graceful degradation when overloaded"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-8",
+      "name": "Performance Dashboard & Monitoring",
+      "description": "Build performance monitoring and comparison dashboard",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "8.1",
+          "title": "Metrics Collection",
+          "description": "Implement comprehensive metrics collection",
+          "status": "pending",
+          "files": [
+            "src/metrics/Collector.ts",
+            "src/metrics/Registry.ts",
+            "src/metrics/types.ts"
+          ],
+          "acceptance_criteria": [
+            "Request latency metrics (p50, p95, p99)",
+            "Throughput metrics (requests/sec)",
+            "Connection pool metrics",
+            "Cache metrics",
+            "Error rate metrics",
+            "Resource usage metrics (CPU, memory)"
+          ]
+        },
+        {
+          "id": "8.2",
+          "title": "Performance Dashboard",
+          "description": "Create web dashboard for performance monitoring",
+          "status": "pending",
+          "files": [
+            "src/dashboard/index.html",
+            "src/dashboard/index.ts",
+            "src/dashboard/components/MetricsChart.tsx"
+          ],
+          "acceptance_criteria": [
+            "Real-time latency display",
+            "Throughput graphs",
+            "Resource usage charts",
+            "Comparison vs baseline",
+            "Historical data view",
+            "Export metrics as JSON/Prometheus"
+          ]
+        },
+        {
+          "id": "8.3",
+          "title": "Comparison vs Direct API",
+          "description": "Document and visualize proxy overhead vs direct Z.AI API calls",
+          "status": "pending",
+          "files": [
+            "test/benchmark/comparison.ts",
+            "docs/performance-comparison.md"
+          ],
+          "acceptance_criteria": [
+            "Side-by-side comparison data",
+            "Visual charts showing overhead",
+            "Breakdown of overhead by component",
+            "Comparison with LiteLLM benchmarks",
+            "Performance assertions in CI/CD"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-9",
+      "name": "Documentation & Best Practices",
+      "description": "Document performance optimizations and provide deployment guidance",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "9.1",
+          "title": "Performance Documentation",
+          "description": "Create comprehensive performance documentation",
+          "status": "pending",
+          "files": [
+            "docs/performance.md",
+            "docs/benchmarking.md",
+            "docs/tuning.md"
+          ],
+          "acceptance_criteria": [
+            "Performance optimization guide",
+            "Configuration tuning recommendations",
+            "Benchmarking methodology",
+            "Troubleshooting performance issues",
+            "Deployment best practices"
+          ]
+        },
+        {
+          "id": "9.2",
+          "title": "API Documentation Updates",
+          "description": "Update API docs with performance characteristics",
+          "status": "pending",
+          "files": [
+            "README.md",
+            "docs/api.md"
+          ],
+          "acceptance_criteria": [
+            "Performance SLAs documented",
+            "Configuration options explained",
+            "Performance trade-offs documented",
+            "Example configurations for different use cases"
+          ]
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "target_latency_overhead_ms": 10,
+    "target_base_memory_mb": 100,
+    "default_pool_size": 10,
+    "default_cache_size": 1000,
+    "benchmarks": {
+      "concurrency_levels": [
+        1,
+        10,
+        50,
+        100,
+        500,
+        1000
+      ],
+      "load_durations": [
+        "5m",
+        "15m",
+        "1h"
+      ]
+    }
+  }
+}
