@@ -33,3 +33,11 @@ export {
   getCacheManager,
   resetCacheManager,
 } from './CacheManager.js';
+
+// API key cache
+export {
+  ApiKeyCache,
+  getApiKeyCache,
+  resetApiKeyCache,
+} from './ApiKeyCache.js';
+export type { ApiKeyCacheOptions, ApiKeyCacheMetrics } from './ApiKeyCache.js';

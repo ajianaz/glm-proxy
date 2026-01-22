@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { ApiKeysData, ApiKey } from './types.js';
+import { getApiKeyCache } from './cache/index.js';
 
 const DATA_FILE = process.env.DATA_FILE || path.join(process.cwd(), 'data/apikeys.json');
 const LOCK_FILE = DATA_FILE + '.lock';
@@ -49,9 +50,25 @@ export async function writeApiKeys(data: ApiKeysData): Promise<void> {
 }
 
 export async function findApiKey(key: string): Promise<ApiKey | null> {
+  // Check cache first
+  const cache = getApiKeyCache();
+  const cachedKey = cache.get(key);
+
+  if (cachedKey) {
+    return cachedKey;
+  }
+
+  // Cache miss - read from storage
   return await withLock(async () => {
     const data = await readApiKeys();
-    return data.keys.find(k => k.key === key) || null;
+    const apiKey = data.keys.find(k => k.key === key) || null;
+
+    // Populate cache for future requests
+    if (apiKey) {
+      cache.set(key, apiKey);
+    }
+
+    return apiKey;
   });
 }
 
@@ -92,6 +109,10 @@ export async function updateApiKeyUsage(
     );
 
     await writeApiKeys(data);
+
+    // Invalidate cache entry since key was updated
+    const cache = getApiKeyCache();
+    cache.invalidate(key);
   });
 }
 
