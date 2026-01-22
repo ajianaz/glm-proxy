@@ -120,8 +120,56 @@
 - Comprehensive type safety throughout the stack
 - Database operations follow SQLite best practices
 
+## 2026-01-22 - Phase 2 (continued): Database Schema & Models
+
+### Completed
+- ✅ **db-3: Create API key model**
+  - Implemented comprehensive ApiKey model with full CRUD operations:
+    - create(data): Create new API key with hashing and validation
+    - findById(id): Find API key by ID (returns safe response format)
+    - findByKeyHash(hash): Find by hash for authentication
+    - validateKey(key): Validate key and check if active
+    - list(params): List with pagination and filtering (page, limit, is_active, search)
+    - update(id, data): Update one or more fields
+    - delete(id): Delete API key
+    - exists(id): Check if key exists
+    - count(options): Count keys with optional filters
+  - Implemented security features:
+    - SHA-256 hashing using Node.js crypto module (crypto.createHash)
+    - Key preview generation (shows first 8 and last 4 chars)
+    - Safe response format (never returns full key or hash)
+  - Custom error types for better error handling:
+    - ApiKeyValidationError: For validation errors
+    - ApiKeyNotFoundError: When key doesn't exist
+    - ApiKeyDuplicateError: For duplicate key hashes
+  - Comprehensive validation:
+    - Key format (length, characters)
+    - Field lengths and types
+    - Rate limits and scopes
+  - Helper functions:
+    - hashApiKeySync: SHA-256 hashing
+    - generateKeyPreview: Mask key display
+    - parseScopes/serializeScopes: JSON handling
+    - recordToResponse: Convert DB records to API responses
+  - Created comprehensive test suite in test/unit/apiKey.test.ts:
+    - 47 tests covering all operations
+    - Tests for CRUD operations, validation, error handling
+    - Edge cases and boundary conditions
+    - All tests passing (47/47)
+  - Updated schema.ts to allow null in UpdateApiKeyData.description
+  - Exported ApiKeyModel from src/models/index.ts
+
+### Implementation Notes
+- Used Node.js crypto module for SHA-256 hashing (compatible with Bun)
+- Implemented proper TypeScript types for database queries
+- Used parameterized queries to prevent SQL injection
+- Pagination supports flexible page sizes (1-100, default 10)
+- List supports filtering by is_active and searching by name
+- All methods handle null and undefined gracefully
+- Follows existing code patterns and style conventions
+
 ### Next Steps
-- db-3: Create API key model with CRUD operations
+- auth-1: Implement admin authentication middleware
 
 ### Implementation Plan Summary
 
