@@ -10,6 +10,8 @@ import { profilingMiddleware, type ProfilingContext } from './middleware/profili
 import { createProxyHandler } from './handlers/proxyHandler.js';
 import type { StatsResponse } from './types.js';
 import { Profiler } from './profiling/Profiler.js';
+import dashboardApi from './dashboard/api.js';
+import { readFileSync } from 'fs';
 
 type Bindings = {
   ZAI_API_KEY: string;
@@ -114,6 +116,15 @@ app.post('/v1/messages', authMiddleware, rateLimitMiddleware, anthropicProxyHand
 // OpenAI-Compatible API - catch-all for /v1/*
 app.all('/v1/*', authMiddleware, rateLimitMiddleware, openaiProxyHandler);
 
+// Dashboard API routes
+app.route('/api/metrics', dashboardApi);
+
+// Dashboard HTML page
+app.get('/dashboard', (c) => {
+  const html = readFileSync('./src/dashboard/index.html', 'utf-8');
+  return c.html(html);
+});
+
 // Health check
 app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -127,6 +138,9 @@ app.get('/', (c) => {
     endpoints: {
       health: 'GET /health',
       stats: 'GET /stats',
+      dashboard: 'GET /dashboard',
+      metrics_api: 'GET /api/metrics/*',
+      profiling: 'GET /profiling',
       openai_compatible: 'ALL /v1/* (except /v1/messages)',
       anthropic_compatible: 'POST /v1/messages',
     },
