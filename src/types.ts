@@ -5,6 +5,7 @@ export interface UsageWindow {
 
 // Re-export rolling window types from rolling-window.ts
 export type { TimeBucket, RollingWindowData } from './rolling-window.js';
+import type { RollingWindowData } from './rolling-window.js';
 
 export interface ApiKey {
   key: string;
