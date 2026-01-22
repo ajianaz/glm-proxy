@@ -336,7 +336,7 @@
           "id": "5.1",
           "name": "Add cache statistics endpoint",
           "description": "Add an endpoint to expose cache statistics for monitoring",
-          "status": "pending",
+          "status": "completed",
           "estimated_time": "25m",
           "dependencies": [
             "2.2"
@@ -349,7 +349,9 @@
             "Includes hits, misses, hitRate, size, maxSize",
             "Requires authentication (admin-only)",
             "Returns JSON format"
-          ]
+          ],
+          "completed_at": "2026-01-22T14:00:00.000Z",
+          "notes": "Successfully implemented GET /cache-stats endpoint that exposes cache statistics for monitoring. Implementation includes: new CacheStatsResponse type in types.ts, import of apiKeyCache from cache.js, new /cache-stats endpoint with authMiddleware, returns JSON with hits, misses, hitRate, size, maxSize, and enabled flag. Updated root endpoint documentation to include /cache-stats. All tests pass (122/122). Endpoint follows existing patterns used by /stats endpoint."
         },
         {
           "id": "5.2",
@@ -484,5 +486,5 @@
       "CACHE_LOG_LEVEL": "none (default, options: debug/info)"
     }
   },
-  "last_updated": "2026-01-22T13:30:00.000000+00:00"
+  "last_updated": "2026-01-22T14:00:00.000000+00:00"
 }
