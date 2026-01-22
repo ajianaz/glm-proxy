@@ -15,7 +15,7 @@
 import path from 'node:path';
 import { existsSync, mkdirSync, copyFileSync } from 'node:fs';
 import type { ApiKey, ApiKeysData } from '../src/types.js';
-import { createApiKey, getAllApiKeys, findApiKey } from '../src/db/operations.js';
+import { createApiKey, deleteApiKey, getAllApiKeys, findApiKey } from '../src/db/operations.js';
 import { getDb } from '../src/db/connection.js';
 import * as schema from '../src/db/schema.js';
 
@@ -64,9 +64,10 @@ Environment Variables:
   DATABASE_PATH        SQLite database path (default: ./data/sqlite.db)
 
 Features:
-  - Automatic backup: Creates timestamped backup in <source-dir>/backsups/ before migration
+  - Automatic backup: Creates timestamped backup in <source-dir>/backups/ before migration
   - Pre-migration validation: Validates JSON structure before migration
   - Post-migration validation: Compares source data with migrated data for integrity
+  - Automatic rollback: Removes migrated keys from database on migration or validation failure
   - Progress tracking: Shows migration progress and success/failure counts
 
 Examples:
@@ -79,6 +80,11 @@ Examples:
 Backups:
   Backups are automatically created before migration and stored in:
   <source-file-directory>/backups/apikeys-<timestamp>.json
+
+Rollback:
+  If migration or validation fails, the tool automatically rolls back by removing
+  all successfully migrated keys from the database. Your original apikeys.json file
+  remains untouched. You can then review the error messages and retry the migration.
 `);
 }
 
@@ -422,12 +428,17 @@ export async function validateMigration(
 
 /**
  * Migrate API keys to database
+ *
+ * @param apiKeysData - The API keys data to migrate
+ * @returns Array of successfully migrated API key strings (for rollback)
+ * @throws Error if any keys fail to migrate
  */
-export async function migrateApiKeys(apiKeysData: ApiKeysData): Promise<void> {
+export async function migrateApiKeys(apiKeysData: ApiKeysData): Promise<string[]> {
   const { keys } = apiKeysData;
   const total = keys.length;
   let success = 0;
   let failed = 0;
+  const migratedKeys: string[] = [];
 
   console.log(`\nMigrating ${total} API key(s)...`);
 
@@ -444,6 +455,8 @@ export async function migrateApiKeys(apiKeysData: ApiKeysData): Promise<void> {
         await insertUsageWindows(apiKey.key, apiKey.usage_windows);
       }
 
+      // Track successfully migrated key for rollback
+      migratedKeys.push(apiKey.key);
       success++;
       process.stdout.write(`\r${progress} ✓ Migrated: ${apiKey.name} (${apiKey.key})\n`);
     } catch (error) {
@@ -463,6 +476,64 @@ export async function migrateApiKeys(apiKeysData: ApiKeysData): Promise<void> {
   if (failed > 0) {
     throw new Error(`${failed} API key(s) failed to migrate`);
   }
+
+  return migratedKeys;
+}
+
+/**
+ * Rollback migration by deleting keys that were successfully migrated
+ *
+ * This function removes all API keys that were successfully migrated during
+ * the current migration attempt. It's called automatically on migration failure
+ * to restore the database to its previous state.
+ *
+ * @param migratedKeys - Array of API key strings to delete from database
+ * @returns Object with rollback results (deleted count and failures)
+ */
+export async function rollbackMigration(migratedKeys: string[]): Promise<{
+  deleted: number;
+  failed: number;
+  errors: string[];
+}> {
+  const total = migratedKeys.length;
+  let deleted = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`Rolling back migration...`);
+  console.log(`Removing ${total} migrated key(s) from database`);
+  console.log(`${'='.repeat(60)}`);
+
+  for (let i = 0; i < total; i++) {
+    const key = migratedKeys[i];
+    const progress = `[${i + 1}/${total}]`;
+
+    try {
+      const wasDeleted = await deleteApiKey(key);
+      if (wasDeleted) {
+        deleted++;
+        process.stdout.write(`\r${progress} ✓ Rolled back: ${key}\n`);
+      } else {
+        failed++;
+        process.stdout.write(`\r${progress} ⚠ Not found in database: ${key}\n`);
+      }
+    } catch (error) {
+      failed++;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      errors.push(errorMessage);
+      process.stdout.write(`\r${progress} ✗ Failed to rollback: ${key} - ${errorMessage}\n`);
+    }
+  }
+
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`Rollback complete!`);
+  console.log(`  Total keys to rollback:  ${total}`);
+  console.log(`  Successfully deleted:    ${deleted}`);
+  console.log(`  Failed:                 ${failed}`);
+  console.log(`${'='.repeat(60)}`);
+
+  return { deleted, failed, errors };
 }
 
 /**
@@ -471,6 +542,9 @@ export async function migrateApiKeys(apiKeysData: ApiKeysData): Promise<void> {
 async function main(): Promise<void> {
   console.log('Database Migration Tool');
   console.log('='.repeat(60));
+
+  let migratedKeys: string[] = [];
+  let backupPath = '';
 
   try {
     // Test database connection
@@ -492,7 +566,7 @@ async function main(): Promise<void> {
 
     // Create backup before migration
     console.log('\nCreating backup...');
-    const backupPath = createBackup(filePath);
+    backupPath = createBackup(filePath);
     console.log(`✓ Backup created: ${backupPath}`);
 
     // Show preview
@@ -525,8 +599,8 @@ async function main(): Promise<void> {
     const keysBeforeMigration = await getDatabaseKeyCount();
     console.log(`\nKeys in database before migration: ${keysBeforeMigration}`);
 
-    // Perform migration
-    await migrateApiKeys(apiKeysData);
+    // Perform migration and track successfully migrated keys
+    migratedKeys = await migrateApiKeys(apiKeysData);
 
     // Validate migration
     console.log('\nValidating migration...');
@@ -541,17 +615,38 @@ async function main(): Promise<void> {
       console.log('\n✓ Validation PASSED - All data migrated correctly!');
       console.log(`Backup saved at: ${backupPath}`);
     } else {
+      // Validation failed - rollback
       console.error('\n✗ Validation FAILED - Data discrepancies detected:');
       validation.discrepancies.forEach((discrepancy) => {
         console.error(`  • ${discrepancy}`);
       });
+      console.error(`\nRolling back migration...`);
+
+      await rollbackMigration(migratedKeys);
+
       console.error(`\nBackup preserved at: ${backupPath}`);
-      console.error('Please review the discrepancies and restore from backup if needed.');
+      console.error('Please review the discrepancies and retry the migration.');
       process.exit(1);
     }
   } catch (error) {
+    // Migration failed - rollback
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`\n✗ Migration failed: ${errorMessage}`);
+
+    if (migratedKeys.length > 0) {
+      console.error(`\nAttempting automatic rollback...`);
+      const rollbackResult = await rollbackMigration(migratedKeys);
+
+      if (rollbackResult.failed > 0) {
+        console.error(`\n⚠ Warning: ${rollbackResult.failed} key(s) could not be rolled back.`);
+        console.error(`Error details:`);
+        rollbackResult.errors.forEach((err) => console.error(`  • ${err}`));
+      }
+
+      console.error(`\nBackup preserved at: ${backupPath}`);
+      console.error('Please review the error and retry the migration.');
+    }
+
     process.exit(1);
   }
 }
