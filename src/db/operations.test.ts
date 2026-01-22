@@ -6,7 +6,11 @@ import {
   updateApiKey,
   deleteApiKey,
   updateApiKeyUsage,
-  getKeyStats
+  getKeyStats,
+  getAllApiKeys,
+  findKeysByModel,
+  findExpiredKeys,
+  findActiveKeys
 } from './operations.js';
 import type { ApiKey } from '../types.js';
 
@@ -310,4 +314,163 @@ test('getKeyStats should have valid window timestamps', async () => {
 test('cleanup: delete stats test key', async () => {
   const deleted = await deleteApiKey(statsTestKey.key);
   expect(deleted).toBe(true);
+});
+
+// Helper functions tests
+const helperTestKeys: ApiKey[] = [
+  {
+    key: 'test-helper-key-1',
+    name: 'Test Helper Key 1',
+    model: 'claude-3-5-sonnet-20241022',
+    token_limit_per_5h: 50000,
+    expiry_date: '2027-12-31T23:59:59Z', // Future date
+    created_at: new Date().toISOString(),
+    last_used: new Date().toISOString(),
+    total_lifetime_tokens: 0,
+    usage_windows: [],
+  },
+  {
+    key: 'test-helper-key-2',
+    name: 'Test Helper Key 2',
+    model: 'claude-3-5-sonnet-20241022',
+    token_limit_per_5h: 60000,
+    expiry_date: '2027-12-31T23:59:59Z', // Future date
+    created_at: new Date().toISOString(),
+    last_used: new Date().toISOString(),
+    total_lifetime_tokens: 0,
+    usage_windows: [],
+  },
+  {
+    key: 'test-helper-key-3',
+    name: 'Test Helper Key 3',
+    model: 'claude-3-opus-20240229',
+    token_limit_per_5h: 70000,
+    expiry_date: '2020-01-01T00:00:00Z', // Past date (expired)
+    created_at: '2019-12-31T00:00:00Z',
+    last_used: new Date().toISOString(),
+    total_lifetime_tokens: 0,
+    usage_windows: [],
+  },
+];
+
+test('getAllApiKeys should return all keys with default pagination', async () => {
+  // Create test keys
+  for (const key of helperTestKeys) {
+    await createApiKey(key);
+  }
+
+  const allKeys = await getAllApiKeys();
+
+  expect(allKeys.length).toBeGreaterThanOrEqual(3);
+
+  // Should contain our test keys
+  const foundKeys = allKeys.filter(k =>
+    helperTestKeys.some(testKey => testKey.key === k.key)
+  );
+  expect(foundKeys.length).toBe(3);
+});
+
+test('getAllApiKeys should support pagination', async () => {
+  // Get first 2 keys
+  const page1 = await getAllApiKeys({ limit: 2, offset: 0 });
+  expect(page1.length).toBeLessThanOrEqual(2);
+
+  // Get next 2 keys
+  const page2 = await getAllApiKeys({ limit: 2, offset: 2 });
+  expect(page2.length).toBeLessThanOrEqual(2);
+
+  // Ensure no overlap
+  const page1Keys = page1.map(k => k.key);
+  const page2Keys = page2.map(k => k.key);
+  const overlap = page1Keys.filter(key => page2Keys.includes(key));
+  expect(overlap.length).toBe(0);
+});
+
+test('getAllApiKeys should validate pagination parameters', async () => {
+  await expect(getAllApiKeys({ limit: 0 })).rejects.toThrow('greater than 0');
+  await expect(getAllApiKeys({ limit: -1 })).rejects.toThrow('greater than 0');
+  await expect(getAllApiKeys({ offset: -1 })).rejects.toThrow('non-negative');
+});
+
+test('findKeysByModel should find keys by model', async () => {
+  const sonnetKeys = await findKeysByModel('claude-3-5-sonnet-20241022');
+
+  expect(sonnetKeys.length).toBeGreaterThanOrEqual(2);
+
+  // Should contain our Sonnet test keys
+  const foundKeys = sonnetKeys.filter(k =>
+    helperTestKeys.some(
+      testKey => testKey.key === k.key && testKey.model === 'claude-3-5-sonnet-20241022'
+    )
+  );
+  expect(foundKeys.length).toBe(2);
+});
+
+test('findKeysByModel should validate model parameter', async () => {
+  await expect(findKeysByModel('')).rejects.toThrow('required');
+  await expect(findKeysByModel('   ')).rejects.toThrow('required');
+});
+
+test('findKeysByModel should return empty array for non-existent model', async () => {
+  const keys = await findKeysByModel('non-existent-model');
+  expect(keys).toEqual([]);
+});
+
+test('findExpiredKeys should find expired keys', async () => {
+  const expiredKeys = await findExpiredKeys();
+
+  expect(expiredKeys.length).toBeGreaterThanOrEqual(1);
+
+  // Should contain our expired test key
+  const foundExpiredKey = expiredKeys.find(k => k.key === 'test-helper-key-3');
+  expect(foundExpiredKey).toBeDefined();
+  expect(foundExpiredKey?.expiry_date).toBe('2020-01-01T00:00:00Z');
+});
+
+test('findActiveKeys should find active (non-expired) keys', async () => {
+  const activeKeys = await findActiveKeys();
+
+  expect(activeKeys.length).toBeGreaterThanOrEqual(2);
+
+  // Should contain our active test keys
+  const foundActiveKey1 = activeKeys.find(k => k.key === 'test-helper-key-1');
+  const foundActiveKey2 = activeKeys.find(k => k.key === 'test-helper-key-2');
+
+  expect(foundActiveKey1).toBeDefined();
+  expect(foundActiveKey2).toBeDefined();
+
+  // Should NOT contain the expired key
+  const foundExpiredKey = activeKeys.find(k => k.key === 'test-helper-key-3');
+  expect(foundExpiredKey).toBeUndefined();
+});
+
+test('helper functions should return keys with usage windows', async () => {
+  // Create usage data for one of our test keys
+  await updateApiKeyUsage('test-helper-key-1', 1000, 'claude-3-5-sonnet-20241022');
+
+  // Check that getAllApiKeys includes usage windows
+  const allKeys = await getAllApiKeys();
+  const key1 = allKeys.find(k => k.key === 'test-helper-key-1');
+  expect(key1?.usage_windows.length).toBe(1);
+  expect(key1?.usage_windows[0].tokens_used).toBe(1000);
+
+  // Check that findKeysByModel includes usage windows
+  const sonnetKeys = await findKeysByModel('claude-3-5-sonnet-20241022');
+  const key1FromModel = sonnetKeys.find(k => k.key === 'test-helper-key-1');
+  expect(key1FromModel?.usage_windows.length).toBe(1);
+  expect(key1FromModel?.usage_windows[0].tokens_used).toBe(1000);
+
+  // Check that findActiveKeys includes usage windows
+  const activeKeys = await findActiveKeys();
+  const key1FromActive = activeKeys.find(k => k.key === 'test-helper-key-1');
+  expect(key1FromActive?.usage_windows.length).toBe(1);
+  expect(key1FromActive?.usage_windows[0].tokens_used).toBe(1000);
+});
+
+// Cleanup helper test keys
+test('cleanup: delete helper test keys', async () => {
+  for (const key of helperTestKeys) {
+    const deleted = await deleteApiKey(key.key);
+    expect(deleted).toBe(true);
+  }
 });

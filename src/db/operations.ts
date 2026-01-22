@@ -476,3 +476,285 @@ export async function getKeyStats(key: string): Promise<StatsResponse | null> {
     throw new Error(`Failed to get API key stats: ${errorMessage}`);
   }
 }
+
+/**
+ * Get all API keys with optional pagination
+ *
+ * @param options - Pagination options
+ * @param options.limit - Maximum number of keys to return (default: 100)
+ * @param options.offset - Number of keys to skip (default: 0)
+ * @returns Array of ApiKey objects
+ *
+ * @example
+ * ```ts
+ * import { getAllApiKeys } from './db/operations.js';
+ *
+ * // Get first 100 keys
+ * const keys = await getAllApiKeys();
+ *
+ * // Get next 100 keys (pagination)
+ * const page2 = await getAllApiKeys({ limit: 100, offset: 100 });
+ *
+ * // Get first 50 keys
+ * const first50 = await getAllApiKeys({ limit: 50 });
+ * ```
+ */
+export async function getAllApiKeys(
+  options: { limit?: number; offset?: number } = {}
+): Promise<ApiKey[]> {
+  const { limit = 100, offset = 0 } = options;
+
+  if (limit <= 0) {
+    throw new Error('Limit must be greater than 0');
+  }
+
+  if (offset < 0) {
+    throw new Error('Offset must be non-negative');
+  }
+
+  try {
+    const { db, type } = getDb();
+
+    // Select the appropriate tables based on database type
+    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+    // Query all API keys with pagination
+    const result = await db
+      .select()
+      .from(table)
+      .orderBy(desc(table.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // For each key, fetch its usage windows
+    const keysWithUsage: ApiKey[] = await Promise.all(
+      result.map(async (apiKeyRow) => {
+        const usageWindows = await db
+          .select()
+          .from(usageTable)
+          .where(eq(usageTable.apiKey, apiKeyRow.key));
+
+        return {
+          key: apiKeyRow.key,
+          name: apiKeyRow.name,
+          model: apiKeyRow.model ?? undefined,
+          token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+          expiry_date: apiKeyRow.expiryDate,
+          created_at: apiKeyRow.createdAt,
+          last_used: apiKeyRow.lastUsed,
+          total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+          usage_windows: usageWindows.map(w => ({
+            window_start: w.windowStart,
+            tokens_used: w.tokensUsed,
+          })),
+        };
+      })
+    );
+
+    return keysWithUsage;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to get all API keys: ${errorMessage}`);
+  }
+}
+
+/**
+ * Find API keys by model name
+ *
+ * @param model - The model name to search for (e.g., 'claude-3-5-sonnet-20241022')
+ * @returns Array of ApiKey objects matching the model
+ *
+ * @example
+ * ```ts
+ * import { findKeysByModel } from './db/operations.js';
+ *
+ * const sonnetKeys = await findKeysByModel('claude-3-5-sonnet-20241022');
+ * console.log(`Found ${sonnetKeys.length} keys for Sonnet model`);
+ * ```
+ */
+export async function findKeysByModel(model: string): Promise<ApiKey[]> {
+  if (!model || !model.trim()) {
+    throw new Error('Model name is required and cannot be empty');
+  }
+
+  try {
+    const { db, type } = getDb();
+
+    // Select the appropriate tables based on database type
+    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+    // Query API keys by model
+    const result = await db
+      .select()
+      .from(table)
+      .where(eq(table.model, model))
+      .orderBy(desc(table.createdAt));
+
+    // For each key, fetch its usage windows
+    const keysWithUsage: ApiKey[] = await Promise.all(
+      result.map(async (apiKeyRow) => {
+        const usageWindows = await db
+          .select()
+          .from(usageTable)
+          .where(eq(usageTable.apiKey, apiKeyRow.key));
+
+        return {
+          key: apiKeyRow.key,
+          name: apiKeyRow.name,
+          model: apiKeyRow.model ?? undefined,
+          token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+          expiry_date: apiKeyRow.expiryDate,
+          created_at: apiKeyRow.createdAt,
+          last_used: apiKeyRow.lastUsed,
+          total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+          usage_windows: usageWindows.map(w => ({
+            window_start: w.windowStart,
+            tokens_used: w.tokensUsed,
+          })),
+        };
+      })
+    );
+
+    return keysWithUsage;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to find API keys by model: ${errorMessage}`);
+  }
+}
+
+/**
+ * Find all expired API keys
+ *
+ * @returns Array of ApiKey objects that are expired (expiry_date < now)
+ *
+ * @example
+ * ```ts
+ * import { findExpiredKeys } from './db/operations.js';
+ *
+ * const expiredKeys = await findExpiredKeys();
+ * console.log(`Found ${expiredKeys.length} expired keys`);
+ *
+ * // Optionally delete expired keys
+ * for (const key of expiredKeys) {
+ *   await deleteApiKey(key.key);
+ * }
+ * ```
+ */
+export async function findExpiredKeys(): Promise<ApiKey[]> {
+  try {
+    const { db, type } = getDb();
+
+    // Select the appropriate tables based on database type
+    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+    const now = new Date().toISOString();
+
+    // Query expired API keys
+    const result = await db
+      .select()
+      .from(table)
+      .where(lt(table.expiryDate, now))
+      .orderBy(desc(table.expiryDate));
+
+    // For each key, fetch its usage windows
+    const keysWithUsage: ApiKey[] = await Promise.all(
+      result.map(async (apiKeyRow) => {
+        const usageWindows = await db
+          .select()
+          .from(usageTable)
+          .where(eq(usageTable.apiKey, apiKeyRow.key));
+
+        return {
+          key: apiKeyRow.key,
+          name: apiKeyRow.name,
+          model: apiKeyRow.model ?? undefined,
+          token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+          expiry_date: apiKeyRow.expiryDate,
+          created_at: apiKeyRow.createdAt,
+          last_used: apiKeyRow.lastUsed,
+          total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+          usage_windows: usageWindows.map(w => ({
+            window_start: w.windowStart,
+            tokens_used: w.tokensUsed,
+          })),
+        };
+      })
+    );
+
+    return keysWithUsage;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to find expired API keys: ${errorMessage}`);
+  }
+}
+
+/**
+ * Find all active (non-expired) API keys
+ *
+ * @returns Array of ApiKey objects that are active (expiry_date >= now)
+ *
+ * @example
+ * ```ts
+ * import { findActiveKeys } from './db/operations.js';
+ *
+ * const activeKeys = await findActiveKeys();
+ * console.log(`Found ${activeKeys.length} active keys`);
+ *
+ * // Get keys expiring soon (within 7 days)
+ * const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+ * const expiringSoon = activeKeys.filter(key => {
+ *   return new Date(key.expiry_date) < new Date(sevenDaysFromNow);
+ * });
+ * ```
+ */
+export async function findActiveKeys(): Promise<ApiKey[]> {
+  try {
+    const { db, type } = getDb();
+
+    // Select the appropriate tables based on database type
+    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+    const now = new Date().toISOString();
+
+    // Query active API keys
+    const result = await db
+      .select()
+      .from(table)
+      .where(gte(table.expiryDate, now))
+      .orderBy(desc(table.createdAt));
+
+    // For each key, fetch its usage windows
+    const keysWithUsage: ApiKey[] = await Promise.all(
+      result.map(async (apiKeyRow) => {
+        const usageWindows = await db
+          .select()
+          .from(usageTable)
+          .where(eq(usageTable.apiKey, apiKeyRow.key));
+
+        return {
+          key: apiKeyRow.key,
+          name: apiKeyRow.name,
+          model: apiKeyRow.model ?? undefined,
+          token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+          expiry_date: apiKeyRow.expiryDate,
+          created_at: apiKeyRow.createdAt,
+          last_used: apiKeyRow.lastUsed,
+          total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+          usage_windows: usageWindows.map(w => ({
+            window_start: w.windowStart,
+            tokens_used: w.tokensUsed,
+          })),
+        };
+      })
+    );
+
+    return keysWithUsage;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to find active API keys: ${errorMessage}`);
+  }
+}
