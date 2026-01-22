@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import type { ApiKeysData, ApiKey } from './types.js';
+import { apiKeyCache } from './cache.js';
+
+const CACHE_ENABLED = process.env.CACHE_ENABLED !== 'false';
 
 const DATA_FILE = process.env.DATA_FILE || path.join(process.cwd(), 'data/apikeys.json');
 const LOCK_FILE = DATA_FILE + '.lock';
@@ -49,9 +52,28 @@ export async function writeApiKeys(data: ApiKeysData): Promise<void> {
 }
 
 export async function findApiKey(key: string): Promise<ApiKey | null> {
+  // Check cache first if enabled
+  if (CACHE_ENABLED) {
+    // Use has() to check if key exists in cache (distinguishes miss from cached null)
+    if (apiKeyCache.has(key)) {
+      // Key exists in cache, retrieve it (may be null for not-found keys)
+      const cached = apiKeyCache.get(key);
+      return cached;
+    }
+    // Cache miss - fall through to file read
+  }
+
+  // Cache miss or disabled - fall back to file read
   return await withLock(async () => {
     const data = await readApiKeys();
-    return data.keys.find(k => k.key === key) || null;
+    const apiKey = data.keys.find(k => k.key === key) || null;
+
+    // Populate cache for future requests (including null for not-found keys)
+    if (CACHE_ENABLED) {
+      apiKeyCache.set(key, apiKey);
+    }
+
+    return apiKey;
   });
 }
 
