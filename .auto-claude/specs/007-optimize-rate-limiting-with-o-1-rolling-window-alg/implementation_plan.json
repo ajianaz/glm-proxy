@@ -1,0 +1,290 @@
+{
+  "title": "Optimize rate limiting with O(1) rolling window algorithm",
+  "feature": "Optimize rate limiting with O(1) rolling window algorithm",
+  "description": "The current rateLimit.ts filters the entire usage_windows array on every check (O(n) complexity). For keys with many usage windows, this becomes inefficient. Implementing a rolling window with pre-calculated running totals would reduce complexity to O(1).",
+  "created_at": "2026-01-22T03:34:22.829Z",
+  "updated_at": "2026-01-22T03:37:12.725Z",
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Design and Planning",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-1-subtask-1",
+          "name": "Design O(1) rolling window data structure",
+          "status": "completed",
+          "description": "Design a time-bucket based sliding window algorithm that maintains O(1) complexity for both reads and updates",
+          "implementation_details": {
+            "approach": "Use a sliding window with time buckets (e.g., 5-minute buckets = 60 buckets for 5-hour window)",
+            "data_structure": {
+              "buckets": "Array of {timestamp, tokens} pairs",
+              "bucket_size_minutes": 5,
+              "total_buckets": 60,
+              "running_total": "Pre-calculated sum of all active buckets"
+            },
+            "operations": {
+              "check": "O(1) - return running_total after cleanup",
+              "update": "O(1) - add to current bucket + subtract expired buckets",
+              "cleanup": "O(k) where k = expired buckets, amortized O(1)"
+            },
+            "deliverables": [
+              "design.md - Comprehensive algorithm design document",
+              "design-examples.md - Pseudocode and visual examples",
+              "implementation-guide.md - Quick reference for implementation"
+            ]
+          },
+          "completed_at": "2026-01-22T03:45:00Z"
+        },
+        {
+          "id": "phase-1-subtask-2",
+          "name": "Plan backwards compatibility strategy",
+          "status": "pending",
+          "description": "Ensure existing usage_windows data can be migrated to new format",
+          "implementation_details": {
+            "migration_strategy": "Add migration logic in storage.ts to convert old usage_windows to new bucket format on first read",
+            "fallback": "Keep old format as source of truth, new format as cache"
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Implement Rolling Window Data Structure",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-2-subtask-1",
+          "name": "Create RollingWindow class in new file",
+          "status": "pending",
+          "description": "Create src/rolling-window.ts with the O(1) rolling window implementation",
+          "files": [
+            "src/rolling-window.ts"
+          ],
+          "implementation_details": {
+            "class": "RollingWindow",
+            "constructor_params": [
+              "windowDurationMs: number",
+              "bucketSizeMs: number"
+            ],
+            "methods": [
+              "addTokens(timestamp: Date, tokens: number): void - Add tokens to appropriate bucket",
+              "getTotalTokens(currentTime: Date): number - Get total tokens in active window",
+              "cleanup(currentTime: Date): void - Remove expired buckets and update running total",
+              "_getBucketIndex(timestamp: Date): number - Helper to calculate bucket index",
+              "_expireBucket(bucketIndex: number): void - Subtract expired bucket from running total"
+            ],
+            "fields": [
+              "private buckets: Array<{timestamp: number, tokens: number}>",
+              "private runningTotal: number",
+              "private readonly windowDurationMs: number",
+              "private readonly bucketSizeMs: number",
+              "private readonly bucketCount: number"
+            ]
+          }
+        },
+        {
+          "id": "phase-2-subtask-2",
+          "name": "Add unit tests for RollingWindow class",
+          "status": "pending",
+          "description": "Create comprehensive tests for the RollingWindow class",
+          "files": [
+            "test/rolling-window.test.ts"
+          ],
+          "test_cases": [
+            "Adding tokens to correct bucket",
+            "Summing tokens across multiple buckets",
+            "Expiring old buckets and updating running total",
+            "Edge cases: empty window, single bucket, window boundary",
+            "Performance: verify O(1) operations with many buckets"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Integrate with ApiKey Type",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-3-subtask-1",
+          "name": "Extend ApiKey type with rolling window cache",
+          "status": "pending",
+          "description": "Add rolling window cache field to ApiKey interface for runtime optimization",
+          "files": [
+            "src/types.ts"
+          ],
+          "implementation_details": {
+            "changes": [
+              "Add optional 'rolling_window_cache' field to ApiKey interface",
+              "Field type: '{buckets: Array<{time: number, tokens: number}>, running_total: number, last_updated: string}'",
+              "Mark as optional for backwards compatibility"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Update Rate Limit Check Logic",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-4-subtask-1",
+          "name": "Refactor checkRateLimit to use O(1) algorithm",
+          "status": "pending",
+          "description": "Update src/ratelimit.ts to use the new RollingWindow class",
+          "files": [
+            "src/ratelimit.ts"
+          ],
+          "implementation_details": {
+            "changes": [
+              "Import RollingWindow class",
+              "In checkRateLimit: create RollingWindow instance if cache exists",
+              "Use rollingWindow.getTotalTokens() instead of filter + reduce",
+              "Initialize cache from usage_windows if not present",
+              "Update window calculation to use rolling window data"
+            ],
+            "fallback": "If cache doesn't exist, fall back to old algorithm and initialize cache"
+          }
+        },
+        {
+          "id": "phase-4-subtask-2",
+          "name": "Update rate limit tests",
+          "status": "pending",
+          "description": "Ensure existing tests pass with new implementation",
+          "files": [
+            "test/ratelimit.test.ts"
+          ],
+          "test_cases": [
+            "All existing tests should pass",
+            "Add tests for cache initialization",
+            "Add tests for cache hit vs cache miss scenarios"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Update Storage Logic",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-5-subtask-1",
+          "name": "Update updateApiKeyUsage to maintain rolling window cache",
+          "status": "pending",
+          "description": "Modify storage.ts to update the rolling window cache when recording usage",
+          "files": [
+            "src/storage.ts"
+          ],
+          "implementation_details": {
+            "changes": [
+              "Import RollingWindow class",
+              "When updating usage: update both usage_windows and rolling_window_cache",
+              "Keep usage_windows as source of truth for persistence",
+              "Use rolling_window_cache for O(1) read performance",
+              "Add RollingWindow instance to help manage cache updates"
+            ]
+          }
+        },
+        {
+          "id": "phase-5-subtask-2",
+          "name": "Add migration logic for existing keys",
+          "status": "pending",
+          "description": "Add helper function to migrate existing usage_windows to rolling window format",
+          "files": [
+            "src/storage.ts"
+          ],
+          "implementation_details": {
+            "function": "migrateToRollingWindow(apiKey: ApiKey): void",
+            "logic": [
+              "Check if rolling_window_cache exists",
+              "If not, create RollingWindow instance from usage_windows data",
+              "Populate buckets and calculate running_total",
+              "Store in rolling_window_cache field"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "name": "Performance Testing and Benchmarking",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-6-subtask-1",
+          "name": "Create performance benchmarks",
+          "status": "pending",
+          "description": "Create benchmarks to compare O(n) vs O(1) performance",
+          "files": [
+            "bench/ratelimit.bench.ts"
+          ],
+          "implementation_details": {
+            "scenarios": [
+              "Small dataset: 10 windows",
+              "Medium dataset: 100 windows",
+              "Large dataset: 1000 windows"
+            ],
+            "metrics": [
+              "checkRateLimit() execution time",
+              "updateApiKeyUsage() execution time",
+              "Memory usage"
+            ]
+          }
+        },
+        {
+          "id": "phase-6-subtask-2",
+          "name": "Run performance tests and document results",
+          "status": "pending",
+          "description": "Execute benchmarks and document performance improvements",
+          "deliverables": [
+            "Benchmark results in docs/performance.md",
+            "Before/after comparison charts",
+            "Verify O(1) complexity with empirical data"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "name": "Documentation and Cleanup",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-7-subtask-1",
+          "name": "Update README and documentation",
+          "status": "pending",
+          "description": "Document the new rolling window algorithm and performance improvements",
+          "files": [
+            "README.md"
+          ],
+          "sections_to_update": [
+            "Architecture overview",
+            "Rate limiting algorithm explanation",
+            "Performance characteristics",
+            "Migration guide for existing deployments"
+          ]
+        },
+        {
+          "id": "phase-7-subtask-2",
+          "name": "Code cleanup and optimization",
+          "status": "pending",
+          "description": "Final code review, cleanup, and optimization",
+          "tasks": [
+            "Remove dead code if old algorithm is fully replaced",
+            "Add JSDoc comments to RollingWindow class",
+            "Review error handling",
+            "Ensure TypeScript types are correct"
+          ]
+        }
+      ]
+    }
+  ],
+  "workflow_type": "development",
+  "services_involved": [],
+  "final_acceptance": [],
+  "spec_file": "spec.md"
+}
