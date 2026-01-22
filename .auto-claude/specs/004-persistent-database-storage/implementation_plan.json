@@ -315,16 +315,19 @@
           "id": "4.4",
           "name": "Add rollback capability",
           "description": "Implement rollback function to restore from backup on migration failure",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "scripts/migrate.ts"
+            "scripts/migrate.ts",
+            "test/migration-rollback.test.ts"
           ],
           "acceptance_criteria": [
             "Rolls back database changes",
             "Restores file-based storage if needed",
             "Clear error messages",
             "Safe rollback on any error"
-          ]
+          ],
+          "completed_at": "2026-01-22T04:50:00.000Z",
+          "notes": "Implemented comprehensive rollback functionality:\n\n**Core Functions:**\n- rollbackMigration(migratedKeys): Deletes successfully migrated keys from database\n- Updated migrateApiKeys() to return array of successfully migrated key strings\n- Modified main() to track migrated keys and call rollback on errors\n\n**Rollback Features:**\n- Automatic rollback on migration or validation failure\n- Cascade deletes usage_windows via foreign key constraint\n- Clear console output with progress indicators (✓ for success, ⚠ for not found, ✗ for failures)\n- Handles partial failures gracefully (some keys exist, some don't)\n- Returns detailed result object with deleted count, failed count, and error messages\n\n**Error Handling:**\n- Catch block in main() calls rollbackMigration with migrated keys list\n- Separate catch for validation failures to rollback before exiting\n- Displays rollback errors if any keys couldn't be rolled back\n- Preserves backup file for manual recovery\n\n**Documentation:**\n- Updated help text to document automatic rollback behavior\n- Explains that original apikeys.json remains untouched\n- Advises users to review error messages and retry migration\n\n**Testing:**\n- Created test/migration-rollback.test.ts with 5 comprehensive tests:\n  * Rollback of successfully migrated keys (3 keys with usage windows)\n  * Rollback with empty key list\n  * Rollback with non-existent keys (graceful handling)\n  * migrateApiKeys returns list of successfully migrated keys\n  * Partial rollback with mixed existing/non-existing keys\n- All 5 tests passing with 26 expect() calls\n- All 11 migration tests passing (validation + rollback)\n\n**Code Quality:**\n- Follows existing code patterns and conventions\n- No console.log statements (only user-facing output)\n- Comprehensive JSDoc documentation for all functions\n- TypeScript compilation verified\n- Bun build successful\n\nAll acceptance criteria met:\n✅ Rolls back database changes (rollbackMigration deletes keys from database)\n✅ Restores file-based storage if needed (backup preserved, original file untouched)\n✅ Clear error messages (detailed rollback progress with ✓/⚠/✗ indicators)\n✅ Safe rollback on any error (automatic rollback in catch blocks for migration and validation)"
         },
         {
           "id": "4.5",

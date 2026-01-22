@@ -31,7 +31,7 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ CLI migration script (COMPLETED: 4.1)
 - ✅ Backup before migration (COMPLETED: 4.2)
 - ✅ Validation (COMPLETED: 4.3)
-- Rollback capability
+- ✅ Rollback capability (COMPLETED: 4.4)
 - npm scripts
 
 ### Phase 5: Backup & Restore [PENDING]
@@ -147,6 +147,41 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
     ✅ Validates data integrity (field-by-field comparison including usage windows)
     ✅ Reports any discrepancies (detailed list with specific field and value differences)
     ✅ Exits with error on validation failure (process.exit(1) when validation.valid === false)
+- **4.4** Implement rollback function to restore from backup (COMPLETED)
+  - Added rollbackMigration() function to delete successfully migrated keys from database
+  - Updated migrateApiKeys() to return array of successfully migrated key strings
+  - Modified main() to track migrated keys and call rollback on migration or validation failure
+  - Updated help text to document automatic rollback behavior
+  - Created test/migration-rollback.test.ts with 5 comprehensive tests:
+    * Rollback of successfully migrated keys (3 keys with usage windows)
+    * Rollback with empty key list
+    * Rollback with non-existent keys (graceful handling)
+    * migrateApiKeys returns list of successfully migrated keys
+    * Partial rollback with mixed existing/non-existing keys
+    * All 5 tests passing with 26 expect() calls
+  - All 11 migration tests passing (validation + rollback)
+  - Rollback features:
+    * Automatic rollback on migration or validation failure
+    * Cascade deletes usage_windows via foreign key constraint
+    * Clear console output with progress indicators (✓ for success, ⚠ for not found, ✗ for failures)
+    * Handles partial failures gracefully (some keys exist, some don't)
+    * Returns detailed result object with deleted count, failed count, and error messages
+  - Error handling:
+    * Catch block in main() calls rollbackMigration with migrated keys list
+    * Separate catch for validation failures to rollback before exiting
+    * Displays rollback errors if any keys couldn't be rolled back
+    * Preserves backup file for manual recovery
+  - Code quality:
+    * Follows existing code patterns and conventions
+    * No console.log statements (only user-facing output)
+    * Comprehensive JSDoc documentation for all functions
+    * TypeScript compilation verified
+    * Bun build successful
+  - All acceptance criteria met:
+    ✅ Rolls back database changes (rollbackMigration deletes keys from database)
+    ✅ Restores file-based storage if needed (backup preserved, original file untouched)
+    ✅ Clear error messages (detailed rollback progress with ✓/⚠/✗ indicators)
+    ✅ Safe rollback on any error (automatic rollback in catch blocks for migration and validation)
 - **1.1** Install Drizzle ORM and drivers
   - Installed drizzle-orm@0.45.1
   - Installed postgres@3.4.8
