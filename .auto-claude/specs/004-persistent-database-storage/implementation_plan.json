@@ -2,8 +2,8 @@
   "feature": "Persistent Database Storage",
   "description": "# Persistent Database Storage\n\nReplace file-based storage with SQLite or PostgreSQL and Drizzle ORM for API keys, usage data, and configuration. Includes migration tool and data backup/restore functionality.\n\n## Rationale\nCurrent file-based storage doesn't support high concurrency and prevents horizontal scaling. Database enables multiple instances to share state and is critical for production deployments. Addresses major technical debt.\n\n## User Stories\n- As a production engineer, I want database-backed storage so that we can scale horizontally with multiple instances\n- As a DevOps engineer, I want automatic backups so that we don't lose API key data\n- As a developer, I want easy migration from file-based to database storage so that upgrading is seamless\n\n## Acceptance Criteria\n- [ ] SQLite support for simple deployments (zero external dependencies)\n- [ ] PostgreSQL support for production deployments\n- [ ] Migration tool to convert existing apikeys.json to database\n- [ ] Database schema supports all current API key fields\n- [ ] Database operations use transactions for consistency\n- [ ] Connection pooling for performance\n- [ ] Backup and restore functionality\n- [ ] Database health checks and connection error handling\n- [ ] Backward compatibility with file-based storage during transition period",
   "created_at": "2026-01-22T03:27:58.071Z",
-  "updated_at": "2026-01-22T06:05:09.912Z",
-  "status": "in_progress",
+  "updated_at": "2026-01-22T06:17:10.161Z",
+  "status": "human_review",
   "phases": [
     {
       "id": "phase-1",
@@ -576,7 +576,7 @@
           "id": "7.2",
           "name": "Test CRUD operations",
           "description": "Unit tests for all database CRUD functions",
-          "status": "pending",
+          "status": "completed",
           "files": [
             "test/db/operations.test.ts"
           ],
@@ -585,7 +585,9 @@
             "Transaction handling",
             "Edge cases (null values, duplicates)",
             "Error scenarios"
-          ]
+          ],
+          "completed_at": "2026-01-22T06:20:00.000Z",
+          "notes": "Created comprehensive CRUD operations test suite in test/db/operations.test.ts with 52 passing tests covering all acceptance criteria:\n\n**CREATE Operations (8 tests):**\n- Create new API key with all required fields\n- Reject duplicate keys with constraint error\n- Validate required fields (key, name, token_limit, expiry_date)\n- Handle keys without model (optional field)\n- Handle keys with null model\n\n**READ Operations (5 tests):**\n- Find existing key by key string\n- Return null for non-existent keys\n- Validate key parameter (cannot be empty)\n- Include usage windows when finding key\n\n**UPDATE Operations (10 tests):**\n- Update individual fields (name, model, token limit, expiry date)\n- Update multiple fields simultaneously\n- Handle setting model to null\n- Return null for non-existent keys\n- Validate update parameters (name not empty, token limit > 0, expiry not empty)\n\n**DELETE Operations (4 tests):**\n- Delete existing keys\n- Return false for non-existent keys\n- Validate key parameter (cannot be empty)\n- Cascade delete usage windows\n\n**TRANSACTION Handling (5 tests):**\n- Atomic update of last_used and total_lifetime_tokens\n- Accumulate tokens in same usage window\n- Clean up old usage windows in transaction\n- Rollback transaction on error\n\n**EDGE CASES (6 tests):**\n- Handle zero tokens in usage update\n- Handle key at exact token limit\n- Handle exceeding token limit\n- Handle empty result set in getAllApiKeys\n- Handle keys with null/undefined model in queries\n\n**ERROR SCENARIOS (5 tests):**\n- Error for non-existent key in updateApiKeyUsage\n- Validation error for negative tokens\n- Return null for getKeyStats with non-existent key\n- Validation error for empty key in getKeyStats\n\n**HELPER FUNCTIONS (8 tests):**\n- getAllApiKeys with default pagination and custom pagination\n- Pagination parameter validation\n- findKeysByModel functionality and validation\n- findExpiredKeys functionality\n- findActiveKeys functionality\n\n**INTEGRATION (1 test):**\n- Full CRUD lifecycle test (CREATE, READ, UPDATE, USAGE, STATS, DELETE)\n\n**Test Structure:**\n- Organized into logical describe blocks for each operation type\n- Comprehensive test data with unique keys to avoid conflicts\n- Proper setup and teardown (beforeAll, afterAll, cleanup tests)\n- Follows existing test patterns from test/db/schema.test.ts\n- All 52 tests passing with 121 expect() calls\n\n**Code Quality:**\n- Follows existing code patterns and conventions\n- No console.log statements (only structured error logging)\n- Comprehensive JSDoc documentation\n- TypeScript compilation verified\n- ESLint validation passed\n\nAll acceptance criteria met:\n✅ Create, read, update, delete operations (27 tests covering all CRUD operations)\n✅ Transaction handling (5 tests covering atomic operations and rollback)\n✅ Edge cases (6 tests covering null values, duplicates, edge conditions)\n✅ Error scenarios (5 tests covering validation and error handling)"
         },
         {
           "id": "7.3",
@@ -771,6 +773,6 @@
     "tested_by": "",
     "tested_at": ""
   },
-  "planStatus": "in_progress",
+  "planStatus": "review",
   "last_updated": "2026-01-22T12:00:00.000Z"
 }

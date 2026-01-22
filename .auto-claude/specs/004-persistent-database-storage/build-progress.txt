@@ -50,7 +50,7 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 
 ### Phase 7: Testing [IN PROGRESS]
 - ✅ Schema tests (COMPLETED: 7.1)
-- CRUD tests
+- ✅ CRUD tests (COMPLETED: 7.2)
 - Usage tracking tests
 - Migration tests
 - Backup/restore tests
@@ -80,6 +80,34 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 6. Implement storage abstraction layer (NEXT: Phase 3)
 
 ## Completed Tasks
+- **7.2** Test CRUD operations (COMPLETED)
+  - Created test/db/operations.test.ts with comprehensive CRUD operations test suite
+  - 52 comprehensive tests covering all CRUD operations and acceptance criteria
+  - Test Organization:
+    * CREATE Operations (8 tests): Create new keys, validation, duplicate handling, null model handling
+    * READ Operations (5 tests): Find existing keys, null returns, parameter validation, usage windows inclusion
+    * UPDATE Operations (10 tests): Update individual/multiple fields, null handling, validation, non-existent key handling
+    * DELETE Operations (4 tests): Delete existing keys, cascade delete usage windows, validation
+    * TRANSACTION Handling (5 tests): Atomic updates, token accumulation, old window cleanup, transaction rollback
+    * EDGE CASES (6 tests): Zero tokens, token limit handling, empty result sets, null model handling
+    * ERROR SCENARIOS (5 tests): Non-existent key errors, validation errors, null returns
+    * HELPER FUNCTIONS (8 tests): getAllApiKeys with pagination, findKeysByModel, findExpiredKeys, findActiveKeys
+    * INTEGRATION (1 test): Full CRUD lifecycle (CREATE, READ, UPDATE, USAGE, STATS, DELETE)
+  - All 52 tests passing with 121 expect() calls
+  - Organized into logical describe blocks for each operation type
+  - Proper setup and teardown (beforeAll, afterAll, cleanup tests)
+  - Comprehensive test data with unique keys to avoid conflicts
+  - Follows existing test patterns from test/db/schema.test.ts
+  - Code quality:
+    * Follows existing code patterns and conventions
+    * No console.log statements (only structured error logging)
+    * TypeScript compilation verified
+    * ESLint validation passed
+  - All acceptance criteria met:
+    ✅ Create, read, update, delete operations (27 tests covering all CRUD operations)
+    ✅ Transaction handling (5 tests covering atomic operations and rollback)
+    ✅ Edge cases (6 tests covering null values, duplicates, edge conditions)
+    ✅ Error scenarios (5 tests covering validation and error handling)
 - **7.1** Test database schema (COMPLETED)
   - Created test/db/schema.test.ts with comprehensive schema verification
   - 17 comprehensive tests covering all schema aspects:
