@@ -25283,6 +25283,268 @@ function UsageVisualization({ focusKey }) {
   }, undefined, true, undefined, this);
 }
 
+// src/utils/api-client.ts
+class ApiClientError extends Error {
+  statusCode;
+  response;
+  constructor(message, statusCode, response) {
+    super(message);
+    this.statusCode = statusCode;
+    this.response = response;
+    this.name = "ApiClientError";
+  }
+}
+async function fetchApiKeys(options) {
+  try {
+    const response = await fetch("/api/keys", {
+      signal: options?.signal
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = errorData && typeof errorData === "object" && "error" in errorData ? String(errorData.error) : `HTTP ${response.status}: ${response.statusText}`;
+      throw new ApiClientError(errorMessage, response.status, errorData);
+    }
+    const data = await response.json();
+    if (data && typeof data === "object" && "keys" in data && Array.isArray(data.keys)) {
+      return data.keys;
+    }
+    return [];
+  } catch (err) {
+    if (err instanceof ApiClientError) {
+      throw err;
+    }
+    const message = err instanceof Error ? err.message : "Failed to fetch API keys";
+    throw new ApiClientError(message, undefined, err);
+  }
+}
+async function createApiKey(keyData, options) {
+  try {
+    const response = await fetch("/api/keys", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(keyData),
+      signal: options?.signal
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = errorData && typeof errorData === "object" && "error" in errorData ? String(errorData.error) : `Failed to create API key: ${response.statusText}`;
+      throw new ApiClientError(errorMessage, response.status, errorData);
+    }
+  } catch (err) {
+    if (err instanceof ApiClientError) {
+      throw err;
+    }
+    const message = err instanceof Error ? err.message : "Failed to create API key";
+    throw new ApiClientError(message, undefined, err);
+  }
+}
+async function updateApiKey(keyId, updates, options) {
+  try {
+    const response = await fetch(`/api/keys/${encodeURIComponent(keyId)}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(updates),
+      signal: options?.signal
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = errorData && typeof errorData === "object" && "error" in errorData ? String(errorData.error) : `Failed to update API key: ${response.statusText}`;
+      throw new ApiClientError(errorMessage, response.status, errorData);
+    }
+  } catch (err) {
+    if (err instanceof ApiClientError) {
+      throw err;
+    }
+    const message = err instanceof Error ? err.message : "Failed to update API key";
+    throw new ApiClientError(message, undefined, err);
+  }
+}
+async function deleteApiKey(keyId, options) {
+  try {
+    const response = await fetch(`/api/keys/${encodeURIComponent(keyId)}`, {
+      method: "DELETE",
+      signal: options?.signal
+    });
+    if (!response.ok && response.status !== 204) {
+      const errorData = await response.json();
+      const errorMessage = errorData && typeof errorData === "object" && "error" in errorData ? String(errorData.error) : `Failed to delete API key: ${response.statusText}`;
+      throw new ApiClientError(errorMessage, response.status, errorData);
+    }
+  } catch (err) {
+    if (err instanceof ApiClientError) {
+      throw err;
+    }
+    const message = err instanceof Error ? err.message : "Failed to delete API key";
+    throw new ApiClientError(message, undefined, err);
+  }
+}
+function getErrorMessage(err) {
+  if (err instanceof ApiClientError) {
+    return err.message;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return "An unexpected error occurred";
+}
+
+// src/utils/ws-client.ts
+class WebSocketClient {
+  ws = null;
+  url;
+  autoReconnect;
+  reconnectDelay;
+  maxReconnectAttempts;
+  reconnectAttempts = 0;
+  reconnectTimeoutId = null;
+  isManualClose = false;
+  eventCallbacks = new Map;
+  connectionCallbacks = new Set;
+  errorCallbacks = new Set;
+  constructor(config = {}) {
+    this.url = config.url || this.getDefaultUrl();
+    this.autoReconnect = config.autoReconnect !== false;
+    this.reconnectDelay = config.reconnectDelay || 3000;
+    this.maxReconnectAttempts = config.maxReconnectAttempts ?? Infinity;
+  }
+  getDefaultUrl() {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}/ws`;
+  }
+  connect() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
+    this.isManualClose = false;
+    this.ws = new WebSocket(this.url);
+    this.ws.onopen = () => {
+      this.reconnectAttempts = 0;
+      this.notifyConnectionCallbacks(true);
+    };
+    this.ws.onclose = (event) => {
+      this.notifyConnectionCallbacks(false);
+      if (!this.isManualClose && this.autoReconnect) {
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.scheduleReconnect();
+        }
+      }
+    };
+    this.ws.onerror = (event) => {
+      const error = new Error("WebSocket connection error");
+      this.notifyErrorCallbacks(error);
+    };
+    this.ws.onmessage = (event) => {
+      this.handleMessage(event.data);
+    };
+  }
+  disconnect() {
+    this.isManualClose = true;
+    if (this.reconnectTimeoutId) {
+      clearTimeout(this.reconnectTimeoutId);
+      this.reconnectTimeoutId = null;
+    }
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+  scheduleReconnect() {
+    this.reconnectAttempts++;
+    if (this.reconnectTimeoutId) {
+      clearTimeout(this.reconnectTimeoutId);
+    }
+    this.reconnectTimeoutId = setTimeout(() => {
+      this.connect();
+    }, this.reconnectDelay);
+  }
+  handleMessage(data) {
+    try {
+      const event = JSON.parse(data);
+      this.notifyEventCallbacks(event);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error("Failed to parse WebSocket message");
+      this.notifyErrorCallbacks(error);
+    }
+  }
+  on(eventType, callback) {
+    if (!this.eventCallbacks.has(eventType)) {
+      this.eventCallbacks.set(eventType, new Set);
+    }
+    this.eventCallbacks.get(eventType).add(callback);
+  }
+  off(eventType, callback) {
+    const callbacks = this.eventCallbacks.get(eventType);
+    if (callbacks) {
+      callbacks.delete(callback);
+    }
+  }
+  onConnectionChange(callback) {
+    this.connectionCallbacks.add(callback);
+  }
+  offConnectionChange(callback) {
+    this.connectionCallbacks.delete(callback);
+  }
+  onError(callback) {
+    this.errorCallbacks.add(callback);
+  }
+  offError(callback) {
+    this.errorCallbacks.delete(callback);
+  }
+  notifyEventCallbacks(event) {
+    const callbacks = this.eventCallbacks.get(event.type);
+    if (callbacks) {
+      callbacks.forEach((callback) => {
+        try {
+          callback(event);
+        } catch (err) {
+          console.error("Error in WebSocket event callback:", err);
+        }
+      });
+    }
+  }
+  notifyConnectionCallbacks(isConnected) {
+    this.connectionCallbacks.forEach((callback) => {
+      try {
+        callback(isConnected);
+      } catch (err) {
+        console.error("Error in WebSocket connection callback:", err);
+      }
+    });
+  }
+  notifyErrorCallbacks(error) {
+    this.errorCallbacks.forEach((callback) => {
+      try {
+        callback(error);
+      } catch (err) {
+        console.error("Error in WebSocket error callback:", err);
+      }
+    });
+  }
+  isConnected() {
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+  send(data) {
+    if (!this.isConnected()) {
+      throw new Error("WebSocket is not connected");
+    }
+    const message = typeof data === "string" ? data : JSON.stringify(data);
+    this.ws.send(message);
+  }
+  dispose() {
+    this.disconnect();
+    this.eventCallbacks.clear();
+    this.connectionCallbacks.clear();
+    this.errorCallbacks.clear();
+  }
+}
+function createWebSocketClient(config) {
+  return new WebSocketClient(config);
+}
+
 // src/components/App.tsx
 var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
 var AppContext = import_react5.createContext(undefined);
@@ -25298,23 +25560,14 @@ function AppProvider({ children }) {
   const [isLoading, setIsLoading] = import_react5.useState(true);
   const [error, setError] = import_react5.useState(null);
   const [isConnected, setIsConnected] = import_react5.useState(false);
+  const wsClientRef = import_react5.useRef(null);
   async function fetchKeys() {
     try {
-      const response = await fetch("/api/keys");
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData && typeof errorData === "object" && "error" in errorData ? String(errorData.error) : `HTTP ${response.status}: ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
-      const data = await response.json();
-      if (data && typeof data === "object" && "keys" in data && Array.isArray(data.keys)) {
-        setApiKeys(data.keys);
-      } else {
-        setApiKeys([]);
-      }
+      const keys = await fetchApiKeys();
+      setApiKeys(keys);
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to fetch API keys";
+      const message = getErrorMessage(err);
       setError(message);
       console.error("Error fetching API keys:", err);
     } finally {
@@ -25327,22 +25580,11 @@ function AppProvider({ children }) {
   }
   async function createKey(keyData) {
     try {
-      const response = await fetch("/api/keys", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(keyData)
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData && typeof errorData === "object" && "error" in errorData ? String(errorData.error) : `Failed to create API key: ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
+      await createApiKey(keyData);
       await fetchKeys();
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create API key";
+      const message = getErrorMessage(err);
       setError(message);
       console.error("Error creating API key:", err);
       throw err;
@@ -25350,22 +25592,11 @@ function AppProvider({ children }) {
   }
   async function updateKey(keyId, updates) {
     try {
-      const response = await fetch(`/api/keys/${encodeURIComponent(keyId)}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(updates)
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData && typeof errorData === "object" && "error" in errorData ? String(errorData.error) : `Failed to update API key: ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
+      await updateApiKey(keyId, updates);
       await fetchKeys();
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update API key";
+      const message = getErrorMessage(err);
       setError(message);
       console.error("Error updating API key:", err);
       throw err;
@@ -25373,18 +25604,11 @@ function AppProvider({ children }) {
   }
   async function deleteKey(keyId) {
     try {
-      const response = await fetch(`/api/keys/${encodeURIComponent(keyId)}`, {
-        method: "DELETE"
-      });
-      if (!response.ok && response.status !== 204) {
-        const errorData = await response.json();
-        const errorMessage = errorData && typeof errorData === "object" && "error" in errorData ? String(errorData.error) : `Failed to delete API key: ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
+      await deleteApiKey(keyId);
       await fetchKeys();
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to delete API key";
+      const message = getErrorMessage(err);
       setError(message);
       console.error("Error deleting API key:", err);
       throw err;
@@ -25394,46 +25618,36 @@ function AppProvider({ children }) {
     setError(null);
   }
   import_react5.useEffect(() => {
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
-    ws.onopen = () => {
-      setIsConnected(true);
-    };
-    ws.onclose = () => {
-      setIsConnected(false);
-    };
-    ws.onerror = (event) => {
-      console.error("WebSocket error:", event);
+    const wsClient = createWebSocketClient({
+      autoReconnect: true,
+      reconnectDelay: 3000
+    });
+    wsClientRef.current = wsClient;
+    wsClient.onConnectionChange((connected) => {
+      setIsConnected(connected);
+    });
+    wsClient.onError((error2) => {
+      console.error("WebSocket error:", error2);
       setError("WebSocket connection error. Real-time updates may not work.");
-    };
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        switch (message.type) {
-          case "connected":
-            break;
-          case "key_created":
-            fetchKeys();
-            break;
-          case "key_updated":
-            fetchKeys();
-            break;
-          case "key_deleted":
-            fetchKeys();
-            break;
-          case "usage_updated":
-            setApiKeys((prevKeys) => prevKeys.map((key) => key.key === message.data.key ? { ...key, total_lifetime_tokens: message.data.total_lifetime_tokens, usage_windows: [] } : key));
-            break;
-          default:
-            break;
-        }
-      } catch (err) {
-        console.error("Error parsing WebSocket message:", err);
-      }
-    };
+    });
+    wsClient.on("connected", () => {});
+    wsClient.on("key_created", () => {
+      fetchKeys();
+    });
+    wsClient.on("key_updated", () => {
+      fetchKeys();
+    });
+    wsClient.on("key_deleted", () => {
+      fetchKeys();
+    });
+    wsClient.on("usage_updated", (event) => {
+      const data = event.data;
+      setApiKeys((prevKeys) => prevKeys.map((key) => key.key === data.key ? { ...key, total_lifetime_tokens: data.total_lifetime_tokens, usage_windows: [] } : key));
+    });
+    wsClient.connect();
     return () => {
-      ws.close();
+      wsClient.dispose();
+      wsClientRef.current = null;
     };
   }, []);
   import_react5.useEffect(() => {

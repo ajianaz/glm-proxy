@@ -1,0 +1,805 @@
+/* ============================================
+   Responsive Design & Mobile Optimizations
+   ============================================ */
+
+/**
+ * This file contains all responsive styles for the API key dashboard.
+ * It implements mobile-friendly table views, collapsible sections,
+ * and touch-optimized interactions for a better mobile experience.
+ */
+
+/* ============================================
+   Mobile-First Breakpoints
+   ============================================ */
+
+/**
+ * Extra Small Devices (phones, less than 576px)
+ * Default styles are mobile-first
+ */
+
+/**
+ * Small Devices (landscape phones, 576px and up)
+ */
+@media (min-width: 576px) {
+  .container {
+    max-width: 540px;
+  }
+}
+
+/**
+ * Medium Devices (tablets, 768px and up)
+ */
+@media (min-width: 768px) {
+  .container {
+    max-width: 720px;
+  }
+
+  /* Restore table cells on tablet */
+  .api-keys-table .usage-lifetime {
+    display: block;
+  }
+
+  .api-keys-table .cell-usage {
+    min-width: 180px;
+  }
+}
+
+/**
+ * Large Devices (desktops, 1024px and up)
+ */
+@media (min-width: 1024px) {
+  .container {
+    max-width: 960px;
+  }
+}
+
+/**
+ * Extra Large Devices (large desktops, 1280px and up)
+ */
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1200px;
+  }
+}
+
+/* ============================================
+   Mobile Table View (Card-Based Layout)
+   ============================================ */
+
+/**
+ * Transform table rows into cards on mobile devices
+ * Provides better readability and touch interaction
+ */
+@media (max-width: 767px) {
+  /* Hide table headers on mobile */
+  .api-keys-table .table thead {
+    display: none;
+  }
+
+  /* Transform table rows into cards */
+  .api-keys-table .table,
+  .api-keys-table .table tbody,
+  .api-keys-table .table tr,
+  .api-keys-table .table td {
+    display: block;
+    width: 100%;
+  }
+
+  .api-keys-table .table tbody {
+    background-color: transparent;
+  }
+
+  /* Style each row as a card */
+  .api-keys-table .table tr {
+    background-color: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-4);
+    padding: var(--spacing-4);
+    transition: box-shadow var(--transition-fast);
+  }
+
+  .api-keys-table .table tr:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .api-keys-table .table tr:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Style each cell as a card row */
+  .api-keys-table .table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-2) 0;
+    border-bottom: 1px solid var(--color-gray-100);
+    text-align: left;
+  }
+
+  .api-keys-table .table td:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .api-keys-table .table td:first-child {
+    padding-top: 0;
+  }
+
+  /* Add labels for each field (using data-labels or ::before) */
+  .api-keys-table .table td::before {
+    content: attr(data-label);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-gray-600);
+    font-size: var(--text-sm);
+    margin-right: var(--spacing-3);
+    flex-shrink: 0;
+    min-width: 100px;
+  }
+
+  /* Special handling for action buttons cell */
+  .api-keys-table .cell-actions {
+    justify-content: flex-start;
+    gap: var(--spacing-4);
+  }
+
+  .api-keys-table .cell-actions::before {
+    content: "Actions";
+  }
+
+  /* Remove max-width constraints on mobile */
+  .api-keys-table .cell-key,
+  .api-keys-table .cell-name,
+  .api-keys-table .cell-model,
+  .api-keys-table .cell-quota,
+  .api-keys-table .cell-usage,
+  .api-keys-table .cell-expiry {
+    max-width: none;
+    width: 100%;
+  }
+
+  /* Usage container on mobile */
+  .api-keys-table .usage-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+  }
+
+  .api-keys-table .usage-bar-wrapper {
+    width: 100%;
+  }
+
+  /* Action buttons on mobile - full width */
+  .api-keys-table .action-buttons {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .api-keys-table .action-buttons .btn {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Remove hover effect on touch devices */
+  .api-keys-table .table tr:hover {
+    background-color: var(--color-white);
+  }
+
+  .api-keys-table .table tr.row-expired:hover {
+    background-color: var(--color-gray-50);
+  }
+}
+
+/* ============================================
+   Collapsible Sections
+   ============================================ */
+
+/**
+ * Collapsible header for mobile sections
+ * Allows hiding/showing content to save screen space
+ */
+.collapsible-section {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-4);
+  overflow: hidden;
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-4);
+  background-color: var(--color-gray-50);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.collapsible-header:hover {
+  background-color: var(--color-gray-100);
+}
+
+.collapsible-header:active {
+  background-color: var(--color-gray-200);
+}
+
+.collapsible-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-900);
+}
+
+.collapsible-icon {
+  font-size: var(--text-lg);
+  transition: transform var(--transition-base);
+}
+
+.collapsible-section.collapsed .collapsible-icon {
+  transform: rotate(-90deg);
+}
+
+.collapsible-content {
+  max-height: 2000px;
+  overflow: hidden;
+  transition: max-height var(--transition-slow);
+}
+
+.collapsible-section.collapsed .collapsible-content {
+  max-height: 0;
+}
+
+/* Mobile-specific collapsible behavior */
+@media (max-width: 767px) {
+  .collapsible-header {
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+
+  .collapsible-title {
+    font-size: var(--text-sm);
+  }
+
+  /* Make entire header touch-friendly */
+  .collapsible-header {
+    min-height: 48px;
+  }
+
+  /* Table controls as collapsible on mobile */
+  .table-controls.collapsible {
+    margin-bottom: var(--spacing-3);
+  }
+
+  /* Usage visualization as collapsible on mobile */
+  .usage-visualization.collapsible {
+    margin-bottom: var(--spacing-4);
+  }
+
+  .stats-grid.collapsible {
+    margin-bottom: var(--spacing-4);
+  }
+}
+
+/* ============================================
+   Touch-Optimized Interactions
+   ============================================ */
+
+/**
+ * Increase tap targets for touch devices
+ * Minimum recommended size: 44x44 pixels (iOS) or 48x48 pixels (Android)
+ */
+@media (hover: none) and (pointer: coarse) {
+  /* Buttons - minimum touch target size */
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: var(--spacing-3) var(--spacing-5);
+  }
+
+  .btn-sm {
+    min-height: 40px;
+    min-width: 40px;
+    padding: var(--spacing-2) var(--spacing-4);
+  }
+
+  /* Form inputs - larger touch targets */
+  .form-input,
+  .form-select,
+  .form-textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevent iOS auto-zoom on focus */
+  }
+
+  /* Checkboxes and radio buttons */
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Table action buttons */
+  .api-keys-table .action-buttons .btn {
+    min-height: 40px;
+    min-width: 40px;
+    padding: var(--spacing-2) var(--spacing-3);
+  }
+
+  /* Sortable headers - larger tap area */
+  .api-keys-table .table th.sortable {
+    padding: var(--spacing-3) var(--spacing-4);
+    min-height: 44px;
+  }
+
+  /* Modal close button */
+  .modal-close {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .btn:hover,
+  .btn:active,
+  .table tbody tr:hover,
+  .card:hover,
+  .stat-card:hover {
+    background-color: inherit;
+    box-shadow: inherit;
+  }
+
+  /* Add active states for touch feedback */
+  .btn:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+
+  .table tbody tr:active {
+    background-color: var(--color-gray-50);
+  }
+
+  /* Improved tap feedback for interactive elements */
+  .api-keys-table .table th.sortable:active {
+    background-color: var(--color-gray-100);
+  }
+
+  /* Better touch feedback for collapsible headers */
+  .collapsible-header:active {
+    background-color: var(--color-gray-200);
+    transform: scale(0.99);
+  }
+
+  /* Prevent text selection on interactive elements */
+  .btn,
+  .collapsible-header,
+  .api-keys-table .table th.sortable,
+  .api-keys-table .action-buttons .btn {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Smooth scrolling for overflow containers */
+  .table-container,
+  .modal {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ============================================
+   Mobile Navigation & Header
+   ============================================ */
+
+@media (max-width: 767px) {
+  /* Header adjustments */
+  .app-header {
+    padding: var(--spacing-4) var(--spacing-3);
+  }
+
+  .app-header h1 {
+    font-size: var(--text-xl);
+  }
+
+  .app-header .subtitle {
+    font-size: var(--text-sm);
+  }
+
+  /* Connection status indicator - mobile friendly */
+  .connection-status {
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--text-xs);
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+  }
+
+  /* Action bar - stack vertically on mobile */
+  .action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-bar .btn {
+    width: 100%;
+  }
+
+  /* Clear focus button - full width on mobile */
+  .clear-focus-btn {
+    width: 100%;
+    margin-top: var(--spacing-3);
+  }
+}
+
+/* ============================================
+   Mobile Modal & Dialog Optimizations
+   ============================================ */
+
+@media (max-width: 767px) {
+  /* Full-screen modal on mobile */
+  .modal-backdrop {
+    padding: 0;
+  }
+
+  .modal,
+  .modal-lg {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+    height: 100%;
+  }
+
+  .modal-header {
+    padding: var(--spacing-4);
+    position: sticky;
+    top: 0;
+    background-color: var(--color-white);
+    z-index: 10;
+    border-bottom-width: 2px;
+  }
+
+  .modal-body {
+    padding: var(--spacing-4);
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .modal-footer {
+    padding: var(--spacing-4);
+    position: sticky;
+    bottom: 0;
+    background-color: var(--color-gray-50);
+    border-top-width: 2px;
+    flex-wrap: wrap;
+  }
+
+  .modal-footer .btn {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Form adjustments on mobile */
+  .form-group {
+    margin-bottom: var(--spacing-4);
+  }
+
+  .form-label {
+    font-size: var(--text-sm);
+    margin-bottom: var(--spacing-2);
+  }
+
+  /* Input group - stack vertically */
+  .input-group {
+    flex-direction: column;
+  }
+
+  .input-group .btn {
+    width: 100%;
+  }
+}
+
+/* ============================================
+   Mobile Usage Visualization
+   ============================================ */
+
+@media (max-width: 767px) {
+  /* Stats grid - single column on mobile */
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+
+  /* Stat card adjustments */
+  .stat-card {
+    padding: var(--spacing-4);
+  }
+
+  .stat-value {
+    font-size: var(--text-2xl);
+  }
+
+  /* Top consumer card - stack vertically */
+  .top-consumer-card {
+    padding: var(--spacing-4);
+  }
+
+  .top-consumer-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+  }
+
+  .top-consumer-usage {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .top-consumer-percent {
+    font-size: var(--text-2xl);
+  }
+
+  /* Chart rows - stack on mobile */
+  .chart-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-2);
+    padding: var(--spacing-3);
+  }
+
+  .chart-row-label {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+
+  .chart-row-bar {
+    width: 100%;
+  }
+
+  .chart-row-tokens {
+    text-align: left;
+  }
+
+  /* Key detail card - single column */
+  .key-detail-content {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+
+  /* Progress bars - larger on mobile */
+  .progress,
+  .progress-bar,
+  .top-consumer-bar,
+  .chart-bar-wrapper {
+    height: 12px;
+  }
+
+  .usage-bar-wrapper {
+    height: 12px;
+  }
+}
+
+/* ============================================
+   Mobile Alerts & Notifications
+   ============================================ */
+
+@media (max-width: 767px) {
+  .alert {
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--text-sm);
+  }
+
+  .alert-icon {
+    font-size: var(--text-lg);
+  }
+}
+
+/* ============================================
+   Landscape Mode Optimizations
+   ============================================ */
+
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Reduce padding in landscape mode */
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: var(--spacing-3);
+  }
+
+  /* Compact stats in landscape */
+  .stat-card {
+    padding: var(--spacing-3);
+  }
+
+  .stat-value {
+    font-size: var(--text-xl);
+  }
+
+  /* Max height for scrollable content */
+  .modal {
+    max-height: 95vh;
+  }
+
+  .modal-body {
+    max-height: calc(95vh - 140px);
+  }
+}
+
+/* ============================================
+   Print Styles for Mobile
+   ============================================ */
+
+@media print and (max-width: 767px) {
+  /* Hide collapsible icons in print */
+  .collapsible-icon {
+    display: none;
+  }
+
+  /* Expand all collapsible sections */
+  .collapsible-section.collapsed .collapsible-content {
+    max-height: none;
+    display: block;
+  }
+
+  /* Remove shadows and borders for printing */
+  .api-keys-table .table tr {
+    box-shadow: none;
+    page-break-inside: avoid;
+  }
+}
+
+/* ============================================
+   Accessibility Enhancements for Mobile
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  /* Reduce animations for users who prefer reduced motion */
+  .collapsible-content,
+  .progress-bar-fill,
+  .chart-bar-fill {
+    transition: none;
+  }
+
+  .collapsible-icon {
+    transition: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .api-keys-table .table tr {
+    border-width: 2px;
+  }
+
+  .btn {
+    border-width: 2px;
+  }
+
+  .collapsible-header {
+    border-bottom-width: 2px;
+  }
+}
+
+/* ============================================
+   Utility Classes for Mobile Visibility
+   ============================================ */
+
+/* Hide elements on mobile */
+@media (max-width: 767px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  /* Hide less important columns on mobile */
+  .api-keys-table .hide-on-mobile-cell {
+    display: none;
+  }
+}
+
+/* Show only on mobile */
+@media (min-width: 768px) {
+  .show-on-mobile {
+    display: none !important;
+  }
+}
+
+/* Touch device specific utilities */
+@media (hover: none) and (pointer: coarse) {
+  .touch-only {
+    display: block;
+  }
+
+  .no-touch {
+    display: none;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .touch-only {
+    display: none;
+  }
+
+  .no-touch {
+    display: block;
+  }
+}
+
+/* ============================================
+   Loading States for Mobile
+   ============================================ */
+
+@media (max-width: 767px) {
+  /* Centered loading spinner */
+  .loading-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-8);
+    min-height: 200px;
+  }
+
+  .spinner-lg {
+    width: 32px;
+    height: 32px;
+    border-width: 3px;
+  }
+}
+
+/* ============================================
+   Empty States for Mobile
+   ============================================ */
+
+@media (max-width: 767px) {
+  .api-keys-table .no-data {
+    padding: var(--spacing-6) var(--spacing-4);
+    font-size: var(--text-sm);
+    text-align: center;
+  }
+
+  /* Empty state icon */
+  .empty-state-icon {
+    font-size: var(--text-4xl);
+    margin-bottom: var(--spacing-3);
+    opacity: 0.5;
+  }
+
+  .empty-state-text {
+    font-size: var(--text-sm);
+    color: var(--color-gray-600);
+    margin-bottom: var(--spacing-4);
+  }
+}
+
+/* ============================================
+   Scrollbar Styling for Mobile
+   ============================================ */
+
+/* Custom scrollbar for horizontal scrolling on mobile */
+@media (max-width: 767px) {
+  .table-container {
+    /* Improve scroll experience on mobile */
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-container::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .table-container::-webkit-scrollbar-track {
+    background: var(--color-gray-100);
+    border-radius: var(--radius-full);
+  }
+
+  .table-container::-webkit-scrollbar-thumb {
+    background: var(--color-gray-400);
+    border-radius: var(--radius-full);
+  }
+
+  .table-container::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-500);
+  }
+}
