@@ -17,7 +17,7 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 ### Phase 2: Database Operations [IN PROGRESS]
 - ✅ CRUD operations (COMPLETED: 2.1)
 - ✅ Usage tracking with transactions (COMPLETED: 2.2)
-- Statistics queries
+- ✅ Statistics queries (COMPLETED: 2.3)
 - Helper functions
 
 ### Phase 3: Storage Abstraction [PENDING]
@@ -136,4 +136,14 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
   - Created 7 comprehensive test cases covering basic usage tracking, token accumulation, validation, and error scenarios
   - All 17 total tests passing (10 existing + 7 new)
   - TypeScript compilation verified, ESLint validation passed
+  - Full JSDoc documentation with usage examples
+- **2.3** Implement statistics query (COMPLETED)
+  - Created getKeyStats function that joins api_keys with usage_windows for complete stats
+  - Returns StatsResponse with computed statistics: is_expired, current_usage (5-hour rolling window), remaining_tokens
+  - Efficient query with proper ordering by window_start (descending)
+  - Null handling for missing keys (returns null)
+  - Comprehensive error handling with meaningful error messages
+  - 7 comprehensive test cases covering null returns, new keys, usage updates, expired status, missing model, and window timestamps
+  - All 24 total tests passing (17 existing + 7 new)
+  - TypeScript compilation verified
   - Full JSDoc documentation with usage examples

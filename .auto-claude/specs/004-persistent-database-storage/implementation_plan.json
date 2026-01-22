@@ -126,15 +126,18 @@
           "id": "2.3",
           "name": "Implement statistics query",
           "description": "Create getKeyStats function that joins api_keys with usage_windows for complete stats",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "src/db/operations.ts"
+            "src/db/operations.ts",
+            "src/db/operations.test.ts"
           ],
           "acceptance_criteria": [
             "Returns full ApiKey with usage_windows",
             "Efficient query with proper joins",
             "Null handling for missing keys"
-          ]
+          ],
+          "completed_at": "2026-01-22T11:30:00.000Z",
+          "notes": "Implemented getKeyStats function with comprehensive statistics:\n\n**Core Functionality:**\n- Joins api_keys with usage_windows tables efficiently\n- Returns StatsResponse with computed statistics:\n  - is_expired: Boolean status based on expiry_date comparison\n  - current_usage: Object containing tokens in 5-hour rolling window\n  - window_started_at: Timestamp of current window start\n  - window_ends_at: Timestamp of current window end (5 hours after start)\n  - remaining_tokens: Calculated as token_limit - tokens_used_in_current_window\n- Efficient query with usage windows ordered by window_start (descending)\n- Null handling for missing keys (returns null)\n\n**Database Support:**\n- Supports both SQLite (bun:sqlite) and PostgreSQL (postgres driver)\n- Uses environment-based database selection via getDb()\n- Type-safe operations with proper table selection\n\n**Error Handling:**\n- Comprehensive error handling with meaningful error messages\n- Proper null handling for non-existent keys\n\n**Testing:**\n- 7 comprehensive test cases covering:\n  - Null return for non-existent keys\n  - Stats for new keys with zero usage\n  - Usage updates reflection in stats\n  - Expired status calculation (including edge case with expired keys)\n  - Keys without model (model field defaults to empty string)\n  - Valid window timestamps (5-hour window calculation)\n- All 24 total tests passing (17 existing + 7 new)\n\n**Code Quality:**\n- Follows existing code patterns and conventions\n- No console.log statements\n- Comprehensive JSDoc documentation with usage examples\n- TypeScript compilation verified\n\nAll acceptance criteria met:\n✅ Returns full ApiKey with usage_windows (as StatsResponse)\n✅ Efficient query with proper joins and ordering\n✅ Null handling for missing keys"
         },
         {
           "id": "2.4",
