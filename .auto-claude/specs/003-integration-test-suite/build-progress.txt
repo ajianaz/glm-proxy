@@ -1,0 +1,116 @@
+# Integration Test Suite - Build Progress
+
+## Current Status: Phase 1 In Progress 🔄
+
+### Completed Steps
+
+1. **Analyzed Codebase Structure** ✓
+   - Reviewed existing unit tests in `test/` directory
+   - Examined API endpoints in `src/index.ts`
+   - Studied authentication, rate limiting, and storage implementations
+   - Identified test patterns and utilities already in use
+
+2. **Created Implementation Plan** ✓
+   - File: `.auto-claude/specs/003-integration-test-suite/implementation_plan.json`
+   - Defined 8 phases with 32 subtasks
+   - Estimated total time: ~10 hours (595 minutes)
+
+3. **Phase 1: Foundation & Infrastructure** ✅ (50 min)
+   - **Subtask 1.1: Test utilities and helper functions** ✓
+     - Created `test/integration/helpers.ts` with server setup/teardown utilities
+     - Implemented HTTP request builders for OpenAI and Anthropic formats
+     - Added response validators for health, stats, errors, and streaming
+     - Created mock API key generators (valid, expired, rate-limited)
+     - Added utility functions for test data management
+   - **Subtask 1.2: Test fixtures and data** ✓
+     - Created `test/integration/fixtures.ts` with comprehensive test API keys
+     - Added valid, expired, expiring soon, low limit, and rate-limited keys
+     - Included multi-window and mixed-window test data
+     - Added test request bodies for both OpenAI and Anthropic formats
+     - Created malformed request examples for validation testing
+   - **Subtask 1.3: Test environment setup** ✓
+     - Created `test/integration/setup.ts` with environment management
+     - Implemented setup/teardown for temporary test data directories
+     - Added environment variable configuration for testing
+     - Created test scenario setup utilities
+     - Added backup/restore functionality for test state
+
+### Implementation Plan Summary
+
+**Phase 1: Foundation & Infrastructure** ✅ COMPLETE (50 min)
+- Test utilities and helpers ✓
+- Test fixtures and data ✓
+- Environment setup/teardown ✓
+
+**Phase 2: API Endpoint Tests** (100 min) - NEXT
+- /health endpoint
+- /stats endpoint
+- /v1/chat/completions (OpenAI)
+- /v1/messages (Anthropic)
+- Root endpoint
+
+**Phase 3: Authentication & Authorization** (60 min)
+- Valid API key authentication
+- Invalid key rejection
+- API key expiry handling
+- x-api-key header support
+
+**Phase 4: Rate Limiting Tests** (90 min)
+- Rate limit enforcement
+- Rolling window behavior
+- Window reset after expiry
+- Concurrent request rate limiting
+
+**Phase 5: Streaming Response Tests** (100 min)
+- OpenAI streaming
+- Anthropic streaming
+- Streaming error handling
+- Streaming with rate limiting
+
+**Phase 6: Error Handling Tests** (70 min)
+- Upstream API errors
+- Malformed request handling
+- Timeout errors
+- Network errors
+
+**Phase 7: Concurrency Tests** (95 min)
+- Concurrent API requests
+- Concurrent stats queries
+- Concurrent rate limit updates
+- Stress testing (50+ requests)
+
+**Phase 8: CI/CD Integration & Coverage** (80 min)
+- Coverage reporting configuration
+- CI/CD workflow setup
+- Performance optimization (< 60s)
+- Documentation
+
+### Next Steps
+
+1. ✅ Start Phase 2: API Endpoint Tests
+2. Create test for /health endpoint
+3. Create test for /stats endpoint
+4. Create test for /v1/chat/completions endpoint
+
+### Acceptance Criteria Status
+
+- [ ] Tests cover all API endpoints
+- [ ] Tests verify rate limiting enforcement
+- [ ] Tests validate streaming responses
+- [ ] Tests verify error handling
+- [ ] Tests check authentication/authorization
+- [ ] Tests validate API key expiry handling
+- [ ] Tests verify concurrent request handling
+- [ ] Tests can be run in CI/CD pipeline
+- [ ] Test coverage report available
+- [ ] Tests complete in under 60 seconds
+
+### Notes
+
+- Using Vitest for testing (already configured)
+- Tests will use actual HTTP requests to test server instance
+- Separate test data directory to avoid affecting production
+- Mock upstream API responses to avoid external dependencies
+- Focus on deterministic, order-independent tests
+- ✅ All helper utilities verified with passing tests (18/18 passing)
+- Git commit created: ee9e1f9

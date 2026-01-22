@@ -1,0 +1,351 @@
+{
+  "spec_id": "003-integration-test-suite",
+  "spec_title": "Integration Test Suite",
+  "description": "# Integration Test Suite\n\nComprehensive integration tests covering all API endpoints, rate limiting behavior, streaming responses, error scenarios, and multi-user interactions.\n\n## Rationale\nAddresses technical debt of no integration tests. Ensures reliability and prevents regressions. Critical for production confidence and distinguishes from competitors with buggy implementations (Portkey).\n\n## User Stories\n- As a developer, I want integration tests so that I can confidently make changes without breaking functionality\n- As a maintainer, I want automated tests in CI/CD so that pull requests are automatically validated\n- As a user, I want reliable software so that I don't encounter unexpected bugs\n\n## Acceptance Criteria\n- [ ] Tests cover all API endpoints (/v1/chat/completions, /v1/messages, /stats, /health)\n- [ ] Tests verify rate limiting enforcement with rolling window\n- [ ] Tests validate streaming responses for both OpenAI and Anthropic formats\n- [ ] Tests verify error handling for all error types\n- [ ] Tests check authentication and authorization\n- [ ] Tests validate API key expiry handling\n- [ ] Tests verify concurrent request handling\n- [ ] Tests can be run in CI/CD pipeline\n- [ ] Test coverage report available\n- [ ] Tests complete in under 60 seconds\n",
+  "created_at": "2026-01-22T03:27:43.251Z",
+  "updated_at": "2026-01-22T03:31:52.516Z",
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "phases": [
+    {
+      "phase_id": 1,
+      "phase_name": "Foundation & Infrastructure",
+      "phase_description": "Set up the testing infrastructure, utilities, and fixtures needed for integration tests",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtask_id": "1.1",
+          "title": "Create test utilities and helper functions",
+          "description": "Build reusable test utilities including test server setup/teardown, API key fixtures, request builders, and response validators",
+          "status": "completed",
+          "file": "test/integration/helpers.ts",
+          "estimated_minutes": 20
+        },
+        {
+          "subtask_id": "1.2",
+          "title": "Set up test fixtures and data",
+          "description": "Create mock API keys with various configurations (expired, active, rate-limited) for testing different scenarios",
+          "status": "completed",
+          "file": "test/integration/fixtures.ts",
+          "estimated_minutes": 15
+        },
+        {
+          "subtask_id": "1.3",
+          "title": "Configure test environment setup",
+          "description": "Create test setup script that initializes temporary data directory, environment variables, and cleans up after tests",
+          "status": "completed",
+          "file": "test/integration/setup.ts",
+          "estimated_minutes": 15
+        }
+      ]
+    },
+    {
+      "phase_id": 2,
+      "phase_name": "API Endpoint Tests",
+      "phase_description": "Create integration tests for all API endpoints",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtask_id": "2.1",
+          "title": "Test /health endpoint",
+          "description": "Verify health endpoint returns correct status and format, handles CORS properly",
+          "status": "pending",
+          "file": "test/integration/health.test.ts",
+          "estimated_minutes": 10
+        },
+        {
+          "subtask_id": "2.2",
+          "title": "Test /stats endpoint",
+          "description": "Verify stats endpoint returns correct API key information, usage statistics, rate limit data, and expiry status",
+          "status": "pending",
+          "file": "test/integration/stats.test.ts",
+          "estimated_minutes": 20
+        },
+        {
+          "subtask_id": "2.3",
+          "title": "Test /v1/chat/completions (OpenAI format)",
+          "description": "Verify OpenAI-compatible chat completions endpoint with various request formats, model overrides, and response handling",
+          "status": "pending",
+          "file": "test/integration/openai-chat.test.ts",
+          "estimated_minutes": 30
+        },
+        {
+          "subtask_id": "2.4",
+          "title": "Test /v1/messages (Anthropic format)",
+          "description": "Verify Anthropic-compatible messages endpoint with proper request/response format conversion",
+          "status": "pending",
+          "file": "test/integration/anthropic-messages.test.ts",
+          "estimated_minutes": 30
+        },
+        {
+          "subtask_id": "2.5",
+          "title": "Test root endpoint documentation",
+          "description": "Verify root endpoint returns proper API documentation and endpoint listing",
+          "status": "pending",
+          "file": "test/integration/root.test.ts",
+          "estimated_minutes": 10
+        }
+      ]
+    },
+    {
+      "phase_id": 3,
+      "phase_name": "Authentication & Authorization Tests",
+      "phase_description": "Test authentication middleware and API key validation",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtask_id": "3.1",
+          "title": "Test valid API key authentication",
+          "description": "Verify requests with valid API keys are properly authenticated and processed",
+          "status": "pending",
+          "file": "test/integration/auth.test.ts",
+          "estimated_minutes": 15
+        },
+        {
+          "subtask_id": "3.2",
+          "title": "Test invalid API key rejection",
+          "description": "Verify requests with invalid, missing, or malformed API keys are rejected with proper error messages",
+          "status": "pending",
+          "file": "test/integration/auth.test.ts",
+          "estimated_minutes": 15
+        },
+        {
+          "subtask_id": "3.3",
+          "title": "Test API key expiry handling",
+          "description": "Verify expired API keys are rejected and upcoming expiry is properly handled",
+          "status": "pending",
+          "file": "test/integration/auth-expiry.test.ts",
+          "estimated_minutes": 20
+        },
+        {
+          "subtask_id": "3.4",
+          "title": "Test authentication via x-api-key header",
+          "description": "Verify authentication works with x-api-key header in addition to Authorization header",
+          "status": "pending",
+          "file": "test/integration/auth.test.ts",
+          "estimated_minutes": 10
+        }
+      ]
+    },
+    {
+      "phase_id": 4,
+      "phase_name": "Rate Limiting Tests",
+      "phase_description": "Test rate limiting behavior with rolling window implementation",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtask_id": "4.1",
+          "title": "Test rate limit enforcement",
+          "description": "Verify requests are blocked when token limit is exceeded within 5-hour window",
+          "status": "pending",
+          "file": "test/integration/ratelimit.test.ts",
+          "estimated_minutes": 25
+        },
+        {
+          "subtask_id": "4.2",
+          "title": "Test rolling window behavior",
+          "description": "Verify old usage windows are cleaned up and new windows are created correctly",
+          "status": "pending",
+          "file": "test/integration/ratelimit-rolling.test.ts",
+          "estimated_minutes": 25
+        },
+        {
+          "subtask_id": "4.3",
+          "title": "Test rate limit reset after window expires",
+          "description": "Verify token usage is properly reset when 5-hour window expires",
+          "status": "pending",
+          "file": "test/integration/ratelimit-rolling.test.ts",
+          "estimated_minutes": 20
+        },
+        {
+          "subtask_id": "4.4",
+          "title": "Test concurrent request rate limiting",
+          "description": "Verify rate limiting works correctly with multiple simultaneous requests",
+          "status": "pending",
+          "file": "test/integration/ratelimit-concurrent.test.ts",
+          "estimated_minutes": 20
+        }
+      ]
+    },
+    {
+      "phase_id": 5,
+      "phase_name": "Streaming Response Tests",
+      "phase_description": "Test streaming response handling for both OpenAI and Anthropic formats",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtask_id": "5.1",
+          "title": "Test OpenAI streaming responses",
+          "description": "Verify SSE streaming for OpenAI chat completions with proper chunk formatting and delta updates",
+          "status": "pending",
+          "file": "test/integration/streaming-openai.test.ts",
+          "estimated_minutes": 30
+        },
+        {
+          "subtask_id": "5.2",
+          "title": "Test Anthropic streaming responses",
+          "description": "Verify SSE streaming for Anthropic messages with proper event types and chunk handling",
+          "status": "pending",
+          "file": "test/integration/streaming-anthropic.test.ts",
+          "estimated_minutes": 30
+        },
+        {
+          "subtask_id": "5.3",
+          "title": "Test streaming error handling",
+          "description": "Verify errors during streaming are properly handled and reported to client",
+          "status": "pending",
+          "file": "test/integration/streaming-errors.test.ts",
+          "estimated_minutes": 20
+        },
+        {
+          "subtask_id": "5.4",
+          "title": "Test streaming with rate limiting",
+          "description": "Verify rate limiting is applied to streaming requests based on estimated token usage",
+          "status": "pending",
+          "file": "test/integration/streaming-ratelimit.test.ts",
+          "estimated_minutes": 20
+        }
+      ]
+    },
+    {
+      "phase_id": 6,
+      "phase_name": "Error Handling Tests",
+      "phase_description": "Test error scenarios and error response formats",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtask_id": "6.1",
+          "title": "Test upstream API error propagation",
+          "description": "Verify errors from upstream API are properly formatted and returned to client",
+          "status": "pending",
+          "file": "test/integration/errors-upstream.test.ts",
+          "estimated_minutes": 20
+        },
+        {
+          "subtask_id": "6.2",
+          "title": "Test malformed request handling",
+          "description": "Verify invalid JSON, missing required fields, and validation errors are properly reported",
+          "status": "pending",
+          "file": "test/integration/errors-validation.test.ts",
+          "estimated_minutes": 20
+        },
+        {
+          "subtask_id": "6.3",
+          "title": "Test timeout error handling",
+          "description": "Verify request timeouts are properly handled and reported",
+          "status": "pending",
+          "file": "test/integration/errors-timeout.test.ts",
+          "estimated_minutes": 15
+        },
+        {
+          "subtask_id": "6.4",
+          "title": "Test network error handling",
+          "description": "Verify network failures, connection errors, and DNS failures are properly handled",
+          "status": "pending",
+          "file": "test/integration/errors-network.test.ts",
+          "estimated_minutes": 15
+        }
+      ]
+    },
+    {
+      "phase_id": 7,
+      "phase_name": "Concurrency Tests",
+      "phase_description": "Test concurrent request handling and thread safety",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtask_id": "7.1",
+          "title": "Test concurrent API requests",
+          "description": "Verify multiple simultaneous requests are handled correctly without race conditions",
+          "status": "pending",
+          "file": "test/integration/concurrent-requests.test.ts",
+          "estimated_minutes": 25
+        },
+        {
+          "subtask_id": "7.2",
+          "title": "Test concurrent stats queries",
+          "description": "Verify multiple simultaneous /stats requests don't cause data corruption",
+          "status": "pending",
+          "file": "test/integration/concurrent-stats.test.ts",
+          "estimated_minutes": 20
+        },
+        {
+          "subtask_id": "7.3",
+          "title": "Test concurrent rate limit updates",
+          "description": "Verify simultaneous token usage updates are handled correctly with file locking",
+          "status": "pending",
+          "file": "test/integration/concurrent-ratelimit.test.ts",
+          "estimated_minutes": 25
+        },
+        {
+          "subtask_id": "7.4",
+          "title": "Test stress handling",
+          "description": "Verify system remains stable under high concurrent load (50+ simultaneous requests)",
+          "status": "pending",
+          "file": "test/integration/stress.test.ts",
+          "estimated_minutes": 25
+        }
+      ]
+    },
+    {
+      "phase_id": 8,
+      "phase_name": "CI/CD Integration & Coverage",
+      "phase_description": "Configure tests for CI/CD pipeline and ensure coverage requirements",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtask_id": "8.1",
+          "title": "Configure test coverage reporting",
+          "description": "Set up vitest coverage with v8 to generate coverage reports for integration tests",
+          "status": "pending",
+          "file": "vitest.config.ts",
+          "estimated_minutes": 15
+        },
+        {
+          "subtask_id": "8.2",
+          "title": "Create CI/CD test configuration",
+          "description": "Create GitHub Actions workflow or similar CI configuration to run integration tests",
+          "status": "pending",
+          "file": ".github/workflows/integration-tests.yml",
+          "estimated_minutes": 20
+        },
+        {
+          "subtask_id": "8.3",
+          "title": "Optimize test performance",
+          "description": "Ensure all integration tests complete in under 60 seconds through parallelization and optimizations",
+          "status": "pending",
+          "file": "test/integration/**/*.test.ts",
+          "estimated_minutes": 30
+        },
+        {
+          "subtask_id": "8.4",
+          "title": "Document test execution",
+          "description": "Create README for integration tests explaining how to run them, requirements, and CI/CD integration",
+          "status": "pending",
+          "file": "test/integration/README.md",
+          "estimated_minutes": 15
+        }
+      ]
+    }
+  ],
+  "total_estimated_minutes": 595,
+  "acceptance_criteria": [
+    "Tests cover all API endpoints (/v1/chat/completions, /v1/messages, /stats, /health)",
+    "Tests verify rate limiting enforcement with rolling window",
+    "Tests validate streaming responses for both OpenAI and Anthropic formats",
+    "Tests verify error handling for all error types",
+    "Tests check authentication and authorization",
+    "Tests validate API key expiry handling",
+    "Tests verify concurrent request handling",
+    "Tests can be run in CI/CD pipeline",
+    "Test coverage report available",
+    "Tests complete in under 60 seconds"
+  ],
+  "notes": [
+    "Integration tests should use actual HTTP requests to a test server instance",
+    "Use a separate test data directory to avoid affecting production data",
+    "Mock upstream API responses to avoid external dependencies",
+    "Ensure tests are deterministic and can be run in any order",
+    "Use proper cleanup to avoid test pollution"
+  ]
+}
