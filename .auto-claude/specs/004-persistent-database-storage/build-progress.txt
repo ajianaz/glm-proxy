@@ -14,9 +14,9 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ Define schema matching ApiKey interface (COMPLETED: 1.3)
 - ✅ Create connection module (COMPLETED: 1.4)
 
-### Phase 2: Database Operations [PENDING]
-- CRUD operations
-- Usage tracking with transactions
+### Phase 2: Database Operations [IN PROGRESS]
+- ✅ CRUD operations (COMPLETED: 2.1)
+- ✅ Usage tracking with transactions (COMPLETED: 2.2)
 - Statistics queries
 - Helper functions
 
@@ -113,3 +113,27 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
   - Full TypeScript type safety with DatabaseConnection and DatabaseType interfaces
   - Created src/db/connection.test.ts with 4 passing tests
   - TypeScript compilation successful, ESLint validation passed
+- **2.1** Implement API key CRUD operations
+  - Created CRUD operations for API keys using Drizzle ORM
+  - findApiKey: Find API key by key string with usage windows (joins api_keys and usage_windows tables)
+  - createApiKey: Create new API key with validation (required fields, positive token limit, no duplicates)
+  - updateApiKey: Update API key metadata (name, model, token limit, expiry date) with validation
+  - deleteApiKey: Delete API key with cascade delete to usage_windows via foreign key constraint
+  - All operations support both SQLite and PostgreSQL databases using the getDb() connection pattern
+  - Comprehensive error handling with meaningful error messages
+  - Full test coverage with 10 passing tests covering successful CRUD operations, validation, and edge cases
+  - Database migration generated and schema applied successfully
+  - TypeScript compilation verified, ESLint validation passed
+- **2.2** Implement usage tracking with transactions
+  - Created updateApiKeyUsage function with transaction-based operations
+  - Transaction-based update of last_used and total_lifetime_tokens using Drizzle ORM db.transaction()
+  - 5-hour rolling window logic for usage tracking
+  - Automatic cleanup of old usage windows (older than 5 hours)
+  - Atomic operations to prevent race conditions
+  - Support for both SQLite and PostgreSQL
+  - Validation for non-negative token values
+  - Comprehensive error handling with meaningful error messages
+  - Created 7 comprehensive test cases covering basic usage tracking, token accumulation, validation, and error scenarios
+  - All 17 total tests passing (10 existing + 7 new)
+  - TypeScript compilation verified, ESLint validation passed
+  - Full JSDoc documentation with usage examples
