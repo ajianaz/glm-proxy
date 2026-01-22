@@ -19,7 +19,7 @@
 
 **Phase 2: Connection Pool & Network Optimization** (3 subtasks)
 - ✅ HTTP/2 connection pool implementation (COMPLETED - 2025-01-22)
-- ⏳ Integrate connection pool into proxy
+- ✅ Integrate connection pool into proxy (COMPLETED - 2025-01-22)
 - ⏳ Request pipelining support
 
 **Phase 3: JSON & Serialization Optimization** (3 subtasks)
@@ -132,6 +132,23 @@
   - POOL_WARM (default: false)
 - All acceptance criteria met ✅
 
+**Subtask 2.2: Integrate Connection Pool into Proxy** ✅ COMPLETED
+- Updated src/proxy.ts to use connection pool for Z.AI API requests
+- Updated src/anthropic.ts to use connection pool for Anthropic API requests
+- Implemented graceful fallback to regular fetch() when pool fails or is exhausted
+- Made pool configuration runtime-checkable via DISABLE_CONNECTION_POOL env var
+- Fixed environment variable reading to be runtime instead of module-load time
+- Added comprehensive unit tests:
+  - Pool usage for both proxy and anthropic endpoints
+  - Fallback behavior when pool fails
+  - Pool disable functionality via DISABLE_CONNECTION_POOL
+  - Model injection verification
+  - Streaming response handling
+  - Header forwarding verification
+- All 19 tests passing (7 proxy tests + 12 anthropic tests)
+- Zero breaking changes to existing API
+- All acceptance criteria met ✅
+
 **Key Features:**
 - Zero overhead when disabled (compile-time check)
 - Automatic request ID generation and tracking
@@ -147,9 +164,9 @@
 - Identified primary bottlenecks: no connection pooling, no HTTP/2, JSON overhead
 
 ### Next Steps
-1. Subtask 2.2: Integrate connection pool into proxy (src/proxy.ts, src/anthropic.ts)
-2. Replace fetch() calls with pooled connections
-3. Benchmark latency improvement with connection pooling (expected: 30-50ms reduction)
+1. Subtask 2.3: Implement request pipelining support (src/pool/PipeliningManager.ts)
+2. Benchmark latency improvement with connection pooling (expected: 30-50ms reduction)
+3. Continue with Phase 3: JSON & Serialization Optimization
 
 ### Configuration Targets
 - Target latency overhead: < 10ms
