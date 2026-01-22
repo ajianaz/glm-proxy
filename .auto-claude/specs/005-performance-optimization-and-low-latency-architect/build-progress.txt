@@ -6,16 +6,16 @@
 - Date: 2025-01-22
 - Phases: 9
 - Total Subtasks: 27
-- Completed: 2
+- Completed: 3
 - In Progress: 0
-- Pending: 25
+- Pending: 24
 
 ### Plan Overview
 
 **Phase 1: Baseline Measurement & Profiling** (3 subtasks)
 - ✅ Create benchmark suite (COMPLETED - 2025-01-22)
 - ✅ Measure baseline performance (COMPLETED - 2025-01-22)
-- ⏳ Add profiling instrumentation
+- ✅ Add profiling instrumentation (COMPLETED - 2025-01-22)
 
 **Phase 2: Connection Pool & Network Optimization** (3 subtasks)
 - ⏳ HTTP/2 connection pool implementation
@@ -79,6 +79,34 @@
 - Created detailed baseline report with optimization roadmap
 - Added mock upstream server for testing
 - Updated proxy.ts to support ZAI_API_BASE environment variable
+
+**Subtask 1.3: Profiling Instrumentation** ✅ COMPLETED
+- Created Profiler class with low-overhead (<1ms) performance tracking
+- Implemented profiling middleware for request lifecycle tracking
+- Added performance markers throughout the codebase:
+  - Request lifecycle (request_start, request_complete, request_error)
+  - Authentication (auth_start, auth_success, auth_failed)
+  - Rate limiting (rate_limit_start, rate_limit_success, rate_limit_exceeded)
+  - Proxy operations (proxy_start, body_extraction, upstream_request, response_build)
+- Added metadata collection (method, path, status, tokens, API key, etc.)
+- Implemented configurable profiling via PROFILING_ENABLED environment variable
+- Created profiling data export endpoints:
+  - GET /profiling - Summary statistics and slowest requests
+  - GET /profiling/:requestId - Individual request details
+  - DELETE /profiling - Clear profiling data
+- Added global profiling data store with configurable max entries (default: 1000)
+- Implemented statistics aggregation (p50, p95, p99 latencies, averages)
+- Integrated profiling into existing middleware chain (auth, rate limit, proxy handlers)
+- Created comprehensive test suite (8 tests, all passing)
+- Designed thread-safe for concurrent request handling
+
+**Key Features:**
+- Zero overhead when disabled (compile-time check)
+- Automatic request ID generation and tracking
+- FIFO data store with automatic cleanup
+- Per-request profiler instances for thread safety
+- Helper functions for marking operations (markOperation, endOperation, withProfiling)
+- Export endpoints for real-time performance monitoring
 
 **Key Findings:**
 - High latency overhead (6.7x over target) - critical bottleneck
