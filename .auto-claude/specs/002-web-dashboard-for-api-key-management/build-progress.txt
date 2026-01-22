@@ -215,6 +215,53 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - Follows existing code patterns from PUT and POST endpoints
   - Returns 204 No Content (standard for successful DELETE operations)
   - Broadcasts deletion to WebSocket clients for real-time UI updates
+- ✅ [2026-01-22] Subtask 2.7 - Implement WebSocket for real-time updates
+  - Created comprehensive src/websocket-manager.ts module (237 lines)
+  - Centralized WebSocket client management with Set-based tracking
+  - Implemented typed event system with TypeScript interfaces:
+    - WebSocketEvent base interface with type and timestamp
+    - KeyEventData for key CRUD events
+    - UsageUpdateData for usage tracking events
+  - Created broadcast functions for all event types:
+    - broadcastKeyCreated(): Broadcasts API key creation
+    - broadcastKeyUpdated(): Broadcasts API key updates
+    - broadcastKeyDeleted(): Broadcasts API key deletions
+    - broadcastUsageUpdated(): Broadcasts usage updates
+  - Added utility functions:
+    - getConnectedClientCount(): Get active client count
+    - addClient/removeClient(): Manage client connections
+    - sendConnectionConfirmation(): Send welcome message to new clients
+    - sendError(): Send error messages to clients
+    - handleClientMessage(): Process incoming client messages
+  - Implemented automatic cleanup of dead clients in broadcast loop
+  - Error handling with try-catch blocks and console.error logging
+  - Updated index.ts to use websocket-manager module:
+    - Replaced inline WebSocket code with module imports
+    - Updated WebSocket handlers to use centralized functions
+    - Added client count logging for monitoring
+    - Removed old broadcast export (now handled by websocket-manager)
+  - Integrated usage broadcasting into src/storage.ts:
+    - Modified updateApiKeyUsage() to broadcast after usage tracking
+    - Calculates remaining quota and expiry status
+    - Broadcasts usage_updated event with complete usage data
+  - Created test-websocket-broadcast.ts (197 lines) with 8 test cases:
+    - ✓ Client tracking (add/remove/count)
+    - ✓ Key created broadcast
+    - ✓ Key updated broadcast
+    - ✓ Key deleted broadcast
+    - ✓ Usage updated broadcast
+    - ✓ Connection confirmation
+    - ✓ Multiple clients receive broadcasts
+    - ✓ Closed clients filtered from broadcasts
+  - Created test-websocket-integration.ts for end-to-end testing
+  - All tests passing with proper event structure and data
+  - TypeScript compilation successful with no errors
+  - No console.log debugging statements (only console.error for errors)
+  - Follows existing code patterns from api-key-manager and storage modules
+  - WebSocket now pushes real-time updates for:
+    - API key CRUD operations (create/update/delete)
+    - Usage tracking (when API requests are made through proxy)
+  - Dashboard clients will receive instant updates without polling
 
 ### Phase Breakdown
 

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { ApiKeysData, ApiKey } from './types.js';
+import { broadcastUsageUpdated } from './websocket-manager.js';
 
 const DATA_FILE = process.env.DATA_FILE || path.join(process.cwd(), 'data/apikeys.json');
 const LOCK_FILE = DATA_FILE + '.lock';
@@ -58,7 +59,7 @@ export async function findApiKey(key: string): Promise<ApiKey | null> {
 export async function updateApiKeyUsage(
   key: string,
   tokensUsed: number,
-  _model: string
+  model: string
 ): Promise<void> {
   await withLock(async () => {
     const data = await readApiKeys();
@@ -92,6 +93,26 @@ export async function updateApiKeyUsage(
     );
 
     await writeApiKeys(data);
+
+    // Calculate remaining quota and broadcast usage update
+    const windowEnd = new Date(new Date(currentWindow.window_start).getTime() + 5 * 60 * 60 * 1000).toISOString();
+    const remainingQuota = Math.max(0, apiKey.token_limit_per_5h - currentWindow.tokens_used);
+
+    // Check if key is expired
+    const isExpired = new Date(apiKey.expiry_date) < new Date();
+
+    // Broadcast usage update to connected dashboard clients
+    broadcastUsageUpdated({
+      key: apiKey.key,
+      name: apiKey.name,
+      model: apiKey.model || model,
+      tokens_used: tokensUsed,
+      total_lifetime_tokens: apiKey.total_lifetime_tokens,
+      remaining_quota: remainingQuota,
+      window_start: currentWindow.window_start,
+      window_end: windowEnd,
+      is_expired: isExpired,
+    });
   });
 }
 

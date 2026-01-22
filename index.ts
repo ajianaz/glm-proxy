@@ -1,22 +1,15 @@
 import { getAllApiKeys, createApiKey, updateApiKey, deleteApiKey, getApiKey, getRemainingQuota, isApiKeyExpired, ValidationError, NotFoundError, ApiKeyManagerError } from './src/api-key-manager.js';
 import type { StatsResponse } from './src/types.js';
-
-/**
- * WebSocket client tracking for real-time updates
- */
-const wsClients = new Set<WebSocket>();
-
-/**
- * Broadcast a message to all connected WebSocket clients
- */
-function broadcast(data: unknown) {
-  const message = JSON.stringify(data);
-  for (const client of wsClients) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(message);
-    }
-  }
-}
+import {
+  addClient,
+  removeClient,
+  broadcastKeyCreated,
+  broadcastKeyUpdated,
+  broadcastKeyDeleted,
+  sendConnectionConfirmation,
+  handleClientMessage,
+  getConnectedClientCount,
+} from './src/websocket-manager.js';
 
 /**
  * Handle HTTP requests
@@ -289,11 +282,7 @@ async function handleRequest(req: Request): Promise<Response> {
         const createdKey = await createApiKey(newApiKey);
 
         // Broadcast creation to WebSocket clients
-        broadcast({
-          type: 'key_created',
-          key: createdKey,
-          timestamp: now,
-        });
+        broadcastKeyCreated(createdKey);
 
         return new Response(JSON.stringify(createdKey), {
           status: 201,
@@ -428,11 +417,7 @@ async function handleRequest(req: Request): Promise<Response> {
         const updatedKey = await updateApiKey(keyId, body);
 
         // Broadcast update to WebSocket clients
-        broadcast({
-          type: 'key_updated',
-          key: updatedKey,
-          timestamp: new Date().toISOString(),
-        });
+        broadcastKeyUpdated(updatedKey);
 
         return new Response(JSON.stringify(updatedKey), {
           status: 200,
@@ -512,11 +497,7 @@ async function handleRequest(req: Request): Promise<Response> {
         await deleteApiKey(keyId);
 
         // Broadcast deletion to WebSocket clients
-        broadcast({
-          type: 'key_deleted',
-          key: keyToDelete,
-          timestamp: new Date().toISOString(),
-        });
+        broadcastKeyDeleted(keyToDelete);
 
         return new Response(null, {
           status: 204, // 204 No Content is standard for successful DELETE
@@ -672,41 +653,23 @@ const server = Bun.serve({
   // WebSocket support for real-time updates
   websocket: {
     open: (ws) => {
-      console.log('WebSocket client connected');
-      wsClients.add(ws);
+      const clientCount = getConnectedClientCount();
+      console.log(`WebSocket client connected (total clients: ${clientCount + 1})`);
+      addClient(ws);
 
       // Send initial connection confirmation
-      ws.send(
-        JSON.stringify({
-          type: 'connected',
-          message: 'Connected to dashboard real-time updates',
-          timestamp: new Date().toISOString(),
-        })
-      );
+      sendConnectionConfirmation(ws);
     },
 
     message: (ws, message) => {
       // Handle incoming messages from clients
-      try {
-        const data = JSON.parse(message.toString());
-        console.log('WebSocket message received:', data);
-
-        // Echo back for now - will be enhanced in later subtasks
-        ws.send(
-          JSON.stringify({
-            type: 'echo',
-            data,
-            timestamp: new Date().toISOString(),
-          })
-        );
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
+      handleClientMessage(ws, message);
     },
 
     close: (ws) => {
-      console.log('WebSocket client disconnected');
-      wsClients.delete(ws);
+      const clientCount = getConnectedClientCount();
+      console.log(`WebSocket client disconnected (total clients: ${clientCount - 1})`);
+      removeClient(ws);
     },
   },
 });
@@ -714,6 +677,3 @@ const server = Bun.serve({
 console.log('Dashboard server starting...');
 console.log(`Dashboard will be available at http://localhost:${process.env.DASHBOARD_PORT || '3001'}`);
 console.log(`WebSocket endpoint: ws://localhost:${process.env.DASHBOARD_PORT || '3001'}/ws`);
-
-// Export broadcast function for use in other modules
-export { broadcast };
