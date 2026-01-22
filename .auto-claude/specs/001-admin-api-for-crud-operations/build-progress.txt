@@ -388,3 +388,52 @@ Ready to begin implementation starting with Phase 1: Project Setup & Environment
 - TypeScript compilation successful with no errors
 - Code follows existing patterns and conventions
 
+- ✅ **api-2: Create GET /admin/api/keys endpoint**
+  - Implemented GET /admin/api/keys endpoint in src/routes/admin/keys.ts
+  - Query parameter validation using Zod schema with fields: page, limit, is_active, search
+  - Admin authentication middleware integration (supports both API key and JWT token)
+  - Pagination support:
+    - page parameter (default: 1, minimum: 1)
+    - limit parameter (default: 10, minimum: 1, maximum: 100)
+    - Returns total count and total pages in response
+  - Filtering support:
+    - is_active: Filter by active status (true/false)
+    - search: Search by name (partial, case-insensitive match)
+    - Filters can be combined with pagination
+  - Response format:
+    - 200 OK with ApiKeyListResponse structure
+    - data: Array of API key objects
+    - page: Current page number
+    - limit: Items per page
+    - total: Total number of items
+    - pages: Total number of pages
+  - Items ordered by created_at DESC (newest first)
+  - Proper error handling:
+    - 400 Bad Request for invalid query parameters
+    - 401 Unauthorized for missing/invalid credentials
+    - 500 Internal Server Error for unexpected errors
+  - Safe response format (never returns key, key_hash, or key_preview in list)
+  - Integration with ApiKeyModel.list() method for database operations
+  - Updated root endpoint documentation in src/index.ts
+  - Created comprehensive integration test suite (34 new tests):
+    - Authentication tests (API key and token)
+    - Pagination tests (default, custom, edge cases, empty pages)
+    - Query parameter validation tests (all parameters)
+    - Filtering tests (is_active, search, combined with pagination)
+    - Response format tests (structure, ordering, empty database)
+    - Edge case tests (special chars, unicode, whitespace, large numbers)
+  - All tests passing (154 admin-related tests total)
+  - TypeScript compilation successful with no errors
+  - Updated api-2 subtask status to completed
+
+### Implementation Notes
+- Query parameter validation uses Zod's transform and refine for type coercion and validation
+- is_active validation correctly handles string-to-boolean conversion with proper error messages
+- Pagination correctly handles edge cases (page beyond total, empty database)
+- Search trims whitespace and performs case-insensitive partial matching
+- Ordering by created_at DESC verified with 1.1 second delays in tests
+- All error responses follow consistent format with field-level details
+- No console.log statements (only console.error for unexpected errors)
+- Code follows existing patterns from POST endpoint
+- Comprehensive test coverage includes all edge cases and error scenarios
+
