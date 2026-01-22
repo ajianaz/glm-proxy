@@ -1,0 +1,149 @@
+/**
+ * Admin API Routes - API Key Management
+ *
+ * Provides CRUD endpoints for programmatic API key management.
+ * All endpoints require admin authentication via API key or JWT token.
+ */
+
+import { Hono } from 'hono';
+import { z } from 'zod';
+import { adminAuthMiddleware, type AdminAuthContext } from '../../middleware/adminAuth.js';
+import { ApiKeyModel, ApiKeyValidationError, ApiKeyDuplicateError } from '../../models/apiKey.js';
+import type { ApiKeyResponse, CreateApiKeyData } from '../../models/schema.js';
+
+// Create Hono app with admin auth context
+const app = new Hono<{ Variables: AdminAuthContext }>();
+
+/**
+ * Request validation schema for creating API keys
+ */
+const createApiKeySchema = z.object({
+  key: z.string()
+    .min(16, 'API key must be at least 16 characters long')
+    .max(256, 'API key must not exceed 256 characters')
+    .regex(/^[a-zA-Z0-9\-_\.]+$/, 'API key can only contain alphanumeric characters, hyphens, underscores, and dots'),
+
+  name: z.string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(255, 'Name must not exceed 255 characters'),
+
+  description: z.string()
+    .max(1000, 'Description must not exceed 1000 characters')
+    .nullable()
+    .optional(),
+
+  scopes: z.array(z.string()).optional(),
+
+  rate_limit: z.number()
+    .int('Rate limit must be an integer')
+    .min(0, 'Rate limit must be at least 0')
+    .max(10000, 'Rate limit must not exceed 10000')
+    .optional(),
+});
+
+/**
+ * Type for create API key request body
+ */
+type CreateApiKeyRequest = z.infer<typeof createApiKeySchema>;
+
+/**
+ * Format validation errors for API response
+ */
+function formatValidationErrors(error: z.ZodError): { field: string; message: string }[] {
+  return error.issues.map((issue) => ({
+    field: issue.path.join('.'),
+    message: issue.message,
+  }));
+}
+
+/**
+ * POST /admin/api/keys
+ *
+ * Create a new API key with validation.
+ *
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/admin/api/keys \
+ *   -H "Authorization: Bearer <admin-api-key>" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "key": "sk-test-1234567890abcdefghijklmnop",
+ *     "name": "Test Key",
+ *     "description": "A test API key",
+ *     "scopes": ["read", "write"],
+ *     "rate_limit": 100
+ *   }'
+ * ```
+ */
+app.post('/', adminAuthMiddleware, async (c) => {
+  try {
+    // Parse and validate request body
+    let rawBody;
+    try {
+      rawBody = await c.req.json();
+    } catch (parseError) {
+      return c.json(
+        {
+          error: 'Invalid JSON',
+          details: [{ field: 'body', message: 'Request body contains invalid JSON' }],
+        },
+        400
+      );
+    }
+
+    const validationResult = createApiKeySchema.safeParse(rawBody);
+
+    if (!validationResult.success) {
+      const errors = formatValidationErrors(validationResult.error);
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: errors,
+        },
+        400
+      );
+    }
+
+    const data: CreateApiKeyData = validationResult.data;
+
+    // Create API key using model
+    const result = ApiKeyModel.create(data);
+
+    // Return 201 Created with the created key (includes key_preview)
+    return c.json(result, 201);
+  } catch (error) {
+    // Handle specific error types
+    if (error instanceof ApiKeyValidationError) {
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: [{ field: 'general', message: error.message }],
+        },
+        400
+      );
+    }
+
+    if (error instanceof ApiKeyDuplicateError) {
+      return c.json(
+        {
+          error: 'Duplicate API key',
+          details: [{ field: 'key', message: 'An API key with this hash already exists' }],
+        },
+        409
+      );
+    }
+
+    // Handle unexpected errors
+    console.error('Unexpected error creating API key:', error);
+    return c.json(
+      {
+        error: 'Internal server error',
+        details: 'An unexpected error occurred while creating the API key',
+      },
+      500
+    );
+  }
+});
+
+export default app;

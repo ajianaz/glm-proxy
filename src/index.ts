@@ -7,6 +7,7 @@ import { checkRateLimit } from './ratelimit.js';
 import { authMiddleware, getApiKeyFromContext, type AuthContext } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { createProxyHandler } from './handlers/proxyHandler.js';
+import { keysRoutes } from './routes/admin/index.js';
 import type { StatsResponse } from './types.js';
 
 type Bindings = {
@@ -59,6 +60,9 @@ app.get('/stats', authMiddleware, async (c) => {
 const openaiProxyHandler = createProxyHandler(proxyRequest);
 const anthropicProxyHandler = createProxyHandler(proxyAnthropicRequest);
 
+// Admin API - API Key Management
+app.route('/admin/api/keys', keysRoutes);
+
 // Anthropic Messages API - must be defined before /v1/* catch-all
 app.post('/v1/messages', authMiddleware, rateLimitMiddleware, anthropicProxyHandler);
 
@@ -78,6 +82,7 @@ app.get('/', (c) => {
     endpoints: {
       health: 'GET /health',
       stats: 'GET /stats',
+      admin_api: 'POST /admin/api/keys',
       openai_compatible: 'ALL /v1/* (except /v1/messages)',
       anthropic_compatible: 'POST /v1/messages',
     },

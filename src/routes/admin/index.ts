@@ -1,3 +1,4 @@
 // Admin API route module exports
-// This module will contain all admin API endpoints
-export {};
+// This module contains all admin API endpoints
+
+export { default as keysRoutes } from './keys.js';
