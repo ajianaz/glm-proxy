@@ -2091,3 +2091,412 @@ describe('PUT /admin/api/keys/:id', () => {
     });
   });
 });
+
+describe('DELETE /admin/api/keys/:id', () => {
+  beforeEach(async () => {
+    // Reset config and caches
+    resetConfig();
+    resetAdminKeyCache();
+
+    // Set up environment for testing
+    process.env.ADMIN_API_KEY = ADMIN_API_KEY;
+    process.env.ADMIN_API_ENABLED = 'true';
+    process.env.ZAI_API_KEY = 'test-zai-key';
+    process.env.DATABASE_PATH = ':memory:';
+
+    // Close and reset database for clean state
+    closeDatabase();
+    resetDatabase();
+  });
+
+  /**
+   * Helper function to make authenticated requests to the DELETE endpoint
+   */
+  async function makeDeleteRequest(id: string, authToken?: string) {
+    const headers: Record<string, string> = {};
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const url = `http://localhost/${id}`;
+    const request = new Request(new URL(url), {
+      method: 'DELETE',
+      headers,
+    });
+
+    return keysRoutes.fetch(request);
+  }
+
+  /**
+   * Helper function to create test API keys
+   */
+  async function createTestKey(data: Partial<{
+    key: string;
+    name: string;
+    description: string | null;
+    scopes: string[];
+    rate_limit: number;
+    is_active: boolean;
+  }> = {}) {
+    const key = data.key || `sk-test-${Math.random().toString(36).substring(2, 15)}-${Math.random().toString(36).substring(2, 15)}`;
+    return ApiKeyModel.create({
+      key,
+      name: data.name || 'Test Key',
+      description: data.description ?? null,
+      scopes: data.scopes ?? [],
+      rate_limit: data.rate_limit ?? 60,
+    });
+  }
+
+  describe('Authentication', () => {
+    it('should delete API key with valid admin API key', async () => {
+      const createdKey = await createTestKey({ name: 'Key to Delete' });
+
+      const response = await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+      expect(response.headers.get('Content-Type')).toBeNull(); // No content type for 204
+
+      // Verify key is actually deleted
+      const retrieved = ApiKeyModel.findById(createdKey.id);
+      expect(retrieved).toBeNull();
+    });
+
+    it('should delete API key with valid admin token', async () => {
+      const token = await generateAdminToken();
+      const createdKey = await createTestKey({ name: 'Token Delete Key' });
+
+      const response = await makeDeleteRequest(String(createdKey.id), token);
+
+      expect(response.status).toBe(204);
+
+      // Verify key is actually deleted
+      const retrieved = ApiKeyModel.findById(createdKey.id);
+      expect(retrieved).toBeNull();
+    });
+
+    it('should return 401 when admin API key is missing', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makeDeleteRequest(String(createdKey.id));
+
+      expect(response.status).toBe(401);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error');
+
+      // Verify key is NOT deleted
+      const retrieved = ApiKeyModel.findById(createdKey.id);
+      expect(retrieved).not.toBeNull();
+    });
+
+    it('should return 401 when admin API key is invalid', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makeDeleteRequest(String(createdKey.id), 'invalid-admin-key');
+
+      expect(response.status).toBe(401);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error');
+
+      // Verify key is NOT deleted
+      const retrieved = ApiKeyModel.findById(createdKey.id);
+      expect(retrieved).not.toBeNull();
+    });
+  });
+
+  describe('ID Parameter Validation', () => {
+    it('should return 400 when ID is not a number', async () => {
+      const response = await makeDeleteRequest('abc', ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data).toHaveProperty('details');
+      expect(data.details).toBeInstanceOf(Array);
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should return 400 when ID contains special characters', async () => {
+      const response = await makeDeleteRequest('1abc', ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should return 400 when ID is negative', async () => {
+      const response = await makeDeleteRequest('-1', ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should return 400 when ID is zero', async () => {
+      const response = await makeDeleteRequest('0', ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should accept valid positive integer ID', async () => {
+      const createdKey = await createTestKey({ name: 'Valid Delete ID' });
+
+      const response = await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+    });
+
+    it('should handle ID with leading zeros', async () => {
+      const createdKey = await createTestKey({ name: 'Leading Zero Delete' });
+
+      // Create a request with leading zeros (should be treated as the same number)
+      const response = await makeDeleteRequest(`0${createdKey.id}`, ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+
+      // Verify key is actually deleted
+      const retrieved = ApiKeyModel.findById(createdKey.id);
+      expect(retrieved).toBeNull();
+    });
+  });
+
+  describe('Successful Deletion', () => {
+    it('should return 204 No Content on successful deletion', async () => {
+      const createdKey = await createTestKey({ name: 'Delete Test Key' });
+
+      const response = await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+      expect(response.headers.get('Content-Type')).toBeNull(); // No content type for 204
+    });
+
+    it('should actually delete the key from database', async () => {
+      const createdKey = await createTestKey({ name: 'Database Delete Test' });
+
+      // Verify key exists before deletion
+      const beforeDelete = ApiKeyModel.findById(createdKey.id);
+      expect(beforeDelete).not.toBeNull();
+      expect(beforeDelete?.id).toBe(createdKey.id);
+
+      // Delete the key
+      await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      // Verify key is gone after deletion
+      const afterDelete = ApiKeyModel.findById(createdKey.id);
+      expect(afterDelete).toBeNull();
+    });
+
+    it('should delete key with all property types', async () => {
+      const createdKey = await createTestKey({
+        name: 'Complex Key',
+        description: 'Key with all fields populated',
+        scopes: ['read', 'write', 'admin'],
+        rate_limit: 500,
+        is_active: true,
+      });
+
+      const response = await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+
+      // Verify key is actually deleted
+      const retrieved = ApiKeyModel.findById(createdKey.id);
+      expect(retrieved).toBeNull();
+    });
+
+    it('should delete inactive keys', async () => {
+      const createdKey = await createTestKey({ name: 'Inactive Key' });
+      ApiKeyModel.update(createdKey.id, { is_active: false });
+
+      const response = await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+
+      // Verify key is actually deleted
+      const retrieved = ApiKeyModel.findById(createdKey.id);
+      expect(retrieved).toBeNull();
+    });
+  });
+
+  describe('Not Found Scenarios', () => {
+    it('should return 404 when API key does not exist', async () => {
+      const response = await makeDeleteRequest('99999', ADMIN_API_KEY);
+
+      expect(response.status).toBe(404);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Not found');
+      expect(data).toHaveProperty('details');
+      expect(data.details).toContain('API key with id 99999 not found');
+    });
+
+    it('should return 404 for non-existent ID with valid format', async () => {
+      // Create a key, then try to delete a different ID
+      await createTestKey({ name: 'Existing Key' });
+
+      const response = await makeDeleteRequest('99999', ADMIN_API_KEY);
+
+      expect(response.status).toBe(404);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Not found');
+    });
+
+    it('should return 404 for very large non-existent ID', async () => {
+      const response = await makeDeleteRequest('999999999', ADMIN_API_KEY);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 when trying to delete already deleted key', async () => {
+      const createdKey = await createTestKey({ name: 'Double Delete Test' });
+
+      // First deletion
+      const response1 = await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+      expect(response1.status).toBe(204);
+
+      // Second deletion (should return 404)
+      const response2 = await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+      expect(response2.status).toBe(404);
+
+      const data = await response2.json();
+      expect(data).toHaveProperty('error', 'Not found');
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle deleting the only key in database', async () => {
+      const createdKey = await createTestKey({ name: 'Only Key' });
+
+      // Verify it's the only key
+      const allKeys = ApiKeyModel.list({});
+      expect(allKeys.total).toBe(1);
+
+      const response = await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+
+      // Verify database is now empty
+      const afterDelete = ApiKeyModel.list({});
+      expect(afterDelete.total).toBe(0);
+    });
+
+    it('should handle deleting one of many keys', async () => {
+      // Create multiple keys
+      const key1 = await createTestKey({ name: 'Key 1' });
+      const key2 = await createTestKey({ name: 'Key 2' });
+      const key3 = await createTestKey({ name: 'Key 3' });
+
+      // Delete middle key
+      const response = await makeDeleteRequest(String(key2.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+
+      // Verify other keys still exist
+      const remaining1 = ApiKeyModel.findById(key1.id);
+      const remaining3 = ApiKeyModel.findById(key3.id);
+      expect(remaining1).not.toBeNull();
+      expect(remaining3).not.toBeNull();
+
+      // Verify deleted key is gone
+      const deleted = ApiKeyModel.findById(key2.id);
+      expect(deleted).toBeNull();
+    });
+
+    it('should handle consecutive deletions', async () => {
+      const key1 = await createTestKey({ name: 'First Delete' });
+      const key2 = await createTestKey({ name: 'Second Delete' });
+      const key3 = await createTestKey({ name: 'Third Delete' });
+
+      // Delete keys one by one
+      const response1 = await makeDeleteRequest(String(key1.id), ADMIN_API_KEY);
+      expect(response1.status).toBe(204);
+
+      const response2 = await makeDeleteRequest(String(key2.id), ADMIN_API_KEY);
+      expect(response2.status).toBe(204);
+
+      const response3 = await makeDeleteRequest(String(key3.id), ADMIN_API_KEY);
+      expect(response3.status).toBe(204);
+
+      // Verify all keys are deleted
+      expect(ApiKeyModel.list({}).total).toBe(0);
+    });
+
+    it('should handle deletion of key with maximum ID', async () => {
+      // Create a key, get its ID, then create another to ensure we have a valid max
+      const keys = [
+        await createTestKey({ name: 'Key 1' }),
+        await createTestKey({ name: 'Key 2' }),
+        await createTestKey({ name: 'Key 3' }),
+      ];
+
+      const maxId = Math.max(...keys.map(k => k.id));
+
+      const response = await makeDeleteRequest(String(maxId), ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+
+      // Verify the specific key is deleted
+      const retrieved = ApiKeyModel.findById(maxId);
+      expect(retrieved).toBeNull();
+    });
+
+    it('should handle special characters in key name during deletion', async () => {
+      const createdKey = await createTestKey({
+        name: 'Key with special chars: !@#$%^&*()',
+      });
+
+      const response = await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+
+      // Verify key is actually deleted
+      const retrieved = ApiKeyModel.findById(createdKey.id);
+      expect(retrieved).toBeNull();
+    });
+
+    it('should handle unicode characters in key properties during deletion', async () => {
+      const createdKey = await createTestKey({
+        name: 'Key with emoji 🚀 and chinese 中文',
+        description: 'Description with unicode café',
+      });
+
+      const response = await makeDeleteRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(204);
+
+      // Verify key is actually deleted
+      const retrieved = ApiKeyModel.findById(createdKey.id);
+      expect(retrieved).toBeNull();
+    });
+
+    it('should verify deletion affects list endpoint', async () => {
+      const key1 = await createTestKey({ name: 'List Test Key 1' });
+      const key2 = await createTestKey({ name: 'List Test Key 2' });
+
+      // Verify both keys are in list
+      const beforeList = ApiKeyModel.list({});
+      expect(beforeList.total).toBe(2);
+
+      // Delete one key
+      await makeDeleteRequest(String(key1.id), ADMIN_API_KEY);
+
+      // Verify list updated
+      const afterList = ApiKeyModel.list({});
+      expect(afterList.total).toBe(1);
+      expect(afterList.data[0].id).toBe(key2.id);
+    });
+  });
+});

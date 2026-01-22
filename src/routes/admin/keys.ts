@@ -445,4 +445,68 @@ app.put('/:id', adminAuthMiddleware, async (c) => {
   }
 });
 
+/**
+ * DELETE /admin/api/keys/:id
+ *
+ * Delete an API key by ID.
+ *
+ * @example
+ * ```bash
+ * curl -X DELETE "http://localhost:3000/admin/api/keys/1" \
+ *   -H "Authorization: Bearer <admin-api-key>"
+ * ```
+ */
+app.delete('/:id', adminAuthMiddleware, async (c) => {
+  try {
+    // Extract and validate ID parameter
+    const idParam = c.req.param('id');
+
+    const idValidation = z.object({
+      id: z.string()
+        .regex(/^\d+$/, 'ID must be a positive integer')
+        .transform((val) => parseInt(val, 10))
+        .refine((val) => val > 0, 'ID must be greater than 0'),
+    }).safeParse({ id: idParam });
+
+    if (!idValidation.success) {
+      const errors = formatValidationErrors(idValidation.error);
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: errors,
+        },
+        400
+      );
+    }
+
+    const id = idValidation.data.id;
+
+    // Delete API key using model
+    const deleted = ApiKeyModel.delete(id);
+
+    if (!deleted) {
+      return c.json(
+        {
+          error: 'Not found',
+          details: `API key with id ${id} not found`,
+        },
+        404
+      );
+    }
+
+    // Return 204 No Content on successful deletion
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    // Handle unexpected errors
+    console.error('Unexpected error deleting API key:', error);
+    return c.json(
+      {
+        error: 'Internal server error',
+        details: 'An unexpected error occurred while deleting the API key',
+      },
+      500
+    );
+  }
+});
+
 export default app;
