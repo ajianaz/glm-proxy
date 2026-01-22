@@ -263,13 +263,7 @@ app.get('/:id', adminAuthMiddleware, async (c) => {
     const result = ApiKeyModel.findById(id);
 
     if (!result) {
-      return c.json(
-        {
-          error: 'Not found',
-          details: `API key with id ${id} not found`,
-        },
-        404
-      );
+      return notFoundError(c, 'API key', `id ${id}`);
     }
 
     // Return 200 OK with the API key details
@@ -348,13 +342,7 @@ app.put('/:id', adminAuthMiddleware, async (c) => {
     }
 
     if (error instanceof ApiKeyNotFoundError) {
-      return c.json(
-        {
-          error: 'Not found',
-          details: error.message,
-        },
-        404
-      );
+      return notFoundError(c, 'API key', `id ${idParam}`);
     }
 
     // Handle unexpected errors
@@ -396,13 +384,7 @@ app.delete('/:id', adminAuthMiddleware, async (c) => {
     const deleted = ApiKeyModel.delete(id);
 
     if (!deleted) {
-      return c.json(
-        {
-          error: 'Not found',
-          details: `API key with id ${id} not found`,
-        },
-        404
-      );
+      return notFoundError(c, 'API key', `id ${id}`);
     }
 
     // Return 204 No Content on successful deletion

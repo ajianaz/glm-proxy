@@ -1187,9 +1187,8 @@ describe('GET /admin/api/keys/:id', () => {
       expect(response.status).toBe(404);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Not found');
-      expect(data).toHaveProperty('details');
-      expect(data.details).toContain('API key with id 99999 not found');
+      expect(data).toHaveProperty('error', 'API key with id 99999 not found');
+      expect(data).toHaveProperty('details', 'id 99999');
     });
 
     it('should return 404 for non-existent ID with valid format', async () => {
@@ -1854,9 +1853,8 @@ describe('PUT /admin/api/keys/:id', () => {
       expect(response.status).toBe(404);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Not found');
-      expect(data).toHaveProperty('details');
-      expect(data.details).toContain('API key with id 99999 not found');
+      expect(data).toHaveProperty('error', 'API key with id 99999 not found');
+      expect(data).toHaveProperty('details', 'id 99999');
     });
 
     it('should return 404 for non-existent ID with valid format', async () => {
@@ -2337,9 +2335,8 @@ describe('DELETE /admin/api/keys/:id', () => {
       expect(response.status).toBe(404);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Not found');
-      expect(data).toHaveProperty('details');
-      expect(data.details).toContain('API key with id 99999 not found');
+      expect(data).toHaveProperty('error', 'API key with id 99999 not found');
+      expect(data).toHaveProperty('details', 'id 99999');
     });
 
     it('should return 404 for non-existent ID with valid format', async () => {
@@ -2351,7 +2348,7 @@ describe('DELETE /admin/api/keys/:id', () => {
       expect(response.status).toBe(404);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error', 'Not found');
+      expect(data).toHaveProperty('error', 'API key with id 99999 not found');
     });
 
     it('should return 404 for very large non-existent ID', async () => {
@@ -2372,7 +2369,9 @@ describe('DELETE /admin/api/keys/:id', () => {
       expect(response2.status).toBe(404);
 
       const data = await response2.json();
-      expect(data).toHaveProperty('error', 'Not found');
+      expect(data).toHaveProperty('error');
+      expect(data.error).toContain('API key with id');
+      expect(data.error).toContain('not found');
     });
   });
 
