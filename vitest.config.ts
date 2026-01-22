@@ -18,19 +18,48 @@ export default defineConfig({
     environment: 'node',
 
     // Test file patterns
-    include: ['**/*.test.ts'],
+    include: ['test/**/*.test.ts', '**/*.test.ts'],
 
     // Exclude non-test files
-    exclude: ['**/node_modules/**', '**/dist/**'],
+    exclude: [
+      'node_modules',
+      'dist',
+      'data',
+      'test/integration/**/*.test.ts', // Exclude integration tests (they require Bun runtime)
+    ],
 
     // Test timeout (10 seconds to accommodate async operations)
     testTimeout: 10000,
 
-    // Coverage configuration (optional)
+    // Coverage configuration
     coverage: {
       provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
+      exclude: [
+        'node_modules/',
+        'test/',
+        'src/**/*.test.ts',
+        'src/**/*.spec.ts',
+        '*.config.ts',
+        'dist/',
+        'data/',
+        'coverage/',
+        'scripts/',
+        'docs/',
+        '.husky/',
+      ],
+      // Coverage thresholds (adjust based on requirements)
+      thresholds: {
+        lines: 30,
+        functions: 20,
+        branches: 30,
+        statements: 30,
+      },
+      // All files are included by default, not just those touched by tests
+      all: true,
+      // Clean coverage output directory before running coverage
+      clean: true,
     },
   },
 });
