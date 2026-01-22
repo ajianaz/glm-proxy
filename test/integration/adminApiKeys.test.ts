@@ -1018,3 +1018,338 @@ describe('GET /admin/api/keys', () => {
     });
   });
 });
+
+describe('GET /admin/api/keys/:id', () => {
+  beforeEach(async () => {
+    // Reset config and caches
+    resetConfig();
+    resetAdminKeyCache();
+
+    // Set up environment for testing
+    process.env.ADMIN_API_KEY = ADMIN_API_KEY;
+    process.env.ADMIN_API_ENABLED = 'true';
+    process.env.ZAI_API_KEY = 'test-zai-key';
+    process.env.DATABASE_PATH = ':memory:';
+
+    // Close and reset database for clean state
+    closeDatabase();
+    resetDatabase();
+  });
+
+  /**
+   * Helper function to make authenticated requests to the GET by ID endpoint
+   */
+  async function makeGetByIdRequest(id: string, authToken?: string) {
+    const headers: Record<string, string> = {};
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const url = `http://localhost/${id}`;
+    const request = new Request(new URL(url), {
+      method: 'GET',
+      headers,
+    });
+
+    return keysRoutes.fetch(request);
+  }
+
+  /**
+   * Helper function to create test API keys
+   */
+  async function createTestKey(data: Partial<{
+    key: string;
+    name: string;
+    description: string | null;
+    scopes: string[];
+    rate_limit: number;
+    is_active: boolean;
+  }> = {}) {
+    const key = data.key || `sk-test-${Math.random().toString(36).substring(2, 15)}-${Math.random().toString(36).substring(2, 15)}`;
+    return ApiKeyModel.create({
+      key,
+      name: data.name || 'Test Key',
+      description: data.description ?? null,
+      scopes: data.scopes ?? [],
+      rate_limit: data.rate_limit ?? 60,
+    });
+  }
+
+  describe('Authentication', () => {
+    it('should get API key with valid admin API key', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makeGetByIdRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('id', createdKey.id);
+      expect(data).toHaveProperty('name', 'Test Key');
+    });
+
+    it('should get API key with valid admin token', async () => {
+      const token = await generateAdminToken();
+      const createdKey = await createTestKey({ name: 'Token Test Key' });
+
+      const response = await makeGetByIdRequest(String(createdKey.id), token);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('id', createdKey.id);
+      expect(data).toHaveProperty('name', 'Token Test Key');
+    });
+
+    it('should return 401 when admin API key is missing', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makeGetByIdRequest(String(createdKey.id));
+
+      expect(response.status).toBe(401);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error');
+    });
+
+    it('should return 401 when admin API key is invalid', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makeGetByIdRequest(String(createdKey.id), 'invalid-admin-key');
+
+      expect(response.status).toBe(401);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error');
+    });
+  });
+
+  describe('ID Parameter Validation', () => {
+    it('should return 400 when ID is not a number', async () => {
+      const response = await makeGetByIdRequest('abc', ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data).toHaveProperty('details');
+      expect(data.details).toBeInstanceOf(Array);
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should return 400 when ID contains special characters', async () => {
+      const response = await makeGetByIdRequest('1abc', ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should return 400 when ID is negative', async () => {
+      const response = await makeGetByIdRequest('-1', ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should return 400 when ID is zero', async () => {
+      const response = await makeGetByIdRequest('0', ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should accept valid positive integer ID', async () => {
+      const createdKey = await createTestKey({ name: 'Valid ID Test' });
+
+      const response = await makeGetByIdRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('id', createdKey.id);
+    });
+  });
+
+  describe('Not Found Scenarios', () => {
+    it('should return 404 when API key does not exist', async () => {
+      const response = await makeGetByIdRequest('99999', ADMIN_API_KEY);
+
+      expect(response.status).toBe(404);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Not found');
+      expect(data).toHaveProperty('details');
+      expect(data.details).toContain('API key with id 99999 not found');
+    });
+
+    it('should return 404 for non-existent ID with valid format', async () => {
+      // Create a key, then try to get a different ID
+      await createTestKey({ name: 'Existing Key' });
+
+      const response = await makeGetByIdRequest('99999', ADMIN_API_KEY);
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe('Response Format', () => {
+    it('should return correctly formatted API key response', async () => {
+      const createdKey = await createTestKey({
+        name: 'Response Format Test',
+        description: 'Testing response format',
+        scopes: ['read', 'write'],
+        rate_limit: 100,
+      });
+
+      const response = await makeGetByIdRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+
+      // Check all expected fields are present
+      expect(data).toHaveProperty('id');
+      expect(typeof data.id).toBe('number');
+      expect(data.id).toBe(createdKey.id);
+
+      expect(data).toHaveProperty('name');
+      expect(data.name).toBe('Response Format Test');
+
+      expect(data).toHaveProperty('description');
+      expect(data.description).toBe('Testing response format');
+
+      expect(data).toHaveProperty('scopes');
+      expect(Array.isArray(data.scopes)).toBe(true);
+      expect(data.scopes).toEqual(['read', 'write']);
+
+      expect(data).toHaveProperty('rate_limit');
+      expect(data.rate_limit).toBe(100);
+
+      expect(data).toHaveProperty('is_active');
+      expect(data.is_active).toBe(true);
+
+      expect(data).toHaveProperty('created_at');
+      expect(typeof data.created_at).toBe('string');
+
+      expect(data).toHaveProperty('updated_at');
+      expect(typeof data.updated_at).toBe('string');
+
+      // Check sensitive fields are NOT present
+      expect(data).not.toHaveProperty('key');
+      expect(data).not.toHaveProperty('key_hash');
+      expect(data).not.toHaveProperty('key_preview');
+    });
+
+    it('should handle API key with null description', async () => {
+      const createdKey = await createTestKey({
+        name: 'Null Description Key',
+        description: null,
+      });
+
+      const response = await makeGetByIdRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('description');
+      expect(data.description).toBeNull();
+    });
+
+    it('should handle API key with empty scopes array', async () => {
+      const createdKey = await createTestKey({
+        name: 'Empty Scopes Key',
+        scopes: [],
+      });
+
+      const response = await makeGetByIdRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('scopes');
+      expect(data.scopes).toEqual([]);
+    });
+
+    it('should handle API key with default rate limit', async () => {
+      const createdKey = await createTestKey({
+        name: 'Default Rate Limit Key',
+      });
+
+      const response = await makeGetByIdRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('rate_limit');
+      expect(data.rate_limit).toBe(60); // default value
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle very large ID number', async () => {
+      const response = await makeGetByIdRequest('999999999', ADMIN_API_KEY);
+
+      expect(response.status).toBe(404); // Not found, but valid format
+    });
+
+    it('should handle ID with leading zeros', async () => {
+      const createdKey = await createTestKey({ name: 'Leading Zero Test' });
+
+      // Create a request with leading zeros (should be treated as the same number)
+      const response = await makeGetByIdRequest(`0${createdKey.id}`, ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.id).toBe(createdKey.id);
+    });
+
+    it('should return consistent data for multiple requests', async () => {
+      const createdKey = await createTestKey({
+        name: 'Consistency Test',
+        description: 'Testing data consistency',
+      });
+
+      const response1 = await makeGetByIdRequest(String(createdKey.id), ADMIN_API_KEY);
+      const response2 = await makeGetByIdRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response1.status).toBe(200);
+      expect(response2.status).toBe(200);
+
+      const data1 = await response1.json();
+      const data2 = await response2.json();
+
+      // All fields should match exactly
+      expect(data1.id).toBe(data2.id);
+      expect(data1.name).toBe(data2.name);
+      expect(data1.description).toBe(data2.description);
+      expect(data1.scopes).toEqual(data2.scopes);
+      expect(data1.rate_limit).toBe(data2.rate_limit);
+      expect(data1.is_active).toBe(data2.is_active);
+    });
+
+    it('should handle inactive API keys', async () => {
+      const createdKey = await createTestKey({ name: 'Inactive Key' });
+
+      // Deactivate the key
+      ApiKeyModel.update(createdKey.id, { is_active: false });
+
+      const response = await makeGetByIdRequest(String(createdKey.id), ADMIN_API_KEY);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('is_active', false);
+    });
+  });
+});

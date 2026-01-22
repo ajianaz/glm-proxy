@@ -237,4 +237,69 @@ app.get('/', adminAuthMiddleware, async (c) => {
   }
 });
 
+/**
+ * GET /admin/api/keys/:id
+ *
+ * Get a specific API key by ID.
+ *
+ * @example
+ * ```bash
+ * curl -X GET "http://localhost:3000/admin/api/keys/1" \
+ *   -H "Authorization: Bearer <admin-api-key>"
+ * ```
+ */
+app.get('/:id', adminAuthMiddleware, async (c) => {
+  try {
+    // Extract and validate ID parameter
+    const idParam = c.req.param('id');
+
+    // Validate ID is a positive integer
+    const idValidation = z.object({
+      id: z.string()
+        .regex(/^\d+$/, 'ID must be a positive integer')
+        .transform((val) => parseInt(val, 10))
+        .refine((val) => val > 0, 'ID must be greater than 0'),
+    }).safeParse({ id: idParam });
+
+    if (!idValidation.success) {
+      const errors = formatValidationErrors(idValidation.error);
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: errors,
+        },
+        400
+      );
+    }
+
+    const id = idValidation.data.id;
+
+    // Find API key by ID
+    const result = ApiKeyModel.findById(id);
+
+    if (!result) {
+      return c.json(
+        {
+          error: 'Not found',
+          details: `API key with id ${id} not found`,
+        },
+        404
+      );
+    }
+
+    // Return 200 OK with the API key details
+    return c.json(result, 200);
+  } catch (error) {
+    // Handle unexpected errors
+    console.error('Unexpected error retrieving API key:', error);
+    return c.json(
+      {
+        error: 'Internal server error',
+        details: 'An unexpected error occurred while retrieving the API key',
+      },
+      500
+    );
+  }
+});
+
 export default app;
