@@ -5,8 +5,10 @@ import {
   extractAdminApiKey,
   validateAdminApiKey,
   isAdminAuthenticated,
+  getAuthMethod,
   type AdminAuthContext,
 } from '../../src/middleware/adminAuth';
+import { generateAdminToken } from '../../src/utils/adminToken';
 import { resetConfig } from '../../src/config';
 
 describe('Admin Authentication Middleware', () => {
@@ -190,7 +192,7 @@ describe('Admin Authentication Middleware', () => {
 
       expect(res.status).toBe(401);
       const json = await res.json();
-      expect(json.error).toBe('Invalid admin API key');
+      expect(json.error).toBe('Invalid admin API key or token');
     });
 
     it('should reject request without API key', async () => {
@@ -202,7 +204,7 @@ describe('Admin Authentication Middleware', () => {
 
       expect(res.status).toBe(401);
       const json = await res.json();
-      expect(json.error).toBe('Admin API key required. Use Authorization: Bearer <key> or x-api-key: <key>');
+      expect(json.error).toBe('Admin API key or token required. Use Authorization: Bearer <credential> or x-api-key: <credential>');
     });
 
     it('should reject request with empty API key', async () => {
@@ -218,8 +220,8 @@ describe('Admin Authentication Middleware', () => {
 
       expect(res.status).toBe(401);
       const json = await res.json();
-      // When Bearer format exists but key is empty/just spaces, it's treated as missing
-      expect(json.error).toBe('Admin API key required. Use Authorization: Bearer <key> or x-api-key: <key>');
+      // When Bearer format exists but key is empty/just spaces, it's treated as invalid
+      expect(json.error).toBe('Invalid admin API key or token');
     });
 
     it('should return 403 when admin API is disabled', async () => {
@@ -387,7 +389,7 @@ describe('Admin Authentication Middleware', () => {
 
       expect(res.status).toBe(401);
       const json = await res.json();
-      expect(json.error).toBe('Invalid admin API key');
+      expect(json.error).toBe('Invalid admin API key or token');
     });
 
     it('should handle special characters in API key', () => {
@@ -398,6 +400,101 @@ describe('Admin Authentication Middleware', () => {
 
       const result = validateAdminApiKey(specialKey);
       expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('Token Authentication', () => {
+    it('should accept valid admin token', async () => {
+      const app = new Hono<{ Variables: AdminAuthContext }>();
+      app.use('/admin/test', adminAuthMiddleware);
+      app.get('/admin/test', (c) => {
+        return c.json({ success: true, authMethod: getAuthMethod(c) });
+      });
+
+      const token = await generateAdminToken();
+      const res = await app.request('/admin/test', {
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.authMethod).toBe('token');
+    });
+
+    it('should accept valid admin token via x-api-key header', async () => {
+      const app = new Hono<{ Variables: AdminAuthContext }>();
+      app.use('/admin/test', adminAuthMiddleware);
+      app.get('/admin/test', (c) => {
+        return c.json({ success: true, authMethod: getAuthMethod(c) });
+      });
+
+      const token = await generateAdminToken();
+      const res = await app.request('/admin/test', {
+        headers: {
+          'x-api-key': token,
+        },
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.authMethod).toBe('token');
+    });
+
+    it('should reject tampered tokens', async () => {
+      const app = new Hono<{ Variables: AdminAuthContext }>();
+      app.use('/admin/test', adminAuthMiddleware);
+      app.get('/admin/test', (c) => c.json({ success: true }));
+
+      const token = await generateAdminToken();
+      const tamperedToken = token.slice(0, -5) + 'wrong';
+
+      const res = await app.request('/admin/test', {
+        headers: {
+          authorization: `Bearer ${tamperedToken}`,
+        },
+      });
+
+      expect(res.status).toBe(401);
+      const json = await res.json();
+      expect(json.error).toBeDefined();
+    });
+
+    it('should reject invalid JWT format', async () => {
+      const app = new Hono<{ Variables: AdminAuthContext }>();
+      app.use('/admin/test', adminAuthMiddleware);
+      app.get('/admin/test', (c) => c.json({ success: true }));
+
+      const invalidToken = 'invalid.jwt.token';
+
+      const res = await app.request('/admin/test', {
+        headers: {
+          authorization: `Bearer ${invalidToken}`,
+        },
+      });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('should prioritize API key over token validation', async () => {
+      const app = new Hono<{ Variables: AdminAuthContext }>();
+      app.use('/admin/test', adminAuthMiddleware);
+      app.get('/admin/test', (c) => {
+        return c.json({ success: true, authMethod: getAuthMethod(c) });
+      });
+
+      const res = await app.request('/admin/test', {
+        headers: {
+          authorization: `Bearer ${testAdminKey}`,
+        },
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.authMethod).toBe('api_key');
     });
   });
 });

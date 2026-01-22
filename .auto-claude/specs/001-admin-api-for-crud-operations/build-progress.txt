@@ -204,9 +204,53 @@
 - Type-safe with proper TypeScript interfaces throughout
 
 ### Next Steps
-- auth-2: Create token generation/validation (may not be needed if using direct key comparison)
 - auth-3: Add error handling for auth failures (already implemented in middleware)
 - auth-4: Setup admin credential storage (already using environment variables)
+
+## 2026-01-22 - Phase 3 (continued): Authentication & Authorization
+
+### Completed
+- ✅ **auth-2: Create token generation/validation**
+  - Implemented JWT-based token generation system using jose library
+  - Created generateAdminToken() function that generates secure JWT tokens with:
+    - Unique JWT ID (jti) using timestamp and UUID
+    - Type identifier ('admin')
+    - Issued at timestamp (iat) with millisecond precision
+    - Expiration timestamp (exp) - configurable via ADMIN_TOKEN_EXPIRATION_SECONDS (default 24 hours)
+    - HS256 signature using admin API key as signing secret
+  - Implemented validateAdminToken() function with:
+    - JWT signature verification
+    - Token expiration checking
+    - Token type validation
+    - Comprehensive error handling (expired tokens, invalid signatures, etc.)
+  - Created helper functions:
+    - extractTokenFromHeader(): Extract token from Authorization header (supports Bearer prefix)
+    - isLikelyJWT(): Check if string looks like a JWT (3 non-empty parts separated by dots)
+  - Updated adminAuthMiddleware to support both API key and token authentication:
+    - Tries API key validation first (for performance)
+    - Falls back to token validation if credential looks like a JWT
+    - Tracks authentication method (api_key or token) in context
+    - Added getAuthMethod() helper to retrieve auth method
+  - Updated configuration to include adminTokenExpirationSeconds setting
+  - Updated .env.example with ADMIN_TOKEN_EXPIRATION_SECONDS configuration
+  - Created comprehensive test suite in test/unit/adminToken.test.ts:
+    - 16 tests covering all token operations
+    - Tests for generation, validation, header extraction, JWT detection
+    - All tests passing (16/16)
+  - Updated test/unit/adminAuth.test.ts with token authentication tests:
+    - 5 new tests for token-based authentication
+    - Tests for valid tokens, invalid tokens, and method detection
+    - All tests passing (35/35 total)
+  - Total test count: 113 tests passing across all unit test files
+
+### Implementation Notes
+- Tokens provide a secure alternative to direct API key authentication
+- Tokens are signed using the same secret as API keys (admin API key from environment)
+- Token expiration is configurable and defaults to 24 hours
+- Each token is unique due to jti claim (timestamp + UUID)
+- Middleware intelligently distinguishes between API keys and JWTs
+- Error messages updated to reflect both authentication methods
+- Uses jose library for JWT operations (modern, dependency-free, works with Bun)
 
 ### Implementation Plan Summary
 

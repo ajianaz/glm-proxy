@@ -16,6 +16,9 @@ interface AppConfig {
   adminApiEnabled: boolean;
   databasePath: string;
 
+  // Admin Token Configuration
+  adminTokenExpirationSeconds: number;
+
   // Rate Limiting Configuration
   defaultRateLimit: number;
 
@@ -67,6 +70,15 @@ function loadConfig(): AppConfig {
   // Parse admin API enabled flag
   const adminApiEnabled = process.env.ADMIN_API_ENABLED !== 'false';
 
+  // Parse admin token expiration (default 24 hours)
+  const tokenExpirationValue = process.env.ADMIN_TOKEN_EXPIRATION_SECONDS || '86400';
+  const adminTokenExpirationSeconds = parseInt(tokenExpirationValue, 10);
+  if (isNaN(adminTokenExpirationSeconds) || adminTokenExpirationSeconds < 60) {
+    throw new Error(
+      `Invalid ADMIN_TOKEN_EXPIRATION_SECONDS value: ${tokenExpirationValue}. Must be at least 60 seconds.`
+    );
+  }
+
   return {
     // Core Application Settings
     zaiApiKey: process.env.ZAI_API_KEY!,
@@ -77,6 +89,9 @@ function loadConfig(): AppConfig {
     adminApiKey: process.env.ADMIN_API_KEY!,
     adminApiEnabled,
     databasePath: process.env.DATABASE_PATH!,
+
+    // Admin Token Configuration
+    adminTokenExpirationSeconds,
 
     // Rate Limiting Configuration
     defaultRateLimit,
@@ -134,5 +149,6 @@ export const port = () => getConfig().port;
 export const adminApiKey = () => getConfig().adminApiKey;
 export const adminApiEnabled = () => getConfig().adminApiEnabled;
 export const databasePath = () => getConfig().databasePath;
+export const adminTokenExpirationSeconds = () => getConfig().adminTokenExpirationSeconds;
 export const defaultRateLimit = () => getConfig().defaultRateLimit;
 export const corsOrigins = () => getConfig().corsOrigins;
