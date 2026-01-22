@@ -73,6 +73,21 @@
      - Tests verify CORS headers
      - Tests verify edge cases (long messages, special chars, concurrent requests)
      - All 35 tests passing in 20.25s ✅
+   - **Subtask 2.4: Test /v1/messages (Anthropic format)** ✅ COMPLETE
+     - Created `test/integration/anthropic-messages.test.ts` with 52 comprehensive tests
+     - Tests verify basic request handling (POST, authentication, content type, required fields)
+     - Tests verify model override behavior (injects API key model)
+     - Tests verify various request formats (basic, conversation history, multi-turn, streaming)
+     - Tests verify Anthropic-specific features (system parameter, anthropic-version header)
+     - Tests verify request parameters (temperature, top_p, top_k, max_tokens)
+     - Tests verify response format (structure, usage information, stop_reason)
+     - Tests verify rate limiting enforcement and token usage updates
+     - Tests verify error handling (invalid JSON, empty body, malformed arrays, invalid roles)
+     - Tests verify authentication methods (Bearer header, x-api-key header)
+     - Tests verify CORS headers
+     - Tests verify content format conversion (string vs object content formats)
+     - Tests verify edge cases (long messages, special chars, concurrent requests, max_tokens variations)
+     - All 52 tests passing in 5.08s ✅
 
 ### Implementation Plan Summary
 
@@ -85,8 +100,8 @@
 - /health endpoint ✅ COMPLETE (16 tests passing)
 - /stats endpoint ✅ COMPLETE (51 tests passing)
 - /v1/chat/completions (OpenAI) ✅ COMPLETE (35 tests passing)
-- /v1/messages (Anthropic) (NEXT)
-- Root endpoint
+- /v1/messages (Anthropic) ✅ COMPLETE (52 tests passing)
+- Root endpoint (NEXT)
 
 **Phase 3: Authentication & Authorization** (60 min)
 - Valid API key authentication
@@ -130,7 +145,8 @@
 2. ✅ Create test for /health endpoint (COMPLETED)
 3. ✅ Create test for /stats endpoint (COMPLETED)
 4. ✅ Create test for /v1/chat/completions endpoint (COMPLETED)
-5. Create test for /v1/messages endpoint (NEXT)
+5. ✅ Create test for /v1/messages endpoint (COMPLETED)
+6. Create test for root endpoint (NEXT)
 
 ### Acceptance Criteria Status
 
@@ -156,4 +172,5 @@
 - ✅ Health endpoint tests created and passing (16/16 passing)
 - ✅ Stats endpoint tests created and passing (51/51 passing)
 - ✅ OpenAI chat completions tests created and passing (35/35 passing)
+- ✅ Anthropic messages tests created and passing (52/52 passing)
 - Git commits created: ee9e1f9 (helpers), 3d19a76 (health), ec5dd55 (stats)
