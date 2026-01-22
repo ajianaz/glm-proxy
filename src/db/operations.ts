@@ -1,0 +1,276 @@
+import { eq } from 'drizzle-orm';
+import type { ApiKey } from '../types.js';
+import { getDb } from './connection.js';
+import * as schema from './schema.js';
+
+/**
+ * Find an API key by its key string
+ *
+ * @param key - The API key string to search for
+ * @returns The ApiKey object if found, null otherwise
+ *
+ * @example
+ * ```ts
+ * import { findApiKey } from './db/operations.js';
+ *
+ * const apiKey = await findApiKey('sk-1234567890');
+ * if (apiKey) {
+ *   console.log(`Found key: ${apiKey.name}`);
+ * }
+ * ```
+ */
+export async function findApiKey(key: string): Promise<ApiKey | null> {
+  try {
+    const { db, type } = getDb();
+
+    // Select the appropriate table based on database type
+    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+    // Query the API key
+    const result = await db.select().from(table).where(eq(table.key, key)).limit(1);
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    const apiKeyRow = result[0];
+
+    // Query usage windows for this key
+    const usageWindows = await db
+      .select()
+      .from(usageTable)
+      .where(eq(usageTable.apiKey, key));
+
+    // Map database rows to ApiKey interface
+    return {
+      key: apiKeyRow.key,
+      name: apiKeyRow.name,
+      model: apiKeyRow.model ?? undefined,
+      token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+      expiry_date: apiKeyRow.expiryDate,
+      created_at: apiKeyRow.createdAt,
+      last_used: apiKeyRow.lastUsed,
+      total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+      usage_windows: usageWindows.map(w => ({
+        window_start: w.windowStart,
+        tokens_used: w.tokensUsed,
+      })),
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to find API key: ${errorMessage}`);
+  }
+}
+
+/**
+ * Create a new API key with validation
+ *
+ * @param apiKey - The ApiKey object to create (excluding usage_windows which are managed separately)
+ * @returns The created ApiKey object
+ * @throws Error if validation fails or creation fails
+ *
+ * @example
+ * ```ts
+ * import { createApiKey } from './db/operations.js';
+ *
+ * const newKey = await createApiKey({
+ *   key: 'sk-1234567890',
+ *   name: 'My API Key',
+ *   model: 'claude-3-5-sonnet-20241022',
+ *   token_limit_per_5h: 50000,
+ *   expiry_date: '2025-12-31T23:59:59Z',
+ *   created_at: new Date().toISOString(),
+ *   last_used: new Date().toISOString(),
+ *   total_lifetime_tokens: 0,
+ *   usage_windows: [],
+ * });
+ * ```
+ */
+export async function createApiKey(apiKey: ApiKey): Promise<ApiKey> {
+  // Validate required fields
+  if (!apiKey.key || !apiKey.key.trim()) {
+    throw new Error('API key is required and cannot be empty');
+  }
+
+  if (!apiKey.name || !apiKey.name.trim()) {
+    throw new Error('API key name is required and cannot be empty');
+  }
+
+  if (apiKey.token_limit_per_5h <= 0) {
+    throw new Error('Token limit must be greater than 0');
+  }
+
+  if (!apiKey.expiry_date) {
+    throw new Error('Expiry date is required');
+  }
+
+  try {
+    const { db, type } = getDb();
+
+    // Select the appropriate table based on database type
+    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+
+    // Check if key already exists
+    const existing = await db.select().from(table).where(eq(table.key, apiKey.key)).limit(1);
+    if (existing.length > 0) {
+      throw new Error(`API key '${apiKey.key}' already exists`);
+    }
+
+    // Insert the new API key
+    await db.insert(table).values({
+      key: apiKey.key,
+      name: apiKey.name,
+      model: apiKey.model ?? null,
+      tokenLimitPer5h: apiKey.token_limit_per_5h,
+      expiryDate: apiKey.expiry_date,
+      createdAt: apiKey.created_at,
+      lastUsed: apiKey.last_used,
+      totalLifetimeTokens: apiKey.total_lifetime_tokens,
+    });
+
+    // Return the created key (usage_windows start empty)
+    return {
+      ...apiKey,
+      usage_windows: [],
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to create API key: ${errorMessage}`);
+  }
+}
+
+/**
+ * Update API key metadata (name, model, token_limit_per_5h, expiry_date)
+ *
+ * Note: This function only updates metadata fields. Usage tracking should be done
+ * through the updateApiKeyUsage function to ensure proper transaction handling.
+ *
+ * @param key - The API key string to update
+ * @param updates - Partial ApiKey object with fields to update
+ * @returns The updated ApiKey object, or null if key not found
+ *
+ * @example
+ * ```ts
+ * import { updateApiKey } from './db/operations.js';
+ *
+ * const updated = await updateApiKey('sk-1234567890', {
+ *   name: 'Updated Name',
+ *   token_limit_per_5h: 100000,
+ * });
+ * ```
+ */
+export async function updateApiKey(
+  key: string,
+  updates: Partial<Pick<ApiKey, 'name' | 'model' | 'token_limit_per_5h' | 'expiry_date'>>
+): Promise<ApiKey | null> {
+  try {
+    const { db, type } = getDb();
+
+    // Select the appropriate table based on database type
+    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+    // Check if key exists
+    const existing = await db.select().from(table).where(eq(table.key, key)).limit(1);
+    if (existing.length === 0) {
+      return null;
+    }
+
+    // Build update object with only provided fields
+    const updateValues: Record<string, unknown> = {};
+    if (updates.name !== undefined) {
+      if (!updates.name.trim()) {
+        throw new Error('API key name cannot be empty');
+      }
+      updateValues.name = updates.name;
+    }
+    if (updates.model !== undefined) {
+      updateValues.model = updates.model ?? null;
+    }
+    if (updates.token_limit_per_5h !== undefined) {
+      if (updates.token_limit_per_5h <= 0) {
+        throw new Error('Token limit must be greater than 0');
+      }
+      updateValues.tokenLimitPer5h = updates.token_limit_per_5h;
+    }
+    if (updates.expiry_date !== undefined) {
+      if (!updates.expiry_date) {
+        throw new Error('Expiry date cannot be empty');
+      }
+      updateValues.expiryDate = updates.expiry_date;
+    }
+
+    // Perform update if there are fields to update
+    if (Object.keys(updateValues).length > 0) {
+      await db.update(table).set(updateValues).where(eq(table.key, key));
+    }
+
+    // Query usage windows
+    const usageWindows = await db.select().from(usageTable).where(eq(usageTable.apiKey, key));
+
+    // Get the updated record
+    const updated = await db.select().from(table).where(eq(table.key, key)).limit(1);
+
+    // Map database rows to ApiKey interface
+    return {
+      key: updated[0].key,
+      name: updated[0].name,
+      model: updated[0].model ?? undefined,
+      token_limit_per_5h: updated[0].tokenLimitPer5h,
+      expiry_date: updated[0].expiryDate,
+      created_at: updated[0].createdAt,
+      last_used: updated[0].lastUsed,
+      total_lifetime_tokens: updated[0].totalLifetimeTokens,
+      usage_windows: usageWindows.map(w => ({
+        window_start: w.windowStart,
+        tokens_used: w.tokensUsed,
+      })),
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to update API key: ${errorMessage}`);
+  }
+}
+
+/**
+ * Delete an API key
+ *
+ * This will cascade delete all associated usage_windows due to the foreign key
+ * constraint defined in the schema.
+ *
+ * @param key - The API key string to delete
+ * @returns true if deleted, false if not found
+ *
+ * @example
+ * ```ts
+ * import { deleteApiKey } from './db/operations.js';
+ *
+ * const deleted = await deleteApiKey('sk-1234567890');
+ * if (deleted) {
+ *   console.log('API key deleted successfully');
+ * }
+ * ```
+ */
+export async function deleteApiKey(key: string): Promise<boolean> {
+  try {
+    const { db, type } = getDb();
+
+    // Select the appropriate table based on database type
+    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+
+    // Check if key exists
+    const existing = await db.select().from(table).where(eq(table.key, key)).limit(1);
+    if (existing.length === 0) {
+      return false;
+    }
+
+    // Delete the API key (cascade delete will handle usage_windows)
+    await db.delete(table).where(eq(table.key, key));
+
+    return true;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to delete API key: ${errorMessage}`);
+  }
+}
