@@ -313,6 +313,14 @@ export {
   runValidationSmokeTest,
   LATENCY_TARGETS,
 } from './latency-validation.js';
+export {
+  validateResourceUsage,
+  validateSingleResourceTest,
+  saveResourceValidationReport,
+  generateResourceValidationReport,
+  runResourceValidationSmokeTest,
+  RESOURCE_TARGETS,
+} from './resource-validation.js';
 export { LoadTestScenario } from './types.js';
 export type {
   LoadTestConfig,
@@ -322,4 +330,6 @@ export type {
   ValidationReport,
   LatencySpike,
   StabilityCheck,
+  ResourceValidationResult,
+  ResourceValidationReport,
 } from './types.js';

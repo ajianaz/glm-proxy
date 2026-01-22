@@ -276,3 +276,130 @@ export interface ValidationReport {
   results: LatencyValidationResult[];
   summary: ValidationSummary;
 }
+
+/**
+ * Memory trend analysis result
+ */
+export interface MemoryTrend {
+  trend: 'increasing' | 'decreasing' | 'stable';
+  growthRate: number; // bytes per second
+  rSquared: number; // confidence score 0-1
+  startMemory: number; // bytes
+  endMemory: number; // bytes
+  duration: number; // seconds
+}
+
+/**
+ * Memory leak detection result
+ */
+export interface MemoryLeakDetection {
+  hasLeak: boolean;
+  confidence: 'low' | 'medium' | 'high';
+  trend: MemoryTrend;
+  details: {
+    baseMemory: number; // bytes
+    peakMemory: number; // bytes
+    memoryGrowth: number; // bytes
+    growthRateMBPerHour: number; // MB per hour
+  };
+}
+
+/**
+ * CPU scaling analysis result
+ */
+export interface CpuScaling {
+  isLinear: boolean;
+  correlation: number; // 0-1, how well CPU scales with load
+  slope: number; // CPU usage increase per concurrent request
+  details: {
+    avgCpuAtLowLoad: number;
+    avgCpuAtHighLoad: number;
+    expectedCpuAtMaxLoad: number;
+    actualCpuAtMaxLoad: number;
+    efficiency: number; // percentage
+  };
+}
+
+/**
+ * Graceful degradation check result
+ */
+export interface DegradationCheck {
+  degradesGracefully: boolean;
+  failureRateAtHighLoad: number;
+  latencyAtHighLoad: number;
+  details: {
+    errorRateIncrease: number; // percentage points
+    latencyIncrease: number; // percentage
+    recoveryTime: number; // milliseconds (0 if no recovery)
+  };
+}
+
+/**
+ * Memory validation result
+ */
+export interface MemoryValidation {
+  baseMemory: number; // bytes
+  baseMemoryTarget: number; // bytes
+  baseMemoryPass: boolean;
+  memoryGrowthMBPerHour: number;
+  memoryGrowthTarget: number; // MB per hour
+  memoryGrowthPass: boolean;
+  leakDetection: MemoryLeakDetection;
+}
+
+/**
+ * CPU validation result
+ */
+export interface CpuValidation {
+  avgCpuUsage: number; // percentage
+  peakCpuUsage: number; // percentage
+  scaling: CpuScaling;
+  degradation: DegradationCheck;
+}
+
+/**
+ * Resource validation result for a single test
+ */
+export interface ResourceValidationResult {
+  testName: string;
+  scenario: LoadTestScenario;
+  passed: boolean;
+  memory: MemoryValidation;
+  cpu: CpuValidation;
+  error?: string;
+}
+
+/**
+ * Resource validation summary
+ */
+export interface ResourceValidationSummary {
+  total: number;
+  passed: number;
+  failed: number;
+  overallPass: boolean;
+  memory: {
+    avgBaseMemory: number; // MB
+    avgMemoryGrowth: number; // MB/hour
+    leaksDetected: number;
+  };
+  cpu: {
+    avgCpuUsage: number; // percentage
+    avgScalingEfficiency: number; // percentage
+    gracefulDegradation: number; // count
+  };
+}
+
+/**
+ * Complete resource validation report
+ */
+export interface ResourceValidationReport {
+  timestamp: string;
+  targets: {
+    BASE_MEMORY_MB: number;
+    MEMORY_GROWTH_MB_PER_HOUR: number;
+    CPU_LINEARITY_THRESHOLD: number;
+    DEGRADATION_FAILURE_RATE_THRESHOLD: number;
+  };
+  results: ResourceValidationResult[];
+  summary: ResourceValidationSummary;
+}
