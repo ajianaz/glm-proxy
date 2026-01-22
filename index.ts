@@ -1,4 +1,5 @@
-import { getAllApiKeys, createApiKey, updateApiKey, deleteApiKey, ValidationError, NotFoundError, ApiKeyManagerError } from './src/api-key-manager.js';
+import { getAllApiKeys, createApiKey, updateApiKey, deleteApiKey, getApiKey, getRemainingQuota, isApiKeyExpired, ValidationError, NotFoundError, ApiKeyManagerError } from './src/api-key-manager.js';
+import type { StatsResponse } from './src/types.js';
 
 /**
  * WebSocket client tracking for real-time updates
@@ -557,14 +558,80 @@ async function handleRequest(req: Request): Promise<Response> {
     // GET /api/keys/:id/usage - Get usage statistics
     const usageMatch = pathname.match(/^\/api\/keys\/([^/]+)\/usage$/);
     if (usageMatch && req.method === 'GET') {
-      const keyId = usageMatch[1];
-      return new Response(
-        JSON.stringify({ error: 'Not implemented yet', keyId }),
-        {
-          status: 501,
-          headers: { 'Content-Type': 'application/json' },
+      try {
+        const keyId = decodeURIComponent(usageMatch[1]);
+
+        // Get the API key
+        const apiKey = await getApiKey(keyId);
+
+        if (!apiKey) {
+          return new Response(
+            JSON.stringify({
+              error: 'API key not found',
+              message: `API key "${keyId}" not found`,
+            }),
+            {
+              status: 404,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
         }
-      );
+
+        // Check if expired
+        const expired = await isApiKeyExpired(keyId);
+
+        // Calculate current window usage
+        const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+        const currentWindow = apiKey.usage_windows
+          .filter(w => w.window_start >= fiveHoursAgo)
+          .sort((a, b) => b.window_start.localeCompare(a.window_start))[0];
+
+        const tokensUsedInWindow = currentWindow ? currentWindow.tokens_used : 0;
+        const windowStartedAt = currentWindow ? currentWindow.window_start : new Date().toISOString();
+        const windowEndsAt = new Date(new Date(windowStartedAt).getTime() + 5 * 60 * 60 * 1000).toISOString();
+
+        // Get remaining quota
+        const remainingTokens = await getRemainingQuota(keyId);
+
+        // Build response
+        const stats: StatsResponse = {
+          key: apiKey.key,
+          name: apiKey.name,
+          model: apiKey.model || 'default',
+          token_limit_per_5h: apiKey.token_limit_per_5h,
+          expiry_date: apiKey.expiry_date,
+          created_at: apiKey.created_at,
+          last_used: apiKey.last_used,
+          is_expired: expired,
+          current_usage: {
+            tokens_used_in_current_window: tokensUsedInWindow,
+            window_started_at: windowStartedAt,
+            window_ends_at: windowEndsAt,
+            remaining_tokens: remainingTokens,
+          },
+          total_lifetime_tokens: apiKey.total_lifetime_tokens,
+        };
+
+        return new Response(JSON.stringify(stats), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      } catch (error) {
+        console.error('Error getting usage statistics:', error);
+        return new Response(
+          JSON.stringify({
+            error: 'Failed to get usage statistics',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          }),
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          }
+        );
+      }
     }
 
     // 404 for unknown API routes
