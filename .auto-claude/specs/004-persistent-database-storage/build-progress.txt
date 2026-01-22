@@ -22,7 +22,7 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 
 ### Phase 3: Storage Abstraction [IN PROGRESS]
 - ✅ Define IStorage interface (COMPLETED: 3.1)
-- Database adapter
+- ✅ Database adapter (COMPLETED: 3.2)
 - File storage adapter refactor
 - Storage factory
 - Update existing code
@@ -185,3 +185,30 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
   - All required methods present and correctly typed
   - Ready for use in database and file storage adapters
   - All acceptance criteria met: TypeScript interface defined, matches current signatures, supports async operations
+- **3.2** Implement database storage adapter (COMPLETED)
+  - Created DatabaseStorage class in src/storage/database.ts implementing IStorage interface
+  - findApiKey(): Delegates to dbFindApiKey from src/db/operations.ts
+  - updateApiKeyUsage(): Delegates to dbUpdateApiKeyUsage with transaction-based operations
+  - getKeyStats(): Delegates to dbGetKeyStats for comprehensive statistics
+  - initialize(): Tests database connection via testConnection() and ensures storage is ready
+  - Private ensureInitialized() method validates initialization before any operation
+  - All database operations wrapped in try-catch with meaningful error messages
+  - Comprehensive JSDoc documentation with usage examples for all methods
+  - Uses database operations from phase 2 (dbFindApiKey, dbUpdateApiKeyUsage, dbGetKeyStats)
+  - Connection failures detected during initialization with clear error messages
+  - Pre-initialization usage prevented with descriptive error message
+  - Created src/storage/database.test.ts with 12 comprehensive test cases:
+    * initialize() idempotency test
+    * findApiKey() success and null cases
+    * updateApiKeyUsage() with token accumulation
+    * updateApiKeyUsage() error handling for non-existent keys
+    * getKeyStats() with usage reflection
+    * getKeyStats() expired status calculation
+    * Integration tests combining all methods
+    * Pre-initialization error handling tests
+  - All 12 tests passing (10 success cases + 2 error cases)
+  - ESLint validation passed (no errors in new files)
+  - No regressions in existing tests (69 tests passing, 3 pre-existing failures)
+  - Follows existing code patterns and documentation style
+  - No console.log statements
+  - All acceptance criteria met: Implements IStorage interface, uses database operations from phase 2, proper error handling
