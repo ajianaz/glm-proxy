@@ -174,7 +174,7 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
 - No regressions detected
 - Ready for Phase 5 (Documentation and Monitoring)
 
-### ⏳ Phase 5: Documentation and Monitoring (In Progress)
+### ✅ Phase 5: Documentation and Monitoring (Complete)
 **Goal:** Add observability and documentation
 
 - [x] 5.1 Add cache statistics endpoint (25m) ✅
@@ -190,11 +190,12 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
   - Make configurable via env var ✅
   - **Implementation:** Added structured logging in src/storage.ts with logCache() utility function. Debug logs for cache hits/misses in findApiKey(), info logs for cache updates in updateApiKeyUsage(), info logs for cache warm-up. Configurable via CACHE_LOG_LEVEL (none/info/debug). Verified all levels work correctly. All 122 tests pass.
 
-- [ ] 5.3 Update documentation (20m)
-  - Document cache architecture
-  - Document configuration options
-  - Document monitoring endpoints
-  - Add troubleshooting guide
+- [x] 5.3 Update documentation (20m) ✅
+  - Document cache architecture ✅
+  - Document configuration options ✅
+  - Document monitoring endpoints ✅
+  - Add troubleshooting guide ✅
+  - **Implementation:** Added comprehensive Cache Architecture section to README.md with: overview and flow diagram showing cache lookup flow, cache features (TTL expiration, LRU eviction, negative caching, automatic updates, optional warm-up), performance benefits comparison table (>10x speedup, 95% I/O reduction, no file locking contention), detailed configuration options table for all 5 cache environment variables (CACHE_ENABLED, CACHE_TTL_MS, CACHE_MAX_SIZE, CACHE_WARMUP_ON_START, CACHE_LOG_LEVEL), cache monitoring section with /cache-stats endpoint usage example and response format, cache coherency explanation (TTL expiration, write-through updates, selective invalidation, fail-safe design), and logging configuration with example log output at each level. Added 6 cache-specific troubleshooting entries covering low cache hit rate, API key changes not reflected, debug cache behavior, memory usage, and disabling cache. Added /cache-stats to API endpoints table. Updated Features section to include in-memory caching. All acceptance criteria met. Manual verification completed.
 
 ### ⏳ Phase 6: Validation and Deployment (Pending)
 **Goal:** Final validation and deployment prep
@@ -253,14 +254,17 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
 
 ---
 
-**Next Steps:** Complete Phase 5 - Documentation and Monitoring
-- Subtask 5.3: Update documentation
+**Next Steps:** Proceed to Phase 6 - Validation and Deployment
+- Subtask 6.1: Perform load testing (30m)
+- Subtask 6.2: Test failure scenarios (20m)
+- Subtask 6.3: Final QA and sign-off (15m)
 
 **Completed Phases:**
 - ✅ Phase 0: Codebase Analysis
 - ✅ Phase 1: Design and Architecture
 - ✅ Phase 2: Core Cache Implementation
 - ✅ Phase 3: Integrate Cache with Storage Layer
-- ✅ Phase 4: Testing (Complete)
+- ✅ Phase 4: Testing
+- ✅ Phase 5: Documentation and Monitoring
 
-**Current Status:** Phase 5 in progress. Subtask 5.2 (logging for cache operations) completed successfully. Added structured logging in src/storage.ts with logCache() utility function supporting CACHE_LOG_LEVEL (none/info/debug). Debug logs for cache hits/misses, info logs for cache updates and warm-up. All 122 tests pass. Ready to proceed with subtask 5.3 (documentation).
+**Current Status:** Phase 5 completed. Subtask 5.3 (documentation) completed successfully. Added comprehensive cache documentation to README.md including architecture overview, flow diagram, performance benefits, configuration options, monitoring endpoints, cache coherency explanation, logging configuration, and troubleshooting guide. All 122 functional tests pass. Ready to proceed to Phase 6 (Validation and Deployment).
