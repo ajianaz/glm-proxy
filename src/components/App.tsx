@@ -1,8 +1,20 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import ApiKeyTable from './ApiKeyTable';
 import ApiKeyForm from './ApiKeyForm';
 import UsageVisualization from './UsageVisualization';
 import type { ApiKey } from '../types';
+import {
+  fetchApiKeys,
+  createApiKey,
+  updateApiKey as updateApiKeyApi,
+  deleteApiKey as deleteApiKeyApi,
+  ApiClientError,
+  getErrorMessage
+} from '../utils/api-client';
+import {
+  createWebSocketClient,
+  type WebSocketEvent
+} from '../utils/ws-client';
 
 /**
  * Global Application Context Type
@@ -55,28 +67,19 @@ function AppProvider({ children }: AppProviderProps) {
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
+  // WebSocket client ref to persist across re-renders
+  const wsClientRef = useRef<ReturnType<typeof createWebSocketClient> | null>(null);
+
   /**
    * Fetch all API keys from the server
    */
   async function fetchKeys(): Promise<void> {
     try {
-      const response = await fetch('/api/keys');
-      if (!response.ok) {
-        const errorData: unknown = await response.json();
-        const errorMessage = errorData && typeof errorData === 'object' && 'error' in errorData
-          ? String(errorData.error)
-          : `HTTP ${response.status}: ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
-      const data: unknown = await response.json();
-      if (data && typeof data === 'object' && 'keys' in data && Array.isArray(data.keys)) {
-        setApiKeys(data.keys);
-      } else {
-        setApiKeys([]);
-      }
+      const keys = await fetchApiKeys();
+      setApiKeys(keys);
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch API keys';
+      const message = getErrorMessage(err);
       setError(message);
       console.error('Error fetching API keys:', err);
     } finally {
@@ -99,27 +102,12 @@ function AppProvider({ children }: AppProviderProps) {
     keyData: Omit<ApiKey, 'created_at' | 'last_used' | 'total_lifetime_tokens' | 'usage_windows'>
   ): Promise<void> {
     try {
-      const response = await fetch('/api/keys', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(keyData),
-      });
-
-      if (!response.ok) {
-        const errorData: unknown = await response.json();
-        const errorMessage = errorData && typeof errorData === 'object' && 'error' in errorData
-          ? String(errorData.error)
-          : `Failed to create API key: ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
-
+      await createApiKey(keyData);
       // The WebSocket will handle updating the state, but we can also update optimistically
       await fetchKeys();
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create API key';
+      const message = getErrorMessage(err);
       setError(message);
       console.error('Error creating API key:', err);
       throw err;
@@ -134,27 +122,12 @@ function AppProvider({ children }: AppProviderProps) {
     updates: Partial<Omit<ApiKey, 'key' | 'created_at'>>
   ): Promise<void> {
     try {
-      const response = await fetch(`/api/keys/${encodeURIComponent(keyId)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        const errorData: unknown = await response.json();
-        const errorMessage = errorData && typeof errorData === 'object' && 'error' in errorData
-          ? String(errorData.error)
-          : `Failed to update API key: ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
-
+      await updateApiKeyApi(keyId, updates);
       // The WebSocket will handle updating the state
       await fetchKeys();
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update API key';
+      const message = getErrorMessage(err);
       setError(message);
       console.error('Error updating API key:', err);
       throw err;
@@ -166,23 +139,12 @@ function AppProvider({ children }: AppProviderProps) {
    */
   async function deleteKey(keyId: string): Promise<void> {
     try {
-      const response = await fetch(`/api/keys/${encodeURIComponent(keyId)}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok && response.status !== 204) {
-        const errorData: unknown = await response.json();
-        const errorMessage = errorData && typeof errorData === 'object' && 'error' in errorData
-          ? String(errorData.error)
-          : `Failed to delete API key: ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
-
+      await deleteApiKeyApi(keyId);
       // The WebSocket will handle updating the state
       await fetchKeys();
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete API key';
+      const message = getErrorMessage(err);
       setError(message);
       console.error('Error deleting API key:', err);
       throw err;
@@ -200,68 +162,61 @@ function AppProvider({ children }: AppProviderProps) {
    * Initialize WebSocket connection for real-time updates
    */
   useEffect(() => {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
+    // Create WebSocket client instance
+    const wsClient = createWebSocketClient({
+      autoReconnect: true,
+      reconnectDelay: 3000,
+    });
 
-    ws.onopen = () => {
-      setIsConnected(true);
-    };
+    wsClientRef.current = wsClient;
 
-    ws.onclose = () => {
-      setIsConnected(false);
-    };
+    // Register connection state callback
+    wsClient.onConnectionChange((connected) => {
+      setIsConnected(connected);
+    });
 
-    ws.onerror = (event) => {
-      console.error('WebSocket error:', event);
+    // Register error callback
+    wsClient.onError((error) => {
+      console.error('WebSocket error:', error);
       setError('WebSocket connection error. Real-time updates may not work.');
-    };
+    });
 
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
+    // Register event handlers for different message types
+    wsClient.on('connected', () => {
+      // Connection confirmed - no action needed
+    });
 
-        // Handle different event types
-        switch (message.type) {
-          case 'connected':
-            // Connection confirmed - no action needed
-            break;
+    wsClient.on('key_created', () => {
+      fetchKeys(); // Refresh to get the new key
+    });
 
-          case 'key_created':
-            fetchKeys(); // Refresh to get the new key
-            break;
+    wsClient.on('key_updated', () => {
+      fetchKeys(); // Refresh to get updated data
+    });
 
-          case 'key_updated':
-            fetchKeys(); // Refresh to get updated data
-            break;
+    wsClient.on('key_deleted', () => {
+      fetchKeys(); // Refresh to remove the deleted key
+    });
 
-          case 'key_deleted':
-            fetchKeys(); // Refresh to remove the deleted key
-            break;
+    wsClient.on('usage_updated', (event: WebSocketEvent) => {
+      // Update the specific key in the list
+      const data = event.data as { key: string; total_lifetime_tokens: number };
+      setApiKeys((prevKeys) =>
+        prevKeys.map((key) =>
+          key.key === data.key
+            ? { ...key, total_lifetime_tokens: data.total_lifetime_tokens, usage_windows: [] }
+            : key
+        )
+      );
+    });
 
-          case 'usage_updated':
-            // Update the specific key in the list
-            setApiKeys((prevKeys) =>
-              prevKeys.map((key) =>
-                key.key === message.data.key
-                  ? { ...key, total_lifetime_tokens: message.data.total_lifetime_tokens, usage_windows: [] }
-                  : key
-              )
-            );
-            break;
-
-          default:
-            // Unknown message type - ignore
-            break;
-        }
-      } catch (err) {
-        console.error('Error parsing WebSocket message:', err);
-      }
-    };
+    // Connect to WebSocket server
+    wsClient.connect();
 
     // Cleanup on unmount
     return () => {
-      ws.close();
+      wsClient.dispose();
+      wsClientRef.current = null;
     };
   }, []); // Run once on mount
 
