@@ -1,0 +1,690 @@
+{
+  "feature": "Persistent Database Storage",
+  "description": "# Persistent Database Storage\n\nReplace file-based storage with SQLite or PostgreSQL and Drizzle ORM for API keys, usage data, and configuration. Includes migration tool and data backup/restore functionality.\n\n## Rationale\nCurrent file-based storage doesn't support high concurrency and prevents horizontal scaling. Database enables multiple instances to share state and is critical for production deployments. Addresses major technical debt.\n\n## User Stories\n- As a production engineer, I want database-backed storage so that we can scale horizontally with multiple instances\n- As a DevOps engineer, I want automatic backups so that we don't lose API key data\n- As a developer, I want easy migration from file-based to database storage so that upgrading is seamless\n\n## Acceptance Criteria\n- [ ] SQLite support for simple deployments (zero external dependencies)\n- [ ] PostgreSQL support for production deployments\n- [ ] Migration tool to convert existing apikeys.json to database\n- [ ] Database schema supports all current API key fields\n- [ ] Database operations use transactions for consistency\n- [ ] Connection pooling for performance\n- [ ] Backup and restore functionality\n- [ ] Database health checks and connection error handling\n- [ ] Backward compatibility with file-based storage during transition period",
+  "created_at": "2026-01-22T03:27:58.071Z",
+  "updated_at": "2026-01-22T03:33:25.495Z",
+  "status": "in_progress",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Database Setup & Schema Design",
+      "description": "Install dependencies, set up Drizzle ORM, and define database schema matching current API key structure",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "1.1",
+          "name": "Install Drizzle ORM and database drivers",
+          "description": "Install drizzle-orm, bun:sqlite (built-in), and postgres driver (postgres package)",
+          "status": "pending",
+          "files": [
+            "package.json"
+          ],
+          "acceptance_criteria": [
+            "Dependencies installed in package.json",
+            "bun install completes successfully"
+          ]
+        },
+        {
+          "id": "1.2",
+          "name": "Create Drizzle configuration",
+          "description": "Set up drizzle.config.ts with support for both SQLite and PostgreSQL",
+          "status": "pending",
+          "files": [
+            "drizzle.config.ts"
+          ],
+          "acceptance_criteria": [
+            "Configuration supports both SQLite and PostgreSQL",
+            "Schema folder defined",
+            "Migration files configured"
+          ]
+        },
+        {
+          "id": "1.3",
+          "name": "Define database schema",
+          "description": "Create schema files for api_keys table matching current ApiKey interface including usage_windows as a separate table",
+          "status": "pending",
+          "files": [
+            "src/db/schema.ts"
+          ],
+          "acceptance_criteria": [
+            "api_keys table with all fields: key, name, model, token_limit_per_5h, expiry_date, created_at, last_used, total_lifetime_tokens",
+            "usage_windows table with foreign key to api_keys",
+            "Indexes on key field for lookups",
+            "Indexes on last_used and expiry_date for queries"
+          ]
+        },
+        {
+          "id": "1.4",
+          "name": "Create database connection module",
+          "description": "Implement database client creation with environment-based selection (DATABASE_URL or sqlite file path)",
+          "status": "pending",
+          "files": [
+            "src/db/connection.ts"
+          ],
+          "acceptance_criteria": [
+            "Supports SQLite via bun:sqlite",
+            "Supports PostgreSQL via postgres driver",
+            "Connection pooling configured",
+            "Environment variable-based selection"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Database Operations Implementation",
+      "description": "Implement CRUD operations using Drizzle ORM with proper transactions and error handling",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "2.1",
+          "name": "Implement API key CRUD operations",
+          "description": "Create functions for findApiKey, createApiKey, updateApiKey, deleteApiKey using Drizzle",
+          "status": "pending",
+          "files": [
+            "src/db/operations.ts"
+          ],
+          "acceptance_criteria": [
+            "findApiKey by key string",
+            "createApiKey with validation",
+            "updateApiKey for metadata",
+            "deleteApiKey with cascade to usage_windows",
+            "All operations use transactions where appropriate"
+          ]
+        },
+        {
+          "id": "2.2",
+          "name": "Implement usage tracking with transactions",
+          "description": "Create updateApiKeyUsage function that handles usage_windows within a transaction",
+          "status": "pending",
+          "files": [
+            "src/db/operations.ts"
+          ],
+          "acceptance_criteria": [
+            "Transaction-based update of last_used and total_lifetime_tokens",
+            "Usage window logic (5-hour rolling window)",
+            "Automatic cleanup of old usage windows",
+            "Atomic operations to prevent race conditions"
+          ]
+        },
+        {
+          "id": "2.3",
+          "name": "Implement statistics query",
+          "description": "Create getKeyStats function that joins api_keys with usage_windows for complete stats",
+          "status": "pending",
+          "files": [
+            "src/db/operations.ts"
+          ],
+          "acceptance_criteria": [
+            "Returns full ApiKey with usage_windows",
+            "Efficient query with proper joins",
+            "Null handling for missing keys"
+          ]
+        },
+        {
+          "id": "2.4",
+          "name": "Add query helper functions",
+          "description": "Create utility functions for common queries (find all, find by model, find expired, etc.)",
+          "status": "pending",
+          "files": [
+            "src/db/operations.ts"
+          ],
+          "acceptance_criteria": [
+            "getAllApiKeys with pagination",
+            "findKeysByModel",
+            "findExpiredKeys",
+            "findActiveKeys"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Storage Abstraction Layer",
+      "description": "Create a unified storage interface that supports both file-based and database storage for backward compatibility",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "3.1",
+          "name": "Define storage interface",
+          "description": "Create IStorage interface with methods: findApiKey, updateApiKeyUsage, getKeyStats, initialize",
+          "status": "pending",
+          "files": [
+            "src/storage/interface.ts"
+          ],
+          "acceptance_criteria": [
+            "TypeScript interface defined",
+            "Matches current storage.ts function signatures",
+            "Support for async operations"
+          ]
+        },
+        {
+          "id": "3.2",
+          "name": "Implement database storage adapter",
+          "description": "Create DatabaseStorage class that implements IStorage using database operations",
+          "status": "pending",
+          "files": [
+            "src/storage/database.ts"
+          ],
+          "acceptance_criteria": [
+            "Implements IStorage interface",
+            "Uses database operations from phase 2",
+            "Proper error handling and logging"
+          ]
+        },
+        {
+          "id": "3.3",
+          "name": "Refactor file-based storage to adapter",
+          "description": "Move existing file-based logic to FileStorage class implementing IStorage",
+          "status": "pending",
+          "files": [
+            "src/storage/file.ts"
+          ],
+          "acceptance_criteria": [
+            "Implements IStorage interface",
+            "Preserves existing functionality",
+            "No breaking changes to existing code"
+          ]
+        },
+        {
+          "id": "3.4",
+          "name": "Create storage factory",
+          "description": "Implement getStorage() function that selects storage based on environment configuration",
+          "status": "pending",
+          "files": [
+            "src/storage/index.ts"
+          ],
+          "acceptance_criteria": [
+            "Environment-based selection (DATABASE_URL or STORAGE_TYPE)",
+            "Defaults to file-based for backward compatibility",
+            "Singleton pattern for storage instance",
+            "Graceful fallback on database errors"
+          ]
+        },
+        {
+          "id": "3.5",
+          "name": "Update existing code to use storage interface",
+          "description": "Refactor auth middleware and other consumers to use IStorage interface",
+          "status": "pending",
+          "files": [
+            "src/middleware/auth.ts",
+            "src/handlers/proxyHandler.ts"
+          ],
+          "acceptance_criteria": [
+            "All imports use storage interface",
+            "No direct database or file operations",
+            "Backward compatible with existing code"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Migration Tool",
+      "description": "Create CLI tool to migrate existing apikeys.json to database with validation and rollback support",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "4.1",
+          "name": "Create migration CLI script",
+          "description": "Build Bun CLI script (scripts/migrate.ts) that reads apikeys.json and inserts into database",
+          "status": "pending",
+          "files": [
+            "scripts/migrate.ts"
+          ],
+          "acceptance_criteria": [
+            "Reads from DATA_FILE or provided path",
+            "Validates JSON structure before migration",
+            "Inserts data using database adapter",
+            "Shows progress indicators"
+          ]
+        },
+        {
+          "id": "4.2",
+          "name": "Add backup before migration",
+          "description": "Create automatic backup of existing apikeys.json before migration starts",
+          "status": "pending",
+          "files": [
+            "scripts/migrate.ts"
+          ],
+          "acceptance_criteria": [
+            "Creates timestamped backup",
+            "Verifies backup creation",
+            "Stores backup in safe location"
+          ]
+        },
+        {
+          "id": "4.3",
+          "name": "Implement migration validation",
+          "description": "Add validation to ensure all data migrated correctly",
+          "status": "pending",
+          "files": [
+            "scripts/migrate.ts"
+          ],
+          "acceptance_criteria": [
+            "Compares record counts before/after",
+            "Validates data integrity",
+            "Reports any discrepancies",
+            "Exits with error on validation failure"
+          ]
+        },
+        {
+          "id": "4.4",
+          "name": "Add rollback capability",
+          "description": "Implement rollback function to restore from backup on migration failure",
+          "status": "pending",
+          "files": [
+            "scripts/migrate.ts"
+          ],
+          "acceptance_criteria": [
+            "Rolls back database changes",
+            "Restores file-based storage if needed",
+            "Clear error messages",
+            "Safe rollback on any error"
+          ]
+        },
+        {
+          "id": "4.5",
+          "name": "Add npm script for migration",
+          "description": "Add 'migrate' script to package.json",
+          "status": "pending",
+          "files": [
+            "package.json"
+          ],
+          "acceptance_criteria": [
+            "npm run migrate available",
+            "Supports dry-run mode",
+            "Supports force mode"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Backup & Restore Functionality",
+      "description": "Implement database backup and restore functionality for both SQLite and PostgreSQL",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "5.1",
+          "name": "Implement SQLite backup",
+          "description": "Create backup function for SQLite using file copy or SQL dump",
+          "status": "pending",
+          "files": [
+            "src/db/backup.ts"
+          ],
+          "acceptance_criteria": [
+            "Creates timestamped backup files",
+            "Compresses backups optionally",
+            "Verifies backup integrity",
+            "Manages backup retention"
+          ]
+        },
+        {
+          "id": "5.2",
+          "name": "Implement PostgreSQL backup",
+          "description": "Create backup function using pg_dump or SQL dump via Drizzle",
+          "status": "pending",
+          "files": [
+            "src/db/backup.ts"
+          ],
+          "acceptance_criteria": [
+            "Uses pg_dump if available",
+            "Falls back to SQL dump via Drizzle",
+            "Handles large datasets efficiently",
+            "Creates compressed backups"
+          ]
+        },
+        {
+          "id": "5.3",
+          "name": "Implement restore functionality",
+          "description": "Create restore function that can restore from backup files",
+          "status": "pending",
+          "files": [
+            "src/db/backup.ts"
+          ],
+          "acceptance_criteria": [
+            "Supports SQLite restore",
+            "Supports PostgreSQL restore",
+            "Validates backup before restore",
+            "Creates pre-restore backup"
+          ]
+        },
+        {
+          "id": "5.4",
+          "name": "Add backup CLI commands",
+          "description": "Create CLI scripts for manual backup and restore operations",
+          "status": "pending",
+          "files": [
+            "scripts/backup.ts",
+            "scripts/restore.ts"
+          ],
+          "acceptance_criteria": [
+            "bun run backup command",
+            "bun run restore <backup-file> command",
+            "List available backups command",
+            "Clear error messages"
+          ]
+        },
+        {
+          "id": "5.5",
+          "name": "Add scheduled backup option",
+          "description": "Implement optional scheduled backups with configurable intervals",
+          "status": "pending",
+          "files": [
+            "src/db/scheduler.ts"
+          ],
+          "acceptance_criteria": [
+            "Configurable via environment variables",
+            "Supports cron-like scheduling",
+            "Rotates old backups",
+            "Can be disabled"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "name": "Health Checks & Error Handling",
+      "description": "Add database health checks, connection retry logic, and comprehensive error handling",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "6.1",
+          "name": "Implement connection health check",
+          "description": "Create health check function that tests database connectivity and responsiveness",
+          "status": "pending",
+          "files": [
+            "src/db/health.ts"
+          ],
+          "acceptance_criteria": [
+            "Tests database connection",
+            "Measures query response time",
+            "Returns health status",
+            "Logs warnings for slow queries"
+          ]
+        },
+        {
+          "id": "6.2",
+          "name": "Add connection retry logic",
+          "description": "Implement exponential backoff retry for failed database connections",
+          "status": "pending",
+          "files": [
+            "src/db/connection.ts"
+          ],
+          "acceptance_criteria": [
+            "Retries failed connections",
+            "Exponential backoff strategy",
+            "Max retry limit",
+            "Configurable retry parameters"
+          ]
+        },
+        {
+          "id": "6.3",
+          "name": "Implement graceful degradation",
+          "description": "Add fallback to file-based storage if database is unavailable",
+          "status": "pending",
+          "files": [
+            "src/storage/index.ts"
+          ],
+          "acceptance_criteria": [
+            "Detects database failures",
+            "Falls back to file storage",
+            "Logs fallback events",
+            "Retries database connection periodically"
+          ]
+        },
+        {
+          "id": "6.4",
+          "name": "Add comprehensive error handling",
+          "description": "Wrap all database operations with proper error handling and logging",
+          "status": "pending",
+          "files": [
+            "src/db/operations.ts"
+          ],
+          "acceptance_criteria": [
+            "Specific error types (connection, query, constraint)",
+            "Meaningful error messages",
+            "Error logging",
+            "User-friendly error responses"
+          ]
+        },
+        {
+          "id": "6.5",
+          "name": "Create health check endpoint",
+          "description": "Add HTTP endpoint for database health status (can be used by load balancers)",
+          "status": "pending",
+          "files": [
+            "src/index.ts"
+          ],
+          "acceptance_criteria": [
+            "GET /health endpoint",
+            "Returns database status",
+            "Includes connection info",
+            "Returns 503 if unhealthy"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "name": "Testing",
+      "description": "Write comprehensive tests for all database operations, migration, and backup/restore functionality",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "7.1",
+          "name": "Test database schema",
+          "description": "Verify schema creation and constraints",
+          "status": "pending",
+          "files": [
+            "test/db/schema.test.ts"
+          ],
+          "acceptance_criteria": [
+            "Tables created correctly",
+            "Indexes work as expected",
+            "Foreign key constraints enforced",
+            "Unique constraints on key field"
+          ]
+        },
+        {
+          "id": "7.2",
+          "name": "Test CRUD operations",
+          "description": "Unit tests for all database CRUD functions",
+          "status": "pending",
+          "files": [
+            "test/db/operations.test.ts"
+          ],
+          "acceptance_criteria": [
+            "Create, read, update, delete operations",
+            "Transaction handling",
+            "Edge cases (null values, duplicates)",
+            "Error scenarios"
+          ]
+        },
+        {
+          "id": "7.3",
+          "name": "Test usage tracking",
+          "description": "Tests for usage window logic and token counting",
+          "status": "pending",
+          "files": [
+            "test/db/usage.test.ts"
+          ],
+          "acceptance_criteria": [
+            "5-hour window calculation",
+            "Multiple window handling",
+            "Old window cleanup",
+            "Concurrent updates"
+          ]
+        },
+        {
+          "id": "7.4",
+          "name": "Test migration tool",
+          "description": "Integration tests for migration from file to database",
+          "status": "pending",
+          "files": [
+            "test/migration.test.ts"
+          ],
+          "acceptance_criteria": [
+            "Successful migration",
+            "Data integrity preserved",
+            "Rollback functionality",
+            "Validation catches errors"
+          ]
+        },
+        {
+          "id": "7.5",
+          "name": "Test backup and restore",
+          "description": "Tests for backup creation and restoration",
+          "status": "pending",
+          "files": [
+            "test/db/backup.test.ts"
+          ],
+          "acceptance_criteria": [
+            "Backup creation",
+            "Backup integrity",
+            "Restore functionality",
+            "Compression/decompression"
+          ]
+        },
+        {
+          "id": "7.6",
+          "name": "Test storage abstraction",
+          "description": "Tests for storage interface and adapters",
+          "status": "pending",
+          "files": [
+            "test/storage/adapters.test.ts"
+          ],
+          "acceptance_criteria": [
+            "Interface compliance",
+            "File storage adapter",
+            "Database storage adapter",
+            "Storage factory selection"
+          ]
+        },
+        {
+          "id": "7.7",
+          "name": "Test health checks",
+          "description": "Tests for health check functionality",
+          "status": "pending",
+          "files": [
+            "test/db/health.test.ts"
+          ],
+          "acceptance_criteria": [
+            "Healthy database response",
+            "Unhealthy database detection",
+            "Connection failure handling",
+            "Retry logic"
+          ]
+        },
+        {
+          "id": "7.8",
+          "name": "Integration tests",
+          "description": "End-to-end tests with real database operations",
+          "status": "pending",
+          "files": [
+            "test/integration/storage.test.ts"
+          ],
+          "acceptance_criteria": [
+            "Full request/response cycle",
+            "Multiple concurrent requests",
+            "Failure recovery",
+            "Performance benchmarks"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-8",
+      "name": "Documentation",
+      "description": "Update documentation with database setup instructions, migration guide, and configuration examples",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "8.1",
+          "name": "Update README",
+          "description": "Add database setup section with SQLite and PostgreSQL instructions",
+          "status": "pending",
+          "files": [
+            "README.md"
+          ],
+          "acceptance_criteria": [
+            "Prerequisites for each database type",
+            "Installation steps",
+            "Configuration examples",
+            "Environment variables reference"
+          ]
+        },
+        {
+          "id": "8.2",
+          "name": "Create migration guide",
+          "description": "Document step-by-step migration process from file-based to database storage",
+          "status": "pending",
+          "files": [
+            "docs/migration.md"
+          ],
+          "acceptance_criteria": [
+            "Pre-migration checklist",
+            "Migration steps",
+            "Post-migration verification",
+            "Troubleshooting section"
+          ]
+        },
+        {
+          "id": "8.3",
+          "name": "Document backup/restore",
+          "description": "Create documentation for backup and restore procedures",
+          "status": "pending",
+          "files": [
+            "docs/backup-restore.md"
+          ],
+          "acceptance_criteria": [
+            "Manual backup procedures",
+            "Automated backup setup",
+            "Restore procedures",
+            "Disaster recovery plan"
+          ]
+        },
+        {
+          "id": "8.4",
+          "name": "Add configuration examples",
+          "description": "Provide example configuration files for different deployment scenarios",
+          "status": "pending",
+          "files": [
+            ".env.example",
+            "docker-compose.yml"
+          ],
+          "acceptance_criteria": [
+            "Development SQLite setup",
+            "Production PostgreSQL setup",
+            "Docker deployment example",
+            "Environment variable templates"
+          ]
+        },
+        {
+          "id": "8.5",
+          "name": "Update API documentation",
+          "description": "Document any new API endpoints or changes to existing ones",
+          "status": "pending",
+          "files": [
+            "docs/api.md"
+          ],
+          "acceptance_criteria": [
+            "Health check endpoint",
+            "Any storage-related changes",
+            "Error response formats",
+            "Rate limiting considerations"
+          ]
+        }
+      ]
+    }
+  ],
+  "next_task": "1.1",
+  "qa_signoff": {
+    "status": "pending",
+    "notes": "",
+    "tested_by": "",
+    "tested_at": ""
+  },
+  "planStatus": "in_progress"
+}
