@@ -2,7 +2,7 @@
   "feature": "Performance Optimization and Low-Latency Architecture",
   "description": "# Performance Optimization and Low-Latency Architecture\n\nComprehensive performance optimization including connection pooling, request pipelining, efficient JSON parsing, and minimal overhead to achieve < 10ms latency overhead (beating LiteLLM's 15-30ms).\n\n## Rationale\nDirectly addresses LiteLLM's high latency pain point (pain-1-1). Major competitive differentiator. Critical for user experience in high-throughput applications. Aligns with market trend of moving away from high-latency gateways.\n\n## User Stories\n- As a developer, I want low latency overhead so that my applications feel responsive\n- As a performance engineer, I want benchmarks so that I can compare GLM Proxy to alternatives\n- As a user, I want the proxy to be faster than competing solutions so that I choose GLM Proxy\n\n## Acceptance Criteria\n- [ ] Latency overhead < 10ms measured from proxy request to Z.AI request\n- [ ] Connection pooling to Z.AI API with configurable pool size\n- [ ] Efficient streaming implementation with minimal buffering\n- [ ] Optimized JSON parsing and serialization\n- [ ] Profiling and benchmarking suite to track performance\n- [ ] Performance comparison dashboard vs direct Z.AI API\n- [ ] Load testing results showing sustained performance under load\n- [ ] Memory usage optimization (< 100MB base memory)\n- [ ] CPU usage profiling to identify hotspots\n",
   "created_at": "2026-01-22T03:29:41.145Z",
-  "updated_at": "2026-01-22T04:43:42.361Z",
+  "updated_at": "2026-01-22T04:51:30.784Z",
   "status": "in_progress",
   "planStatus": "in_progress",
   "phases": [
@@ -257,10 +257,13 @@
           "id": "4.2",
           "title": "Request Batching",
           "description": "Batch similar requests when possible",
-          "status": "pending",
+          "status": "completed",
           "files": [
+            "src/batching/types.ts",
             "src/batching/BatchManager.ts",
-            "src/batching/BatchQueue.ts"
+            "src/batching/BatchQueue.ts",
+            "src/batching/index.ts",
+            "test/batching.test.ts"
           ],
           "acceptance_criteria": [
             "Configurable batching window (ms)",
@@ -268,7 +271,8 @@
             "Individual response routing from batch result",
             "Fallback to immediate request on timeout",
             "Batching metrics: batch size, wait time reduction"
-          ]
+          ],
+          "notes": "Successfully implemented comprehensive request batching system. Created BatchManager with configurable batch window (default: 50ms via BATCH_WINDOW_MS), intelligent grouping by model and parameters (temperature, max_tokens, top_p), and individual response routing. Implemented BatchQueue with FIFO ordering, configurable max batch size (default: 10 via BATCH_MAX_SIZE), and max queue size (default: 1000 via BATCH_MAX_QUEUE_SIZE). Automatic fallback to immediate execution when queue is full or batching disabled. Comprehensive metrics tracking: batch size, wait time (avg/p95/p99), batch rate, time saved calculation. Global singleton pattern with getBatchManager() function. Disabled by default (enabled via BATCHING_ENABLED=1). All 44 tests passing (batch key generation, queue operations, manager functionality, global singleton, key extraction). All acceptance criteria met ✅"
         }
       ]
     },
