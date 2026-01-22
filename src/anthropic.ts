@@ -1,6 +1,6 @@
 import type { ApiKey } from './types.js';
 import { getModelForKey } from './validator.js';
-import { updateApiKeyUsage } from './storage.js';
+import { updateApiKeyUsage } from './db/queries.js';
 
 const ZAI_ANTHROPIC_BASE = 'https://open.bigmodel.cn/api/anthropic';
 

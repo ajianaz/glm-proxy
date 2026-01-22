@@ -159,3 +159,32 @@ export async function regenerateApiKey(id: string): Promise<ApiKeyListItem | nul
 
   return result || null;
 }
+
+/**
+ * Update API key usage statistics (last used and total lifetime tokens)
+ * This function is called after successful API requests to track token usage
+ */
+export async function updateApiKeyUsage(
+  key: string,
+  tokensUsed: number,
+  _model: string
+): Promise<void> {
+  // Get current API key data
+  const apiKey = await findApiKeyByKey(key);
+
+  if (!apiKey) {
+    return; // API key not found, nothing to update
+  }
+
+  // Calculate new total lifetime tokens
+  const newTotalLifetimeTokens = (apiKey.totalLifetimeTokens || 0) + tokensUsed;
+
+  // Update last_used and total_lifetime_tokens
+  await db
+    .update(apiKeys)
+    .set({
+      lastUsed: new Date().toISOString(),
+      totalLifetimeTokens: newTotalLifetimeTokens,
+    })
+    .where(eq(apiKeys.key, key));
+}

@@ -26,6 +26,8 @@ cp .env.example .env
 ZAI_API_KEY=your_zai_api_key_here    # Required: Master API key from Z.AI
 DEFAULT_MODEL=glm-4.7                 # Optional: Default model (fallback)
 PORT=3030                             # Optional: Service port
+DATABASE_URL=postgresql://user:password@localhost:5432/glm_proxy  # Required: PostgreSQL database
+ADMIN_API_KEY=ajianaz_admin_your_admin_key_here  # Required: Admin authentication key
 ```
 
 ### 2. Start Service
@@ -67,6 +69,139 @@ or query parameter:
 
 ---
 
+## Admin API
+
+The Admin API provides endpoints for managing API keys. All admin endpoints require authentication via the `ADMIN_API_KEY`.
+
+### Admin Authentication
+
+Use admin API key via header:
+```bash
+Authorization: Bearer ajianaz_admin_your_admin_key_here
+```
+
+### Admin Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/admin/api-keys` | Create a new API key | Admin API Key |
+| GET | `/admin/api-keys` | List all API keys (with pagination) | Admin API Key |
+| GET | `/admin/api-keys/:id` | Get API key by ID | Admin API Key |
+| GET | `/admin/api-keys/key/:key` | Get API key by key value | Admin API Key |
+| PUT | `/admin/api-keys/:id` | Update an API key | Admin API Key |
+| DELETE | `/admin/api-keys/:id` | Delete an API key | Admin API Key |
+| POST | `/admin/api-keys/:id/regenerate` | Regenerate API key value | Admin API Key |
+
+### Example: Create API Key
+
+```bash
+curl -X POST http://localhost:3030/admin/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ajianaz_admin_your_admin_key_here" \
+  -d '{
+    "name": "John Doe",
+    "model": "glm-4.7",
+    "tokenLimitPerDay": 100000,
+    "expiryDate": "2026-12-31T23:59:59Z"
+  }'
+```
+
+Response:
+```json
+{
+  "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "key": "pk_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "name": "John Doe",
+  "model": "glm-4.7",
+  "tokenLimitPerDay": 100000,
+  "expiryDate": "2026-12-31T23:59:59Z",
+  "createdAt": "2026-01-23T00:00:00.000Z",
+  "lastUsed": null,
+  "totalLifetimeTokens": 0
+}
+```
+
+### Example: List API Keys
+
+```bash
+curl -H "Authorization: Bearer ajianaz_admin_your_admin_key_here" \
+  "http://localhost:3030/admin/api-keys?limit=10&offset=0"
+```
+
+Response:
+```json
+{
+  "keys": [
+    {
+      "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "key": "pk_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "name": "John Doe",
+      "model": "glm-4.7",
+      "tokenLimitPerDay": 100000,
+      "expiryDate": "2026-12-31T23:59:59Z",
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "lastUsed": "2026-01-23T01:00:00.000Z",
+      "totalLifetimeTokens": 1500
+    }
+  ],
+  "total": 1,
+  "limit": 10,
+  "offset": 0
+}
+```
+
+### Example: Get API Key by ID
+
+```bash
+curl -H "Authorization: Bearer ajianaz_admin_your_admin_key_here" \
+  "http://localhost:3030/admin/api-keys/01ARZ3NDEKTSV4RRFFQ69G5FAV"
+```
+
+### Example: Update API Key
+
+```bash
+curl -X PUT http://localhost:3030/admin/api-keys/01ARZ3NDEKTSV4RRFFQ69G5FAV \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ajianaz_admin_your_admin_key_here" \
+  -d '{
+    "name": "John Doe Updated",
+    "tokenLimitPerDay": 150000
+  }'
+```
+
+### Example: Regenerate API Key
+
+```bash
+curl -X POST http://localhost:3030/admin/api-keys/01ARZ3NDEKTSV4RRFFQ69G5FAV/regenerate \
+  -H "Authorization: Bearer ajianaz_admin_your_admin_key_here"
+```
+
+Response:
+```json
+{
+  "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "key": "pk_NEW regenerated key value",
+  "name": "John Doe",
+  "model": "glm-4.7",
+  "tokenLimitPerDay": 100000,
+  "expiryDate": "2026-12-31T23:59:59Z",
+  "createdAt": "2026-01-23T00:00:00.000Z",
+  "lastUsed": "2026-01-23T01:00:00.000Z",
+  "totalLifetimeTokens": 1500
+}
+```
+
+### Example: Delete API Key
+
+```bash
+curl -X DELETE http://localhost:3030/admin/api-keys/01ARZ3NDEKTSV4RRFFQ69G5FAV \
+  -H "Authorization: Bearer ajianaz_admin_your_admin_key_here"
+```
+
+Response: `204 No Content`
+
+---
+
 ## Usage
 
 ### 1. Check Health
@@ -103,7 +238,7 @@ Response:
   "current_usage": {
     "tokens_used_in_current_window": 150,
     "window_started_at": "2026-01-18T00:00:00.000Z",
-    "window_ends_at": "2026-01-18T05:00:00.000Z",
+    "window_ends_at": "2026-01-19T00:00:00.000Z",
     "remaining_tokens": 99850
   },
   "total_lifetime_tokens": 150
@@ -226,25 +361,21 @@ print(message.content)
 
 ## API Key Management
 
-API keys are stored in `data/apikeys.json`. Edit manually to add/remove/modify keys.
+API keys are managed through the Admin API (see above). All CRUD operations are available via REST endpoints.
 
 ### API Key Structure
 
 ```json
 {
-  "keys": [
-    {
-      "key": "pk_user_12345",
-      "name": "User Full Name",
-      "model": "glm-4.7",
-      "token_limit_per_5h": 100000,
-      "expiry_date": "2026-12-31T23:59:59Z",
-      "created_at": "2026-01-18T00:00:00Z",
-      "last_used": "2026-01-18T00:00:00Z",
-      "total_lifetime_tokens": 0,
-      "usage_windows": []
-    }
-  ]
+  "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "key": "pk_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "name": "User Full Name",
+  "model": "glm-4.7",
+  "tokenLimitPerDay": 100000,
+  "expiryDate": "2026-12-31T23:59:59Z",
+  "createdAt": "2026-01-18T00:00:00.000Z",
+  "lastUsed": "2026-01-18T00:00:00.000Z",
+  "totalLifetimeTokens": 0
 }
 ```
 
@@ -252,56 +383,36 @@ API keys are stored in `data/apikeys.json`. Edit manually to add/remove/modify k
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `key` | string | Unique API key identifier (format: `pk_*`) |
+| `id` | string | Unique ULID identifier |
+| `key` | string | API key value (format: `pk_*`, auto-generated) |
 | `name` | string | User/owner name |
 | `model` | string | Model for this key (glm-4.7, glm-4.5-air, etc.) |
-| `token_limit_per_5h` | number | Token quota per 5-hour rolling window |
-| `expiry_date` | string | ISO 8601 timestamp for expiry |
-| `created_at` | string | ISO 8601 creation timestamp |
-| `last_used` | string | ISO 8601 last usage timestamp (auto-updated) |
-| `total_lifetime_tokens` | number | Total all tokens ever used |
-| `usage_windows` | array | Internal tracking array (auto-managed) |
-
-### Example: Create New API Key
-
-```bash
-# Edit file
-nano data/apikeys.json
-
-# Or with jq
-jq '.keys += [{
-  "key": "pk_new_user_'"$(date +%s)"'",
-  "name": "New User",
-  "model": "glm-4.7",
-  "token_limit_per_5h": 50000,
-  "expiry_date": "2026-12-31T23:59:59Z",
-  "created_at": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'",
-  "last_used": "2026-01-18T00:00:00Z",
-  "total_lifetime_tokens": 0,
-  "usage_windows": []
-}]' data/apikeys.json > tmp.json && mv tmp.json data/apikeys.json
-```
+| `tokenLimitPerDay` | number | Token quota per 24-hour period |
+| `expiryDate` | string | ISO 8601 timestamp for expiry |
+| `createdAt` | string | ISO 8601 creation timestamp |
+| `lastUsed` | string | ISO 8601 last usage timestamp (auto-updated) |
+| `totalLifetimeTokens` | number | Total all tokens ever used |
 
 ---
 
 ## Rate Limiting
 
-### Rolling 5-Hour Window
+### Rolling 24-Hour Window
 
 - **Window Type**: Rolling window (not fixed reset)
-- **Duration**: 5 hours
+- **Duration**: 24 hours
 - **Metric**: Total tokens from all requests within active window
 
 ### Calculation Example
 
-If `token_limit_per_5h = 100,000`:
+If `tokenLimitPerDay = 100,000`:
 
-| Time | Tokens | Active Windows (5h) | Total Used | Status |
-|------|--------|---------------------|------------|--------|
-| 00:00 | 10,000 | [(00:00-05:00, 10K)] | 10,000 | OK |
-| 02:00 | 20,000 | [(00:00-05:00, 10K), (02:00-07:00, 20K)] | 30,000 | OK |
-| 04:00 | 50,000 | [(00:00-05:00, 10K), (02:00-07:00, 20K), (04:00-09:00, 50K)] | 80,000 | OK |
-| 04:30 | 30,000 | [(00:00-05:00, 10K), (02:00-07:00, 20K), (04:00-09:00, 50K), (04:30-09:30, 30K)] | 110,000 | **RATE LIMITED** |
+| Time | Tokens | Active Windows (24h) | Total Used | Status |
+|------|--------|----------------------|------------|--------|
+| Day 1 00:00 | 10,000 | [(D1 00:00-D2 00:00, 10K)] | 10,000 | OK |
+| Day 1 12:00 | 20,000 | [(D1 00:00-D2 00:00, 10K), (D1 12:00-D2 12:00, 20K)] | 30,000 | OK |
+| Day 1 20:00 | 50,000 | [(D1 00:00-D2 00:00, 10K), (D1 12:00-D2 12:00, 20K), (D1 20:00-D2 20:00, 50K)] | 80,000 | OK |
+| Day 2 04:00 | 30,000 | [(D1 12:00-D2 12:00, 20K), (D1 20:00-D2 20:00, 50K), (D2 04:00-D3 04:00, 30K)] | 100,000 | **RATE LIMITED** |
 
 ### Rate Limited Response
 
@@ -374,7 +485,7 @@ Headers:
   Content-Type: application/json
 
 Your API Key: pk_xxxxx
-Quota: 100,000 tokens per 5 hours
+Quota: 100,000 tokens per 24 hours
 Expiry: 2026-12-31
 
 Check quota: http://your-domain.com/stats
@@ -399,7 +510,7 @@ A: Yes! Use endpoint `/v1/messages` with Anthropic format. The proxy will auto-f
 A: Yes, glm-4.5-air, glm-4.7, glm-4.5-flash, etc. Check Z.AI docs for full list.
 
 **Q: What if quota runs out?**
-A: Wait until the 5-hour window ends, or request admin to increase limit.
+A: Wait until the 24-hour window ends, or request admin to increase limit.
 
 **Q: Is my data stored?**
 A: No logging of request/response. Only token usage is tracked.

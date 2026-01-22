@@ -39,18 +39,18 @@ app.get('/stats', authMiddleware, async (c) => {
     key: apiKey.key,
     name: apiKey.name,
     model,
-    token_limit_per_5h: apiKey.token_limit_per_5h,
-    expiry_date: apiKey.expiry_date,
-    created_at: apiKey.created_at,
-    last_used: apiKey.last_used,
-    is_expired: new Date(apiKey.expiry_date) < new Date(),
+    token_limit_per_day: apiKey.tokenLimitPerDay,
+    expiry_date: apiKey.expiryDate,
+    created_at: apiKey.createdAt,
+    last_used: apiKey.lastUsed,
+    is_expired: new Date(apiKey.expiryDate) < new Date(),
     current_usage: {
-      tokens_used_in_current_window: rateLimit.tokensUsed,
-      window_started_at: rateLimit.windowStart,
-      window_ends_at: rateLimit.windowEnd,
+      tokens_used_today: rateLimit.tokensUsed,
+      day_started_at: rateLimit.windowStart,
+      day_ends_at: rateLimit.windowEnd,
       remaining_tokens: Math.max(0, rateLimit.tokensLimit - rateLimit.tokensUsed),
     },
-    total_lifetime_tokens: apiKey.total_lifetime_tokens,
+    total_lifetime_tokens: apiKey.totalLifetimeTokens,
   };
 
   return c.json(stats);

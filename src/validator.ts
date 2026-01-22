@@ -1,5 +1,5 @@
 import type { ApiKey } from './types.js';
-import { findApiKey } from './storage.js';
+import { findApiKeyByKey, type ApiKeyListItem } from './db/queries.js';
 import { isKeyExpired } from './ratelimit.js';
 
 export interface ValidationResult {
@@ -7,6 +7,21 @@ export interface ValidationResult {
   apiKey?: ApiKey;
   error?: string;
   statusCode?: number;
+}
+
+// Helper to convert ApiKeyListItem to ApiKey (handling nullable fields)
+function toApiKey(item: ApiKeyListItem): ApiKey {
+  return {
+    id: item.id,
+    key: item.key,
+    name: item.name,
+    model: item.model,
+    tokenLimitPerDay: item.tokenLimitPerDay,
+    expiryDate: item.expiryDate,
+    createdAt: item.createdAt || new Date().toISOString(),
+    lastUsed: item.lastUsed,
+    totalLifetimeTokens: item.totalLifetimeTokens,
+  };
 }
 
 export async function validateApiKey(
@@ -30,15 +45,17 @@ export async function validateApiKey(
     };
   }
 
-  const apiKey = await findApiKey(key);
+  const apiKeyItem = await findApiKeyByKey(key);
 
-  if (!apiKey) {
+  if (!apiKeyItem) {
     return {
       valid: false,
       error: 'Invalid API key',
       statusCode: 401,
     };
   }
+
+  const apiKey = toApiKey(apiKeyItem);
 
   if (isKeyExpired(apiKey)) {
     return {
