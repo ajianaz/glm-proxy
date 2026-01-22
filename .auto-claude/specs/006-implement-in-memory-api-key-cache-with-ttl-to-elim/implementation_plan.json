@@ -2,7 +2,7 @@
   "feature": "Implement in-memory API key cache with TTL to eliminate file I/O on every request",
   "description": "The current implementation reads from the JSON file on every API request for authentication (findApiKey in storage.ts). This creates significant I/O overhead and scales poorly. Implementing an in-memory LRU cache with a 5-minute TTL would eliminate most disk reads while maintaining data freshness.",
   "created_at": "2026-01-22T03:34:05.273Z",
-  "updated_at": "2026-01-22T04:14:07.552Z",
+  "updated_at": "2026-01-22T04:21:28.557Z",
   "status": "in_progress",
   "planStatus": "in_progress",
   "workflow_type": "development",
@@ -265,7 +265,7 @@
           "id": "4.2",
           "name": "Write integration tests for storage layer",
           "description": "Test that findApiKey correctly uses cache and falls back to disk when needed",
-          "status": "pending",
+          "status": "completed",
           "estimated_time": "40m",
           "dependencies": [
             "3.3"
@@ -280,7 +280,9 @@
             "Test not-found keys cached as null",
             "Test cache invalidation on updates",
             "All existing storage tests still pass"
-          ]
+          ],
+          "notes": "Successfully implemented comprehensive integration tests for storage layer cache integration in test/storage.test.ts. All 16 tests pass, covering: cache hit path returns correct ApiKey, cache miss triggers file read and populates cache, negative caching for not-found keys, cache updates on write operations (updateApiKeyUsage), cache behavior when disabled, multiple keys handling, and cache statistics tracking. Tests follow existing project patterns and use vitest framework. All acceptance criteria met and all existing storage tests still pass.",
+          "updated_at": "2026-01-22T04:21:04.878322+00:00"
         },
         {
           "id": "4.3",
@@ -477,5 +479,6 @@
       "CACHE_WARMUP_ON_START": "false (default)",
       "CACHE_LOG_LEVEL": "none (default, options: debug/info)"
     }
-  }
+  },
+  "last_updated": "2026-01-22T04:21:04.878334+00:00"
 }
