@@ -22,6 +22,40 @@ async function handleRequest(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const pathname = url.pathname;
 
+  // Serve static files (CSS, JS, images, etc.)
+  if (pathname.startsWith('/styles/') || pathname.startsWith('/frontend.') || pathname.match(/\.(css|js|json|png|jpg|jpeg|gif|svg|ico)$/)) {
+    try {
+      const filePath = '.' + pathname;
+      const file = Bun.file(filePath);
+      const exists = await file.exists();
+
+      if (!exists) {
+        return new Response('File not found', { status: 404 });
+      }
+
+      // Determine content type
+      let contentType = 'application/octet-stream';
+      if (pathname.endsWith('.css')) {
+        contentType = 'text/css; charset=utf-8';
+      } else if (pathname.endsWith('.js') || pathname.endsWith('.mjs')) {
+        contentType = 'application/javascript; charset=utf-8';
+      } else if (pathname.endsWith('.json')) {
+        contentType = 'application/json; charset=utf-8';
+      } else if (pathname.match(/\.(png|jpg|jpeg|gif|svg|ico)$/)) {
+        contentType = 'image/' + pathname.split('.').pop();
+      }
+
+      return new Response(file, {
+        headers: {
+          'Content-Type': contentType,
+        },
+      });
+    } catch (error) {
+      console.error('Error serving static file:', error);
+      return new Response('Internal server error', { status: 500 });
+    }
+  }
+
   // Serve the main dashboard page
   if (pathname === '/' || pathname === '/index.html') {
     const indexPage = await Bun.file("./index.html").text();
