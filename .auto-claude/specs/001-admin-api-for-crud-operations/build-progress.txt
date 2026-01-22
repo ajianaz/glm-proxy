@@ -644,10 +644,6 @@ Ready to begin implementation starting with Phase 1: Project Setup & Environment
   - TypeScript compilation successful for src/ files
   - Updated implementation plan to mark error-2 as completed
 
-### Next Steps
-- error-4: Add server error handling (already implemented with internalServerError())
-- error-5: Implement request logging
-
 - ✅ **error-3: Add not found handling**
   - Replaced all manual 404 error responses with centralized notFoundError() helper function
   - GET /admin/api/keys/:id now uses notFoundError(c, 'API key', 'id ${id}')
@@ -668,10 +664,45 @@ Ready to begin implementation starting with Phase 1: Project Setup & Environment
   - Updated implementation plan to mark error-3 as completed
   - Committed changes: auto-claude: error-3 - Add not found handling
 
+- ✅ **error-4: Add server error handling**
+  - Added global error handler middleware in src/index.ts
+  - Implemented app.onError() to catch all unhandled errors across all routes
+  - Global error handler:
+    - Logs error details (message, stack, path, method) using console.error
+    - Returns 500 Internal Server Error with generic message to clients
+    - Prevents sensitive information from leaking to API responses
+    - Works for all routes, not just admin API (Service: all)
+  - All admin API endpoints already use internalServerError() in try-catch blocks
+  - internalServerError() helper function:
+    - Logs detailed error information for debugging
+    - Returns generic message to clients ("An unexpected error occurred. Please try again later.")
+    - Never exposes sensitive log details in HTTP responses
+  - Created comprehensive integration test suite in test/integration/globalErrorHandler.test.ts (8 tests):
+    - Tests for server error response format and status codes
+    - Tests that sensitive details are not exposed in responses
+    - Tests for custom error messages
+    - Tests for error logging with console.error
+    - Tests for global error handler pattern with Error objects
+    - Tests for async error handling
+    - Tests for consistent error response format
+    - Tests that stack traces don't leak in responses
+    - All tests passing (8/8)
+  - All admin-related tests passing (383 total: 375 existing + 8 new)
+  - TypeScript compilation successful for src/ files (no errors)
+  - Updated implementation plan to mark error-4 as completed
+
 ### Implementation Notes
-- The notFoundError() helper was already implemented in error-1 subtask
-- This subtask focused on applying it consistently across all endpoints
-- Error messages now include resource type and identifier for better debugging
-- Example: "API key with id 99999 not found" instead of just "Not found"
-- All 404 responses return consistent format with error message and details field
+- The internalServerError() helper was already implemented in error-1 subtask
+- This subtask focused on ensuring ALL routes have proper error handling (Service: all requirement)
+- Global error handler catches any unhandled errors that slip through individual route handlers
+- Two-layer defense: individual route try-catch blocks + global error handler
+- Error logging uses console.error() with structured error data
+- Sensitive information (stacks, passwords, internals) never appears in client responses
+- Global error handler follows Hono's app.onError() pattern
+- Works for all HTTP methods (GET, POST, PUT, DELETE, etc.)
+- Handles both synchronous and asynchronous errors
+- Provides consistent 500 responses even for unexpected error types
+
+### Next Steps
+- error-5: Implement request logging
 

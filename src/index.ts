@@ -9,6 +9,7 @@ import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { createProxyHandler } from './handlers/proxyHandler.js';
 import { keysRoutes } from './routes/admin/index.js';
 import type { StatsResponse } from './types.js';
+import { internalServerError } from './utils/errors.js';
 
 type Bindings = {
   ZAI_API_KEY: string;
@@ -24,6 +25,20 @@ app.use('/*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
 }));
+
+// Global error handler - catches all unhandled errors across all routes
+app.onError((error, c) => {
+  // Log the error for debugging
+  console.error('Unhandled error:', {
+    message: error.message,
+    stack: error.stack,
+    path: c.req.path,
+    method: c.req.method,
+  });
+
+  // Return 500 Internal Server Error with generic message
+  return internalServerError(c, 'An unexpected error occurred');
+});
 
 // Stats endpoint
 app.get('/stats', authMiddleware, async (c) => {
