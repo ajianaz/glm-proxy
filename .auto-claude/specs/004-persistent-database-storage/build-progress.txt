@@ -41,12 +41,12 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ CLI commands (COMPLETED: 5.4)
 - ✅ Scheduled backups (COMPLETED: 5.5)
 
-### Phase 6: Health Checks & Error Handling [IN PROGRESS]
+### Phase 6: Health Checks & Error Handling [COMPLETED]
 - ✅ Health check function (COMPLETED: 6.1)
 - ✅ Connection retry logic (COMPLETED: 6.2)
 - ✅ Graceful degradation (COMPLETED: 6.3)
 - ✅ Error handling (COMPLETED: 6.4)
-- HTTP health endpoint
+- ✅ HTTP health endpoint (COMPLETED: 6.5)
 
 ### Phase 7: Testing [PENDING]
 - Schema tests
@@ -726,4 +726,51 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
     ✅ Meaningful error messages with context (operation, field, value)
     ✅ Structured error logging (timestamp, error type, context)
     ✅ User-friendly error responses (clear action messages)
-
+- **6.5** Create health check endpoint (COMPLETED)
+  - Implemented comprehensive GET /health endpoint in src/index.ts with full database health status
+  - Endpoint returns database health status using checkHealth() function from src/db/health.ts
+  - Response structure includes:
+    * Overall status: "ok" (healthy), "degraded" (slow but operational), or "unhealthy"
+    * Timestamp in ISO 8601 format
+    * Storage information: type (database/file), inFallbackMode flag
+    * Fallback details: retryCount, lastRetryAt (when in fallback mode)
+    * Database details: type (sqlite/postgresql), connected, responseTimeMs, status
+    * Clear message describing current state
+  - HTTP status codes:
+    * 200 for healthy database (all systems operational)
+    * 200 for degraded database (slow but operational)
+    * 200 for file storage (service is running)
+    * 200 for database with fallback mode (service degraded but operational via file storage)
+    * 503 for unhealthy database without fallback (load balancers can detect and route away)
+  - Load balancer compatibility:
+    * Fast response time (< 100ms, typically < 1ms locally)
+    * Returns 503 when unhealthy (no fallback available)
+    * Returns 200 when operational (even with fallback or degraded database)
+    * Includes detailed health information for monitoring systems
+  - Works with both SQLite and PostgreSQL databases
+  - Handles graceful degradation scenarios automatically
+  - No API key counting by default for faster health checks
+  - Created test/manual-health-endpoint-verification.test.ts with 4 comprehensive tests:
+    * Health check function validation (verifies checkHealth returns valid structure)
+    * Health endpoint response structure verification (validates all required fields)
+    * Database health check with SQLite (tests with real SQLite database)
+    * Response time performance testing (verifies < 100ms response time)
+  - All 4 manual verification tests passing
+  - Response time verified to be fast (< 1ms for local checks, well under 100ms threshold)
+  - Works correctly with both database and file storage
+  - Code quality:
+    * Follows existing code patterns and conventions
+    * No console.log statements (only user-facing health responses)
+    * TypeScript compilation verified
+    * Proper error handling for health check failures
+    * Clear status messages for all scenarios (healthy, degraded, unhealthy, fallback)
+  - Example responses:
+    * Healthy database: { status: "ok", storage: { type: "database" }, database: { connected: true, status: "healthy" } }
+    * File storage: { status: "ok", storage: { type: "file" }, message: "Service is running with file storage" }
+    * Fallback mode: { status: "degraded", storage: { type: "database", inFallbackMode: true }, message: "Service is running in fallback mode using file storage" }
+    * Unhealthy: { status: "unhealthy", database: { connected: false } } (with 503 status code)
+  - All acceptance criteria met:
+    ✅ GET /health endpoint (implemented in src/index.ts)
+    ✅ Returns database status (using checkHealth() from src/db/health.ts)
+    ✅ Includes connection info (type, connected, responseTimeMs, status, error details)
+    ✅ Returns 503 if unhealthy (when no fallback available)
