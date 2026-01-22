@@ -43,8 +43,8 @@
 
 **Phase 7: Load Testing & Validation** (3 subtasks)
 - ✅ Load testing framework (COMPLETED - 2025-01-22)
-- ⏳ Latency target validation
-- ⏳ Memory & CPU validation
+- ✅ Latency target validation (COMPLETED - 2025-01-22)
+- ✅ Memory & CPU validation (COMPLETED - 2025-01-22)
 
 **Phase 8: Performance Dashboard & Monitoring** (3 subtasks)
 - ⏳ Metrics collection
@@ -525,6 +525,40 @@
 - Created comprehensive test suite with 15 passing tests
 - All acceptance criteria met ✅
 
+**Subtask 7.3: Memory & CPU Validation** ✅ COMPLETED
+- Created comprehensive resource usage validation framework with 4 files (types additions, resource-validation, CLI script, test suite)
+- Implemented memory validation:
+  - Base memory < 100MB target checking
+  - Memory growth rate < 10MB/hour detection
+  - Memory leak detection using linear regression analysis
+  - R-squared confidence scoring (low/medium/high)
+  - Trend analysis (increasing/decreasing/stable)
+- Implemented CPU validation:
+  - Linear scaling detection with correlation analysis (target: >= 0.8)
+  - CPU efficiency measurement at low vs high load
+  - Expected vs actual CPU usage comparison
+  - Graceful degradation checking (failure rate < 10%)
+  - Recovery time detection after high load
+- Validation functions:
+  - validateSingleResourceTest() - Validate single test configuration
+  - validateResourceUsage() - Run comprehensive validation across scenarios
+  - saveResourceValidationReport() - Export JSON report
+  - generateResourceValidationReport() - Export Markdown report with detailed metrics
+  - runResourceValidationSmokeTest() - Quick smoke test
+- Created CLI script: scripts/validate-resources.ts
+- Created comprehensive test suite with 12 passing tests:
+  - Memory validation tests (base memory, growth detection, stable memory, leak detection)
+  - CPU validation tests (scaling analysis, efficiency measurement)
+  - Graceful degradation tests (graceful vs poor degradation)
+  - CPU scaling analysis tests (linear scaling detection)
+  - Integration tests (full validation suite)
+- Resource targets:
+  - BASE_MEMORY_MB: 100MB
+  - MEMORY_GROWTH_MB_PER_HOUR: 10MB
+  - CPU_LINEARITY_THRESHOLD: 0.8 correlation
+  - DEGRADATION_FAILURE_RATE_THRESHOLD: 10%
+- All acceptance criteria met ✅
+
 ### Configuration Targets
 - Target latency overhead: < 10ms
 - Target base memory: < 100MB
@@ -540,9 +574,13 @@
    - ✅ Subtask 6.1: Memory Profiling & Leak Detection (COMPLETED)
    - ✅ Subtask 6.2: Object Pool Pattern (COMPLETED)
    - ✅ Subtask 6.3: Stream Buffer Optimization (COMPLETED)
-6. **Phase 7 In Progress**: Load Testing & Validation (3 subtasks)
+6. **Phase 7 Complete**: Load Testing & Validation (3 subtasks)
    - ✅ Subtask 7.1: Load Testing Framework (COMPLETED)
    - ✅ Subtask 7.2: Latency Target Validation (COMPLETED)
-   - Subtask 7.3: Memory & CPU Validation
-7. Integrate PipeliningManager into ConnectionPool for true HTTP/2 multiplexing
-8. Benchmark overall latency improvement after Phase 7 completion (target: < 10ms)
+   - ✅ Subtask 7.3: Memory & CPU Validation (COMPLETED)
+7. **Phase 8 Pending**: Performance Dashboard & Monitoring (3 subtasks)
+   - Subtask 8.1: Metrics Collection
+   - Subtask 8.2: Performance Dashboard
+   - Subtask 8.3: Comparison vs Direct API
+8. Integrate PipeliningManager into ConnectionPool for true HTTP/2 multiplexing
+9. Benchmark overall latency improvement after all phases complete (target: < 10ms)
