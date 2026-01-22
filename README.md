@@ -13,6 +13,9 @@ Created by [ajianaz](https://github.com/ajianaz)
 - **Multi-User**: Multiple API keys with per-key limits
 - **Usage Tracking**: Monitor token usage per key
 - **Model Override**: Set specific model per API key
+- **Admin API**: RESTful API for programmatic API key management with CRUD operations
+- **JWT Authentication**: Secure token-based authentication for admin operations
+- **SQLite Database**: Persistent storage for API keys with automatic schema management
 
 ## Quick Setup
 
@@ -24,8 +27,11 @@ cp .env.example .env
 
 # Edit .env
 ZAI_API_KEY=your_zai_api_key_here    # Required: Master API key from Z.AI
+ADMIN_API_KEY=your_admin_key_here     # Required: Admin API key (generate with: openssl rand -base64 32)
+ADMIN_API_ENABLED=true                # Required: Enable Admin API
+DATABASE_PATH=./data/glm-proxy.db     # Required: SQLite database path
 DEFAULT_MODEL=glm-4.7                 # Optional: Default model (fallback)
-PORT=3030                             # Optional: Service port
+PORT=3000                             # Optional: Service port
 ```
 
 ### 2. Start Service
@@ -41,6 +47,8 @@ bun install
 bun start
 ```
 
+For detailed setup instructions, deployment guides, and configuration options, see [**Setup & Deployment Guide**](./docs/SETUP.md).
+
 ## API Documentation
 
 ### Endpoints
@@ -52,6 +60,12 @@ bun start
 | POST | `/v1/chat/completions` | Chat completion (OpenAI-compatible) | Yes |
 | POST | `/v1/messages` | Messages API (Anthropic-compatible) | Yes |
 | GET | `/v1/models` | List available models | Yes |
+| **Admin API Endpoints** ||||
+| POST | `/admin/api/keys` | Create new API key | Admin (API key or JWT) |
+| GET | `/admin/api/keys` | List all API keys (paginated) | Admin (API key or JWT) |
+| GET | `/admin/api/keys/:id` | Get specific API key details | Admin (API key or JWT) |
+| PUT | `/admin/api/keys/:id` | Update API key properties | Admin (API key or JWT) |
+| DELETE | `/admin/api/keys/:id` | Delete API key | Admin (API key or JWT) |
 
 ### Authentication
 
@@ -64,6 +78,52 @@ or query parameter:
 ```bash
 ?api_key=pk_your_api_key
 ```
+
+### Admin API
+
+The Admin API provides RESTful endpoints for programmatic API key management. You can create, read, update, and delete API keys without manually editing configuration files.
+
+**Admin Authentication:**
+
+```bash
+# Using Admin API Key
+Authorization: Bearer <admin-api-key>
+
+# Or using JWT Token (generate via Admin API)
+Authorization: Bearer <jwt-token>
+```
+
+**Quick Example:**
+
+```bash
+# Create a new API key
+curl -X POST http://localhost:3000/admin/api/keys \
+  -H "Authorization: Bearer <admin-api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key": "pk_user_12345",
+    "name": "John Doe",
+    "description": "API key for John Doe",
+    "scopes": ["read", "write"],
+    "rate_limit": 100
+  }'
+
+# List all API keys
+curl http://localhost:3000/admin/api/keys \
+  -H "Authorization: Bearer <admin-api-key>"
+
+# Update an API key
+curl -X PUT http://localhost:3000/admin/api/keys/1 \
+  -H "Authorization: Bearer <admin-api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"rate_limit": 200}'
+
+# Delete an API key
+curl -X DELETE http://localhost:3000/admin/api/keys/1 \
+  -H "Authorization: Bearer <admin-api-key>"
+```
+
+For complete Admin API documentation, see [**Admin API Documentation**](./docs/admin-api.md) and [**Usage Examples**](./docs/USAGE_EXAMPLES.md).
 
 ---
 
@@ -226,9 +286,44 @@ print(message.content)
 
 ## API Key Management
 
+### Option 1: Admin API (Recommended)
+
+The Admin API provides a RESTful interface for programmatic API key management. This is the recommended method for managing keys.
+
+**Key Features:**
+- Create, read, update, and delete API keys via HTTP endpoints
+- Secure authentication using admin API key or JWT tokens
+- Pagination support for listing keys
+- Atomic operations to prevent race conditions
+- SQLite database for persistent storage
+
+**Example:**
+
+```bash
+# Create a new API key
+curl -X POST http://localhost:3000/admin/api/keys \
+  -H "Authorization: Bearer <admin-api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key": "pk_user_12345",
+    "name": "John Doe",
+    "description": "API key for John Doe",
+    "scopes": ["read", "write"],
+    "rate_limit": 100
+  }'
+```
+
+For complete documentation, see [Admin API Documentation](./docs/admin-api.md) and [Usage Examples](./docs/USAGE_EXAMPLES.md).
+
+### Option 2: Manual JSON Configuration (Legacy)
+
+For simple setups, you can also manage API keys by editing the JSON file directly.
+
+**Note:** This method is maintained for backward compatibility. New projects should use the Admin API.
+
 API keys are stored in `data/apikeys.json`. Edit manually to add/remove/modify keys.
 
-### API Key Structure
+### API Key Structure (Legacy)
 
 ```json
 {
@@ -262,13 +357,17 @@ API keys are stored in `data/apikeys.json`. Edit manually to add/remove/modify k
 | `total_lifetime_tokens` | number | Total all tokens ever used |
 | `usage_windows` | array | Internal tracking array (auto-managed) |
 
-### Example: Create New API Key
+### Example: Create New API Key (Legacy)
+
+**Recommended:** Use the Admin API instead (see Option 1 above).
+
+For manual JSON management:
 
 ```bash
-# Edit file
+# Edit file directly
 nano data/apikeys.json
 
-# Or with jq
+# Or use jq command-line tool
 jq '.keys += [{
   "key": "pk_new_user_'"$(date +%s)"'",
   "name": "New User",
