@@ -24,7 +24,7 @@
 
 **Phase 3: JSON & Serialization Optimization** (3 subtasks)
 - ✅ Fast JSON parser integration (COMPLETED - 2025-01-22)
-- ⏳ Request body streaming
+- ✅ Request body streaming (COMPLETED - 2026-01-22)
 - ⏳ Optimized JSON transformation
 
 **Phase 4: Caching & Request Optimization** (2 subtasks)
@@ -223,6 +223,47 @@
 - Created 46 comprehensive tests (all passing)
 - All acceptance criteria met ✅
 
+**Subtask 3.2: Request Body Streaming** ✅ COMPLETED
+- Created comprehensive streaming module with 4 files (types, request-streamer, response-streamer, index)
+- Implemented RequestStreamerImpl class with:
+  - Zero-buffering streaming for constant memory usage
+  - Real-time metrics tracking (totalBytes, chunkCount, avgChunkSize, duration, throughput)
+  - Backpressure support with configurable thresholds and timeouts
+  - Stream consumption for accurate metrics collection
+- Implemented ResponseStreamerImpl class with:
+  - Zero-buffering streaming for constant memory usage
+  - Real-time metrics tracking
+  - Backpressure detection and timeout handling
+  - Stream transformation for monitoring
+- Updated ConnectionPool types and implementation to support:
+  - ReadableStream bodies in addition to string bodies
+  - streamResponse option to enable streaming responses
+  - PooledResponse interface with streamed flag
+- Updated proxyHandler to:
+  - Pass ReadableStream bodies without buffering
+  - Support both buffered and streaming responses
+  - Track streaming state in profiler metadata
+- Updated proxy.ts and anthropic.ts to:
+  - Accept string or ReadableStream bodies
+  - Enable streaming responses automatically for streaming requests
+  - Maintain backward compatibility with buffered mode
+  - Skip model injection for streaming bodies (requires streaming JSON parser)
+- Created comprehensive test suite with 25 tests (all passing):
+  - Empty stream handling
+  - Single and multi-chunk streams
+  - Large payload handling (10MB)
+  - Backpressure event tracking
+  - Throughput calculation
+  - Metrics reset functionality
+  - Error handling
+  - Memory efficiency verification
+- Key achievements:
+  - Memory usage stays constant regardless of payload size ✅
+  - Handles chunked transfer encoding ✅
+  - Backpressure support with timeout protection ✅
+  - Zero buffering for both request and response ✅
+- All acceptance criteria met ✅
+
 ### Configuration Targets
 - Target latency overhead: < 10ms
 - Target base memory: < 100MB
@@ -233,7 +274,7 @@
 1. **Phase 2 Complete**: All connection pool and network optimization subtasks completed
 2. **Phase 3 In Progress**: JSON & Serialization Optimization
    - Subtask 3.1 (JSON Parser Integration) ✅ COMPLETED
-   - Next: Subtask 3.2 (Request Body Streaming) - will use streaming JSON parser from 3.1
-   - Then: Subtask 3.3 (Optimized JSON Transformation) - minimize parse/stringify cycles
+   - Subtask 3.2 (Request Body Streaming) ✅ COMPLETED
+   - Next: Subtask 3.3 (Optimized JSON Transformation) - minimize parse/stringify cycles
 3. Integrate PipeliningManager into ConnectionPool for true HTTP/2 multiplexing
 4. Benchmark overall latency improvement after Phase 3 completion (target: < 10ms)
