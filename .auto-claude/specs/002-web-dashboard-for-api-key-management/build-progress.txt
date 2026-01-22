@@ -19,7 +19,7 @@ Building a responsive web dashboard for managing API keys with real-time usage v
 - ⏳ Ready to begin Phase 1: Foundation and Setup
 
 ### Current Phase: Backend API Implementation - In Progress
-**Next Step:** Phase 2.4 - Create PUT /api/keys/:id endpoint
+**Next Step:** Phase 2.5 - Create DELETE /api/keys/:id endpoint
 
 ### Recent Completed Subtasks
 - ✅ [2026-01-22] Subtask 1.1 - Initialize project structure and dependencies
@@ -150,6 +150,46 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - TypeScript compilation successful with no errors
   - No console.log debugging statements (only console.error for errors)
   - CORS headers properly configured
+- ✅ [2026-01-22] Subtask 2.4 - Create PUT /api/keys/:id endpoint
+  - Implemented comprehensive PUT endpoint for updating API key properties
+  - Added request body validation with type checking for all fields
+  - Implemented at least one field requirement validation
+  - URL decoding support for key IDs with special characters
+  - Comprehensive validation via api-key-manager module:
+    - Validates name format (letters, numbers, spaces, hyphens, underscores, max 100 chars)
+    - Validates token limit (non-negative, max 10M tokens)
+    - Validates expiry date format (ISO 8601)
+    - Validates model (optional, max 50 chars)
+    - Prevents changing the key field itself
+    - Checks for duplicate names on update
+  - Proper HTTP status codes:
+    - 200 on success with updated key object
+    - 400 for validation errors with detailed messages
+    - 404 for non-existent keys
+    - 500 for server errors
+  - WebSocket broadcast for real-time updates (key_updated event)
+  - CORS headers enabled for API access
+  - Created comprehensive test script (test-put-endpoint.ts, 270 lines)
+  - All 14 tests passing:
+    - ✓ Update name field
+    - ✓ Update token limit field
+    - ✓ Update expiry date field
+    - ✓ Update model field
+    - ✓ Update multiple fields simultaneously
+    - ✓ Non-existent key returns 404
+    - ✓ Invalid field type returns 400
+    - ✓ Empty update (no fields) returns 400
+    - ✓ Invalid name format returns 400
+    - ✓ Negative quota returns 400
+    - ✓ Invalid expiry date format returns 400
+    - ✓ Special characters in key ID handled correctly
+    - ✓ Attempting to change key field returns 400
+    - ✓ Very long name (101+ chars) returns 400
+  - Data persistence verified (updates written to apikeys.json)
+  - TypeScript compilation successful with no errors
+  - No console.log debugging statements (only console.error for errors)
+  - Follows existing code patterns from POST endpoint
+  - Security: prevents key field modification to avoid authorization bypass
 
 ### Phase Breakdown
 
@@ -160,10 +200,10 @@ Building a responsive web dashboard for managing API keys with real-time usage v
 - 1.4 Set up CSS framework and base styles
 
 #### Phase 2: Backend API Implementation (Est: 165 min)
-- 2.1 Implement API key data access layer
-- 2.2 Create GET /api/keys endpoint
-- 2.3 Create POST /api/keys endpoint
-- 2.4 Create PUT /api/keys/:id endpoint
+- 2.1 Implement API key data access layer ✅
+- 2.2 Create GET /api/keys endpoint ✅
+- 2.3 Create POST /api/keys endpoint ✅
+- 2.4 Create PUT /api/keys/:id endpoint ✅
 - 2.5 Create DELETE /api/keys/:id endpoint
 - 2.6 Create GET /api/keys/:id/usage endpoint
 - 2.7 Implement WebSocket for real-time updates
