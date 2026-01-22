@@ -18,8 +18,8 @@ Building a responsive web dashboard for managing API keys with real-time usage v
 - ✅ Project structure and dependencies planned
 - ⏳ Ready to begin Phase 1: Foundation and Setup
 
-### Current Phase: Foundation and Setup - In Progress
-**Next Step:** Phase 2.1 - Implement API key data access layer
+### Current Phase: Backend API Implementation - In Progress
+**Next Step:** Phase 2.2 - Create GET /api/keys endpoint
 
 ### Recent Completed Subtasks
 - ✅ [2026-01-22] Subtask 1.1 - Initialize project structure and dependencies
@@ -53,6 +53,47 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - Implemented 10 responsive breakpoints for mobile/tablet/desktop
   - Updated index.ts to serve static CSS files with proper content-type headers
   - Verified CSS loads correctly at http://localhost:3001/styles/dashboard.css
+
+### Phase 2: Backend API Implementation - In Progress
+- ✅ [2026-01-22] Subtask 2.1 - Implement API key data access layer
+  - Created comprehensive src/api-key-manager.ts module (483 lines)
+  - Implemented atomic file operations using Bun.write() with in-memory locking
+  - Added comprehensive validation for all API key fields:
+    - Key format validation (alphanumeric, hyphens, underscores, 8-256 chars)
+    - Name validation (letters, numbers, spaces, hyphens, underscores, max 100 chars)
+    - Quota validation (non-negative, max 10M tokens)
+    - Expiry date validation (ISO 8601 format, future dates for creation)
+    - Model validation (optional, max 50 chars)
+  - Implemented CRUD operations:
+    - getAllApiKeys(): List all API keys
+    - getApiKey(key): Get specific key by key string
+    - createApiKey(apiKey): Create new key with validation
+    - updateApiKey(key, updates): Update existing key properties
+    - deleteApiKey(key): Delete key
+  - Implemented usage tracking:
+    - updateApiKeyUsage(key, tokens, model): Update token usage and windows
+    - getApiKeyUsage(key): Get usage statistics
+    - isApiKeyExpired(key): Check if key is expired
+    - getRemainingQuota(key): Calculate remaining quota for 5h window
+  - Implemented error handling with custom error classes:
+    - ApiKeyManagerError (base class)
+    - ValidationError (validation failures)
+    - NotFoundError (key not found)
+    - LockError (lock acquisition failures)
+  - Thread-safe locking using process-level in-memory locks
+  - Dynamic file path resolution via DATA_FILE environment variable
+  - All functions use withLock() wrapper for automatic lock management
+  - Created comprehensive test suite (tests/api-key-manager.test.ts, 438 lines)
+  - All 25 tests passing covering:
+    - CRUD operations
+    - Validation logic
+    - Error handling
+    - Usage tracking
+    - Edge cases
+  - Verified no TypeScript errors
+  - Follows existing code patterns from storage.ts
+  - Uses Bun.file() and Bun.write() as per project guidelines
+  - No console.log debugging statements (only console.error for logging)
 
 ### Phase Breakdown
 
