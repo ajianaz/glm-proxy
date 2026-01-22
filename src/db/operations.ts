@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, and, gte, lt } from 'drizzle-orm';
 import type { ApiKey } from '../types.js';
 import { getDb } from './connection.js';
 import * as schema from './schema.js';
@@ -272,5 +272,112 @@ export async function deleteApiKey(key: string): Promise<boolean> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Failed to delete API key: ${errorMessage}`);
+  }
+}
+
+/**
+ * Update API key usage with transaction-based operations
+ *
+ * This function handles:
+ * 1. Updating last_used timestamp
+ * 2. Incrementing total_lifetime_tokens
+ * 3. Managing usage windows (5-hour rolling window)
+ * 4. Cleaning up old usage windows
+ *
+ * All operations are performed within a database transaction to ensure atomicity
+ * and prevent race conditions during concurrent requests.
+ *
+ * @param key - The API key string to update usage for
+ * @param tokensUsed - Number of tokens to add to the usage tracking
+ * @param model - Model used (not currently stored but kept for interface compatibility)
+ * @throws Error if the key is not found or update fails
+ *
+ * @example
+ * ```ts
+ * import { updateApiKeyUsage } from './db/operations.js';
+ *
+ * // After processing an API request
+ * await updateApiKeyUsage('sk-1234567890', 1250, 'claude-3-5-sonnet-20241022');
+ * ```
+ */
+export async function updateApiKeyUsage(
+  key: string,
+  tokensUsed: number,
+  _model: string
+): Promise<void> {
+  if (tokensUsed < 0) {
+    throw new Error('Tokens used must be a non-negative number');
+  }
+
+  try {
+    const { db, type } = getDb();
+
+    // Select the appropriate tables based on database type
+    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+    // Use a transaction to ensure atomicity
+    await db.transaction(async (tx) => {
+      // Check if key exists
+      const existing = await tx.select().from(table).where(eq(table.key, key)).limit(1);
+      if (existing.length === 0) {
+        throw new Error(`API key '${key}' not found`);
+      }
+
+      const now = new Date().toISOString();
+      const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+
+      // Update last_used and total_lifetime_tokens in api_keys table
+      await tx
+        .update(table)
+        .set({
+          lastUsed: now,
+          totalLifetimeTokens: existing[0].totalLifetimeTokens + tokensUsed,
+        })
+        .where(eq(table.key, key));
+
+      // Find existing usage window within the last 5 hours
+      const existingWindows = await tx
+        .select()
+        .from(usageTable)
+        .where(
+          and(
+            eq(usageTable.apiKey, key),
+            gte(usageTable.windowStart, fiveHoursAgo)
+          )
+        )
+        .orderBy(usageTable.windowStart)
+        .limit(1);
+
+      if (existingWindows.length > 0) {
+        // Update existing window
+        await tx
+          .update(usageTable)
+          .set({
+            tokensUsed: existingWindows[0].tokensUsed + tokensUsed,
+          })
+          .where(eq(usageTable.id, existingWindows[0].id));
+      } else {
+        // Create new usage window
+        await tx.insert(usageTable).values({
+          apiKey: key,
+          windowStart: now,
+          tokensUsed: tokensUsed,
+        });
+      }
+
+      // Clean up old usage windows (older than 5 hours)
+      await tx
+        .delete(usageTable)
+        .where(
+          and(
+            eq(usageTable.apiKey, key),
+            lt(usageTable.windowStart, fiveHoursAgo)
+          )
+        );
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to update API key usage: ${errorMessage}`);
   }
 }
