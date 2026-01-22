@@ -71,6 +71,25 @@ Optimize rate limiting from O(n) to O(1) complexity by implementing a rolling wi
   - Enables O(1) rate limit optimization in future phases
   - Changes verified to compile successfully without errors
 
+#### Phase 4: Update Rate Limit Check Logic (In Progress) 🚧
+- [x] **phase-4-subtask-1**: Refactor checkRateLimit to use O(1) algorithm ✅ COMPLETED
+  - Updated src/ratelimit.ts to import and use RollingWindow class
+  - Implemented O(1) algorithm path when rolling_window_cache exists
+  - Maintained backwards compatibility with O(n) fallback for keys without cache
+  - All existing tests pass (41/41 tests passing)
+  - Key changes:
+    * Import RollingWindow from './rolling-window.js'
+    * Check for key.rolling_window_cache presence
+    * Use RollingWindow.fromSerializable() to load cache
+    * Use rollingWindow.getTotalTokens() for O(1) token retrieval
+    * Calculate windowStart from oldest active bucket
+    * Fall back to original filter + reduce algorithm if cache doesn't exist
+  - Backwards compatibility verified: existing tests pass without modification
+- [ ] **phase-4-subtask-2**: Update rate limit tests (PENDING)
+  - Ensure existing tests pass with new implementation ✅ (already verified)
+  - Add tests for cache initialization
+  - Add tests for cache hit vs cache miss scenarios
+
 ### Implementation Plan Summary
 
 **Phase 1: Design and Planning** (2 subtasks) ✅ COMPLETED
