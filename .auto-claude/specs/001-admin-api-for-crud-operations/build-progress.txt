@@ -347,3 +347,44 @@ Ready to begin implementation starting with Phase 1: Project Setup & Environment
 - TypeScript for type safety
 - RESTful API design principles
 - Comprehensive testing with bun test
+
+
+## 2026-01-22 - Phase 4: CRUD API Endpoints
+
+### Completed
+- ✅ **api-1: Create POST /admin/api/keys endpoint**
+  - Implemented POST /admin/api/keys endpoint in src/routes/admin/keys.ts
+  - Request validation using Zod schema with fields: key, name, description, scopes, rate_limit
+  - Admin authentication middleware integration (supports both API key and JWT token)
+  - Proper error handling:
+    - 400 Bad Request for validation errors and malformed JSON
+    - 401 Unauthorized for missing/invalid credentials
+    - 409 Conflict for duplicate key hashes
+    - 500 Internal Server Error for unexpected errors
+  - Returns 201 Created with API key response including key_preview
+  - Safe response format (never returns full key or key_hash)
+  - Integration with ApiKeyModel for database operations
+  - Updated src/models/schema.ts to allow null in CreateApiKeyData.description
+  - Integrated admin API routes into main app (src/index.ts)
+  - Created comprehensive integration test suite in test/integration/adminApiKeys.test.ts:
+    - 22 tests covering all aspects of the POST endpoint
+    - Authentication tests (API key and token)
+    - Request validation tests (all fields and edge cases)
+    - Duplicate key handling tests
+    - Response format tests
+    - All tests passing
+  - Updated test-4 subtask status to completed
+  - Updated phase-4 and phase-6 status to in_progress
+
+### Implementation Notes
+- Used Hono framework for route handling
+- Zod for request validation with detailed error messages
+- Error responses include field-level details for better debugging
+- Key preview format: first 8 chars + asterisks + last 4 chars
+- Trims whitespace from name field automatically
+- Supports null description values
+- Malformed JSON returns 400 instead of 500
+- All existing unit tests still passing (139 tests)
+- TypeScript compilation successful with no errors
+- Code follows existing patterns and conventions
+
