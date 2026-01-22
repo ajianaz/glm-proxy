@@ -1,4 +1,4 @@
-import { getAllApiKeys, createApiKey, ValidationError, ApiKeyManagerError } from './src/api-key-manager.js';
+import { getAllApiKeys, createApiKey, updateApiKey, ValidationError, NotFoundError, ApiKeyManagerError } from './src/api-key-manager.js';
 
 /**
  * WebSocket client tracking for real-time updates
@@ -348,14 +348,140 @@ async function handleRequest(req: Request): Promise<Response> {
     // PUT /api/keys/:id - Update API key
     const putKeyMatch = pathname.match(/^\/api\/keys\/([^/]+)$/);
     if (putKeyMatch && req.method === 'PUT') {
-      const keyId = putKeyMatch[1];
-      return new Response(
-        JSON.stringify({ error: 'Not implemented yet', keyId }),
-        {
-          status: 501,
-          headers: { 'Content-Type': 'application/json' },
+      try {
+        const keyId = decodeURIComponent(putKeyMatch[1]);
+
+        // Parse request body
+        const body = await req.json();
+
+        // Validate that body is an object
+        if (!body || typeof body !== 'object') {
+          return new Response(
+            JSON.stringify({ error: 'Request body must be a JSON object' }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
         }
-      );
+
+        // Validate field types if provided
+        if (body.name !== undefined && typeof body.name !== 'string') {
+          return new Response(
+            JSON.stringify({ error: 'Name must be a string if provided' }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        if (body.token_limit_per_5h !== undefined && typeof body.token_limit_per_5h !== 'number') {
+          return new Response(
+            JSON.stringify({ error: 'Token limit must be a number if provided' }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        if (body.expiry_date !== undefined && typeof body.expiry_date !== 'string') {
+          return new Response(
+            JSON.stringify({ error: 'Expiry date must be a string if provided' }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        if (body.model !== undefined && typeof body.model !== 'string') {
+          return new Response(
+            JSON.stringify({ error: 'Model must be a string if provided' }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        // Validate that at least one field is being updated
+        const updateFields = ['name', 'model', 'token_limit_per_5h', 'expiry_date'];
+        const hasUpdate = updateFields.some(field => body[field] !== undefined);
+
+        if (!hasUpdate) {
+          return new Response(
+            JSON.stringify({
+              error: 'No valid fields to update',
+              message: 'At least one of the following fields must be provided: name, model, token_limit_per_5h, expiry_date'
+            }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        // Update the API key
+        const updatedKey = await updateApiKey(keyId, body);
+
+        // Broadcast update to WebSocket clients
+        broadcast({
+          type: 'key_updated',
+          key: updatedKey,
+          timestamp: new Date().toISOString(),
+        });
+
+        return new Response(JSON.stringify(updatedKey), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      } catch (error) {
+        // Handle validation errors
+        if (error instanceof ValidationError) {
+          return new Response(
+            JSON.stringify({
+              error: 'Validation failed',
+              message: error.message,
+            }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        // Handle not found errors
+        if (error instanceof NotFoundError) {
+          return new Response(
+            JSON.stringify({
+              error: 'API key not found',
+              message: error.message,
+            }),
+            {
+              status: 404,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            }
+          );
+        }
+
+        // Handle other errors
+        console.error('Error updating API key:', error);
+        return new Response(
+          JSON.stringify({
+            error: 'Failed to update API key',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          }),
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          }
+        );
+      }
     }
 
     // DELETE /api/keys/:id - Delete API key
