@@ -13,7 +13,7 @@
  */
 
 import path from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, copyFileSync } from 'node:fs';
 import type { ApiKey, ApiKeysData } from '../src/types.js';
 import { createApiKey } from '../src/db/operations.js';
 import { getDb } from '../src/db/connection.js';
@@ -62,12 +62,21 @@ Environment Variables:
   DATABASE_URL         PostgreSQL connection URL (optional)
   DATABASE_PATH        SQLite database path (default: ./data/sqlite.db)
 
+Features:
+  - Automatic backup: Creates timestamped backup in <source-dir>/backups/ before migration
+  - Validation: Validates JSON structure before migration
+  - Progress tracking: Shows migration progress and success/failure counts
+
 Examples:
   bun run scripts/migrate.ts
-  bun run scripts/migrate.ts --file ./backups/apikeys-2025-01-22.json
+  bun run scripts/migrate.ts --file ./custom/apikeys.json
   DATA_FILE=./custom/path/apikeys.json bun run scripts/migrate.ts
   bun run scripts/migrate.ts --dry-run
   bun run scripts/migrate.ts --force
+
+Backups:
+  Backups are automatically created before migration and stored in:
+  <source-file-directory>/backups/apikeys-<timestamp>.json
 `);
 }
 
@@ -154,6 +163,58 @@ async function readApiKeysFile(filePath: string): Promise<ApiKeysData> {
 }
 
 /**
+ * Create a timestamped backup of the apikeys.json file
+ *
+ * @param sourcePath - Path to the source apikeys.json file
+ * @returns Path to the created backup file
+ * @throws Error if backup creation fails
+ */
+function createBackup(sourcePath: string): string {
+  const sourceDir = path.dirname(sourcePath);
+  const sourceName = path.basename(sourcePath, '.json');
+
+  // Create backups directory in the same directory as the source file
+  const backupsDir = path.join(sourceDir, 'backups');
+
+  // Ensure backups directory exists
+  if (!existsSync(backupsDir)) {
+    mkdirSync(backupsDir, { recursive: true });
+  }
+
+  // Generate timestamp for backup filename
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
+  const backupFileName = `${sourceName}-${timestamp}.json`;
+  const backupPath = path.join(backupsDir, backupFileName);
+
+  // Copy the file
+  try {
+    copyFileSync(sourcePath, backupPath);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to create backup: ${errorMessage}`);
+  }
+
+  // Verify backup was created
+  if (!existsSync(backupPath)) {
+    throw new Error('Backup verification failed: backup file was not created');
+  }
+
+  // Verify backup has content
+  try {
+    const backupContent = Bun.file(backupPath).text();
+    if (!backupContent || backupContent.length === 0) {
+      throw new Error('Backup verification failed: backup file is empty');
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Backup verification failed: ${errorMessage}`);
+  }
+
+  return backupPath;
+}
+
+/**
  * Migrate API keys to database
  */
 async function migrateApiKeys(apiKeysData: ApiKeysData): Promise<void> {
@@ -216,6 +277,11 @@ async function main(): Promise<void> {
       process.exit(0);
     }
 
+    // Create backup before migration
+    console.log('\nCreating backup...');
+    const backupPath = createBackup(filePath);
+    console.log(`✓ Backup created: ${backupPath}`);
+
     // Show preview
     console.log('\nAPI Keys to migrate:');
     apiKeysData.keys.forEach((key, index) => {
@@ -237,6 +303,7 @@ async function main(): Promise<void> {
 
       if (answer !== 'yes' && answer !== 'y') {
         console.log('Migration cancelled.');
+        console.log(`Backup preserved at: ${backupPath}`);
         process.exit(0);
       }
     }
@@ -245,6 +312,7 @@ async function main(): Promise<void> {
     await migrateApiKeys(apiKeysData);
 
     console.log('\n✓ Migration successful!');
+    console.log(`Backup saved at: ${backupPath}`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`\n✗ Migration failed: ${errorMessage}`);
