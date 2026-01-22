@@ -473,6 +473,44 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - React best practices with hooks (useState)
   - Accessible UI with proper ARIA attributes and keyboard navigation
   - Manual verification completed: Dialog renders correctly, buttons work, callbacks fire properly
+- ✅ [2026-01-22] Subtask 3.6 - Implement API client utilities
+  - Created comprehensive src/utils/api-client.ts module (267 lines)
+  - Implemented HTTP client functions with full error handling:
+    * fetchApiKeys(): List all API keys with error handling
+    * createApiKey(): Create new API key with validation
+    * updateApiKey(): Update existing API key properties
+    * deleteApiKey(): Delete API key with proper error handling
+    * fetchApiKeyUsage(): Fetch usage statistics for a specific key
+  - Custom ApiClientError class with status codes and response data
+  - Proper TypeScript typing for all functions and interfaces
+  - Request cancellation support via AbortSignal
+  - Type-safe error message extraction with getErrorMessage()
+  - Created comprehensive src/utils/ws-client.ts module (387 lines)
+  - Implemented WebSocket client class with connection management:
+    * WebSocketClient class with full lifecycle management
+    * Automatic reconnection with configurable delay and max attempts
+    * Event-based communication with typed callbacks
+    * Connection state tracking and notifications
+    * Error handling and error callbacks
+  - Event handler registration:
+    * on()/off() for event-specific callbacks
+    * onConnectionChange()/offConnectionChange() for connection state
+    * onError()/offError() for error handling
+  - WebSocket event types: connected, key_created, key_updated, key_deleted, usage_updated, error
+  - Refactored src/components/App.tsx to use new utility modules:
+    * Removed inline HTTP client code (fetch, create, update, delete functions)
+    * Removed inline WebSocket handling code
+    * Imported and used api-client functions
+    * Imported and used WebSocketClient class
+    * Reduced App.tsx from 407 lines to 328 lines (79 line reduction)
+    * Improved code organization and separation of concerns
+  - All functionality preserved and working correctly
+  - TypeScript compilation successful with no errors
+  - Build verification successful (1.1 MB bundle)
+  - No console.log debugging statements (only console.error for error logging)
+  - Follows existing code patterns from storage.ts and api-key-manager.ts
+  - Proper error handling with try-catch blocks throughout
+  - Clean separation between HTTP client, WebSocket client, and React components
 
 ### Phase Breakdown
 
