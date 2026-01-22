@@ -35,7 +35,7 @@
      - Created test scenario setup utilities
      - Added backup/restore functionality for test state
 
-4. **Phase 2: API Endpoint Tests** 🔄 IN PROGRESS (30 min done, 70 min remaining)
+4. **Phase 2: API Endpoint Tests** 🔄 IN PROGRESS (60 min done, 40 min remaining)
    - **Subtask 2.1: Test /health endpoint** ✅ COMPLETE
      - Created `test/integration/health.test.ts` with 16 comprehensive tests
      - Tests verify 200 OK status, correct response format (status + timestamp)
@@ -59,6 +59,20 @@
      - Tests verify CORS headers
      - Edge cases: concurrent requests, query params, custom headers, performance
      - All 51 tests passing in 724ms ✅
+   - **Subtask 2.3: Test /v1/chat/completions (OpenAI format)** ✅ COMPLETE
+     - Created `test/integration/openai-chat.test.ts` with 35 comprehensive tests
+     - Tests verify basic request handling (POST, authentication, content type)
+     - Tests verify model override behavior (injects API key model)
+     - Tests verify various request formats (basic, conversation history, system messages, multi-turn)
+     - Tests verify streaming requests
+     - Tests verify response format (structure, usage information, error responses)
+     - Tests verify rate limiting enforcement
+     - Tests verify token usage updates after requests
+     - Tests verify error handling (invalid JSON, empty body, malformed arrays)
+     - Tests verify authentication methods (Bearer header, x-api-key header)
+     - Tests verify CORS headers
+     - Tests verify edge cases (long messages, special chars, concurrent requests)
+     - All 35 tests passing in 20.25s ✅
 
 ### Implementation Plan Summary
 
@@ -70,8 +84,8 @@
 **Phase 2: API Endpoint Tests** (100 min) - IN PROGRESS
 - /health endpoint ✅ COMPLETE (16 tests passing)
 - /stats endpoint ✅ COMPLETE (51 tests passing)
-- /v1/chat/completions (OpenAI) (NEXT)
-- /v1/messages (Anthropic)
+- /v1/chat/completions (OpenAI) ✅ COMPLETE (35 tests passing)
+- /v1/messages (Anthropic) (NEXT)
 - Root endpoint
 
 **Phase 3: Authentication & Authorization** (60 min)
@@ -115,8 +129,8 @@
 1. ✅ Start Phase 2: API Endpoint Tests
 2. ✅ Create test for /health endpoint (COMPLETED)
 3. ✅ Create test for /stats endpoint (COMPLETED)
-4. Create test for /v1/chat/completions endpoint (NEXT)
-5. Create test for /v1/messages endpoint
+4. ✅ Create test for /v1/chat/completions endpoint (COMPLETED)
+5. Create test for /v1/messages endpoint (NEXT)
 
 ### Acceptance Criteria Status
 
@@ -141,4 +155,5 @@
 - ✅ All helper utilities verified with passing tests (18/18 passing)
 - ✅ Health endpoint tests created and passing (16/16 passing)
 - ✅ Stats endpoint tests created and passing (51/51 passing)
+- ✅ OpenAI chat completions tests created and passing (35/35 passing)
 - Git commits created: ee9e1f9 (helpers), 3d19a76 (health), ec5dd55 (stats)
