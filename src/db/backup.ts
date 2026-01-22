@@ -2,7 +2,7 @@ import Database from 'bun:sqlite';
 import { existsSync, mkdirSync, renameSync, unlinkSync, statSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import type { DatabaseType, DatabaseConnection } from './connection.js';
-import { getDb, getDatabaseType } from './connection.js';
+import { getDb, getDatabaseType, closeDb } from './connection.js';
 
 /**
  * Backup options interface
@@ -737,4 +737,416 @@ export async function getBackupMetadata(
     databasePath: dbType === 'sqlite' ? getDatabasePath() : process.env.DATABASE_URL || '',
     databaseType: dbType,
   };
+}
+
+/**
+ * Restore options interface
+ */
+export interface RestoreOptions {
+  /**
+   * Whether to create a backup before restoring
+   * @default true
+   */
+  backupBeforeRestore?: boolean;
+
+  /**
+   * Whether to verify the backup integrity before restoring
+   * @default true
+   */
+  verifyBackup?: boolean;
+
+  /**
+   * Output directory for pre-restore backup (if backupBeforeRestore is true)
+   * @default './data/backups'
+   */
+  preRestoreBackupDir?: string;
+
+  /**
+   * Whether to force restore even if database types don't match
+   * @default false
+   */
+  force?: boolean;
+}
+
+/**
+ * Restore result interface
+ */
+export interface RestoreResult {
+  /**
+   * Path to the restored database
+   */
+  databasePath: string;
+
+  /**
+   * Number of API keys restored
+   */
+  keysRestored: number;
+
+  /**
+   * Number of usage windows restored
+   */
+  usageWindowsRestored: number;
+
+  /**
+   * Path to pre-restore backup (if created)
+   */
+  preRestoreBackup?: string;
+
+  /**
+   * Timestamp when restore was completed
+   */
+  timestamp: string;
+}
+
+/**
+ * Check if psql is available on the system
+ */
+async function checkPsqlAvailable(): Promise<boolean> {
+  try {
+    const proc = Bun.spawn(['which', 'psql'], {
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    await proc.exited;
+    return proc.exitCode === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Restore PostgreSQL database from SQL dump
+ *
+ * @param backupPath - Path to backup file
+ * @param compressed - Whether the backup is compressed
+ * @returns Promise that resolves when restore is complete
+ *
+ * @throws Error if restore fails
+ */
+async function restorePostgreSQL(backupPath: string, compressed: boolean): Promise<void> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('DATABASE_URL environment variable is required for PostgreSQL restore');
+  }
+
+  let sqlPath = backupPath;
+
+  // Decompress if needed
+  if (compressed) {
+    const tempDecompressedPath = path.join(
+      path.dirname(backupPath),
+      `.${path.basename(backupPath, '.gz')}.decompressed`
+    );
+
+    try {
+      const compressedFile = Bun.file(backupPath);
+      const decompressedData = Bun.gunzipSync(await compressedFile.arrayBuffer());
+      await Bun.write(tempDecompressedPath, decompressedData);
+      sqlPath = tempDecompressedPath;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to decompress backup: ${errorMessage}`);
+    }
+  }
+
+  try {
+    const psqlAvailable = await checkPsqlAvailable();
+
+    if (psqlAvailable) {
+      // Use psql command for restore
+      const url = new URL(connectionString);
+
+      const psqlArgs = [
+        'psql',
+        '-h', url.hostname,
+        '-p', url.port || '5432',
+        '-U', url.username,
+        '-d', url.pathname.substring(1),
+        '-f', sqlPath,
+      ];
+
+      const env = {
+        ...process.env,
+        PGPASSWORD: url.password,
+      };
+
+      const proc = Bun.spawn(psqlArgs, {
+        stdout: 'pipe',
+        stderr: 'pipe',
+        env,
+      });
+
+      const stderr = await new Response(proc.stderr).text();
+      const exitCode = await proc.exited;
+
+      if (exitCode !== 0) {
+        throw new Error(`psql failed (exit code ${exitCode}): ${stderr}`);
+      }
+    } else {
+      // Fall back to executing SQL directly via postgres client
+      const db = getDb();
+      if (db.type !== 'postgresql') {
+        throw new Error('Database connection is not PostgreSQL');
+      }
+
+      const sqlContent = await Bun.file(sqlPath).text();
+
+      // Split by semicolons and execute each statement
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const client = db.client as any;
+
+      // Split into individual statements
+      const statements = sqlContent
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && !s.startsWith('--'));
+
+      for (const statement of statements) {
+        try {
+          await client.unsafe(statement);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          throw new Error(`Failed to execute SQL statement: ${errorMessage}\nStatement: ${statement.substring(0, 100)}...`);
+        }
+      }
+    }
+  } finally {
+    // Clean up temporary decompressed file if we created one
+    if (compressed && sqlPath !== backupPath) {
+      try {
+        unlinkSync(sqlPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+}
+
+/**
+ * Restore SQLite database from backup file
+ *
+ * @param backupPath - Path to backup file
+ * @param compressed - Whether the backup is compressed
+ * @returns Promise that resolves when restore is complete
+ *
+ * @throws Error if restore fails
+ */
+async function restoreSQLite(backupPath: string, compressed: boolean): Promise<void> {
+  const databasePath = getDatabasePath();
+  let tempBackupPath = backupPath;
+
+  // Decompress if needed
+  if (compressed) {
+    tempBackupPath = path.join(
+      path.dirname(backupPath),
+      `.${path.basename(backupPath, '.gz')}.decompressed`
+    );
+
+    try {
+      const compressedFile = Bun.file(backupPath);
+      const decompressedData = Bun.gunzipSync(await compressedFile.arrayBuffer());
+      await Bun.write(tempBackupPath, decompressedData);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to decompress backup: ${errorMessage}`);
+    }
+  }
+
+  try {
+    // Verify temp backup exists
+    if (!existsSync(tempBackupPath)) {
+      throw new Error(`Decompressed backup file not found: ${tempBackupPath}`);
+    }
+
+    // Close existing database connection if open
+    await closeDb();
+
+    // If database exists, remove it (along with WAL and SHM files)
+    if (existsSync(databasePath)) {
+      unlinkSync(databasePath);
+    }
+
+    const walPath = databasePath + '-wal';
+    const shmPath = databasePath + '-shm';
+
+    if (existsSync(walPath)) {
+      unlinkSync(walPath);
+    }
+
+    if (existsSync(shmPath)) {
+      unlinkSync(shmPath);
+    }
+
+    // Copy backup to database location
+    const backupData = await Bun.file(tempBackupPath).arrayBuffer();
+    await Bun.write(databasePath, new Uint8Array(backupData));
+
+    // Verify restored database
+    const db = new Database(databasePath, { readonly: true });
+    try {
+      const result = db.query('SELECT COUNT(*) as count FROM api_keys').get() as {
+        count: number;
+      };
+
+      if (typeof result.count !== 'number') {
+        throw new Error('Restored database query returned invalid result');
+      }
+    } finally {
+      db.close();
+    }
+  } finally {
+    // Clean up temporary decompressed file if we created one
+    if (compressed && tempBackupPath !== backupPath) {
+      try {
+        unlinkSync(tempBackupPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+}
+
+/**
+ * Restore database from backup file
+ *
+ * This function will:
+ * 1. Verify the backup integrity (if verifyBackup is true)
+ * 2. Create a pre-restore backup of the current database (if backupBeforeRestore is true)
+ * 3. Restore the database from the backup file
+ * 4. Verify the restored database
+ *
+ * @param backupPath - Path to backup file
+ * @param options - Restore options
+ * @returns Restore result with metadata
+ *
+ * @throws Error if backup is invalid, restore fails, or verification fails
+ *
+ * @example
+ * ```ts
+ * import { restoreDatabase } from './db/backup.js';
+ *
+ * // Simple restore
+ * const result = await restoreDatabase('./data/backups/sqlite-backup.db');
+ * console.log(`Restored ${result.keysRestored} keys`);
+ *
+ * // Restore with custom options
+ * const result = await restoreDatabase('./data/backups/pg-backup.sql.gz', {
+ *   backupBeforeRestore: true,
+ *   verifyBackup: true,
+ *   preRestoreBackupDir: './data/pre-restore'
+ * });
+ * ```
+ */
+export async function restoreDatabase(
+  backupPath: string,
+  options: RestoreOptions = {}
+): Promise<RestoreResult> {
+  const {
+    backupBeforeRestore = true,
+    verifyBackup: shouldVerify = true,
+    preRestoreBackupDir = './data/backups',
+    force = false,
+  } = options;
+
+  // Verify backup file exists
+  if (!existsSync(backupPath)) {
+    throw new Error(`Backup file not found: ${backupPath}`);
+  }
+
+  // Auto-detect backup type and compression
+  const metadata = await getBackupMetadata(backupPath);
+  if (!metadata) {
+    throw new Error('Unable to determine backup type from filename');
+  }
+
+  const backupDbType = metadata.databaseType;
+  const compressed = metadata.compressed;
+
+  // Check if backup type matches current database type
+  const currentDbType = getDatabaseType();
+  if (backupDbType !== currentDbType && !force) {
+    throw new Error(
+      `Backup type (${backupDbType}) does not match current database type (${currentDbType}). Use force option to override.`
+    );
+  }
+
+  // Verify backup integrity if requested
+  if (shouldVerify) {
+    try {
+      await verifyBackupIntegrity(backupPath, compressed, backupDbType);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Backup verification failed: ${errorMessage}`);
+    }
+  }
+
+  // Create pre-restore backup if requested
+  let preRestoreBackupPath: string | undefined;
+  if (backupBeforeRestore) {
+    try {
+      const preRestoreResult = await backupDatabase({
+        outputDir: preRestoreBackupDir,
+        compress: false,
+        filename: `pre-restore-${Date.now()}`,
+      });
+      preRestoreBackupPath = preRestoreResult.backupPath;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to create pre-restore backup: ${errorMessage}`);
+    }
+  }
+
+  try {
+    // Restore based on database type
+    if (backupDbType === 'postgresql') {
+      await restorePostgreSQL(backupPath, compressed);
+    } else {
+      await restoreSQLite(backupPath, compressed);
+    }
+
+    // Get restored database stats
+    const db = getDb();
+    let keysRestored = 0;
+    let usageWindowsRestored = 0;
+
+    if (db.type === 'sqlite') {
+      // Use SQLite native client for queries
+      const sqlite = db.client as Database;
+      const keyResult = sqlite.query('SELECT COUNT(*) as count FROM api_keys').get() as {
+        count: number;
+      };
+      const windowResult = sqlite
+        .query('SELECT COUNT(*) as count FROM usage_windows')
+        .get() as { count: number };
+
+      keysRestored = keyResult.count;
+      usageWindowsRestored = windowResult.count;
+    } else {
+      // Use postgres client for queries
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const client = db.client as any;
+      const keyResult = await client`SELECT COUNT(*) as count FROM api_keys`;
+      const windowResult = await client`SELECT COUNT(*) as count FROM usage_windows`;
+
+      keysRestored = keyResult[0]?.count || 0;
+      usageWindowsRestored = windowResult[0]?.count || 0;
+    }
+
+    return {
+      databasePath: backupDbType === 'sqlite' ? getDatabasePath() : process.env.DATABASE_URL || '',
+      keysRestored,
+      usageWindowsRestored,
+      preRestoreBackup: preRestoreBackupPath,
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    // If restore failed and we created a pre-restore backup, inform user
+    if (preRestoreBackupPath) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(
+        `Restore failed: ${errorMessage}\nPre-restore backup available at: ${preRestoreBackupPath}`
+      );
+    }
+    throw error;
+  }
 }

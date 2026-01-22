@@ -5,10 +5,12 @@ import {
   listBackups,
   cleanupOldBackups,
   getBackupMetadata,
+  restoreDatabase,
 } from './backup';
 import { existsSync, unlinkSync, rmSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import Database from 'bun:sqlite';
+import { closeDb } from './connection';
 
 // Test database path
 const TEST_DB_PATH = path.join(process.cwd(), 'data/test-backup.db');
@@ -717,6 +719,347 @@ describe('PostgreSQL Backup', () => {
       // Should contain timestamp
       const timestampMatch = testFilename.match(/pg-backup-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3})/);
       expect(timestampMatch).toBeTruthy();
+    });
+  });
+});
+
+// Restore tests
+describe('SQLite Restore', () => {
+  beforeEach(() => {
+    // Clean up any existing test files
+    cleanupTestFiles();
+
+    // Create test database
+    createTestDatabase(TEST_DB_PATH);
+
+    // Set environment variable to use test database
+    process.env.DATABASE_PATH = TEST_DB_PATH;
+  });
+
+  afterEach(() => {
+    // Clean up test files after each test
+    cleanupTestFiles();
+
+    // Reset environment variable
+    delete process.env.DATABASE_PATH;
+
+    // Close database connection
+    closeDb();
+  });
+
+  describe('restoreDatabase', () => {
+    test('should restore from uncompressed backup', async () => {
+      // Create backup
+      const backup = await backupDatabase({
+        outputDir: TEST_BACKUP_DIR,
+        compress: false,
+      });
+
+      // Modify database to verify restore works
+      const db = new Database(TEST_DB_PATH);
+      db.exec('DELETE FROM api_keys WHERE key = "sk-test-key-1"');
+      db.close();
+
+      // Verify database was modified
+      const verifyDb = new Database(TEST_DB_PATH, { readonly: true });
+      const result = verifyDb
+        .query('SELECT COUNT(*) as count FROM api_keys')
+        .get() as { count: number };
+      verifyDb.close();
+      expect(result.count).toBe(1);
+
+      // Restore from backup
+      const restoreResult = await restoreDatabase(backup.backupPath, {
+        backupBeforeRestore: false,
+        verifyBackup: true,
+      });
+
+      expect(restoreResult.keysRestored).toBe(2);
+      expect(restoreResult.usageWindowsRestored).toBe(0);
+      expect(restoreResult.databasePath).toBe(TEST_DB_PATH);
+
+      // Verify database was restored
+      const restoredDb = new Database(TEST_DB_PATH, { readonly: true });
+      const restoredResult = restoredDb
+        .query('SELECT COUNT(*) as count FROM api_keys')
+        .get() as { count: number };
+      restoredDb.close();
+      expect(restoredResult.count).toBe(2);
+    });
+
+    test('should restore from compressed backup', async () => {
+      // Create compressed backup
+      const backup = await backupDatabase({
+        outputDir: TEST_BACKUP_DIR,
+        compress: true,
+      });
+
+      // Modify database
+      const db = new Database(TEST_DB_PATH);
+      db.exec('DELETE FROM api_keys');
+      db.close();
+
+      // Restore from compressed backup
+      const restoreResult = await restoreDatabase(backup.backupPath, {
+        backupBeforeRestore: false,
+        verifyBackup: true,
+      });
+
+      expect(restoreResult.keysRestored).toBe(2);
+      expect(restoreResult.timestamp).toBeTruthy();
+    });
+
+    test('should create pre-restore backup when requested', async () => {
+      // Create initial backup
+      const backup = await backupDatabase({
+        outputDir: TEST_BACKUP_DIR,
+        compress: false,
+      });
+
+      // Modify database
+      const db = new Database(TEST_DB_PATH);
+      db.prepare('INSERT INTO api_keys (key, name, model, token_limit_per_5h, expiry_date, created_at, last_used, total_lifetime_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+        'sk-new-key',
+        'New Key',
+        'claude-3-5-sonnet-20241022',
+        300000,
+        '2025-12-31T23:59:59.999Z',
+        '2024-01-22T10:00:00.000Z',
+        '2024-01-22T12:00:00.000Z',
+        0
+      );
+      db.close();
+
+      // Restore with pre-restore backup
+      const restoreResult = await restoreDatabase(backup.backupPath, {
+        backupBeforeRestore: true,
+        verifyBackup: true,
+        preRestoreBackupDir: TEST_BACKUP_DIR,
+      });
+
+      expect(restoreResult.preRestoreBackup).toBeTruthy();
+      expect(existsSync(restoreResult.preRestoreBackup!)).toBe(true);
+
+      // Verify pre-restore backup has the modified data (3 keys)
+      const preRestoreDb = new Database(restoreResult.preRestoreBackup!, { readonly: true });
+      const preRestoreResult = preRestoreDb
+        .query('SELECT COUNT(*) as count FROM api_keys')
+        .get() as { count: number };
+      preRestoreDb.close();
+      expect(preRestoreResult.count).toBe(3);
+    });
+
+    test('should throw error for non-existent backup', async () => {
+      await expect(
+        restoreDatabase('/nonexistent/backup.db', {
+          backupBeforeRestore: false,
+          verifyBackup: false,
+        })
+      ).rejects.toThrow('Backup file not found');
+    });
+
+    test('should throw error when backup types do not match', async () => {
+      // Create PostgreSQL-style backup file
+      const pgBackup = path.join(TEST_BACKUP_DIR, 'pg-backup-test.sql');
+      mkdirSync(TEST_BACKUP_DIR, { recursive: true });
+      await Bun.write(pgBackup, '-- PostgreSQL dump\nCREATE TABLE api_keys (key TEXT PRIMARY KEY);');
+
+      // Try to restore PostgreSQL backup to SQLite database
+      await expect(
+        restoreDatabase(pgBackup, {
+          backupBeforeRestore: false,
+          verifyBackup: false,
+          force: false,
+        })
+      ).rejects.toThrow('does not match current database type');
+    });
+
+    test('should verify backup before restoring when verifyBackup is true', async () => {
+      // Create corrupted backup file
+      const corruptedBackup = path.join(TEST_BACKUP_DIR, 'corrupted.db');
+      mkdirSync(TEST_BACKUP_DIR, { recursive: true });
+      await Bun.write(corruptedBackup, 'not a valid database');
+
+      await expect(
+        restoreDatabase(corruptedBackup, {
+          backupBeforeRestore: false,
+          verifyBackup: true,
+        })
+      ).rejects.toThrow('Backup verification failed');
+    });
+
+    test('should skip verification when verifyBackup is false', async () => {
+      // Create a valid backup first
+      const backup = await backupDatabase({
+        outputDir: TEST_BACKUP_DIR,
+        compress: false,
+      });
+
+      // Should not throw even with verifyBackup: false
+      const restoreResult = await restoreDatabase(backup.backupPath, {
+        backupBeforeRestore: false,
+        verifyBackup: false,
+      });
+
+      expect(restoreResult.keysRestored).toBe(2);
+    });
+
+    test('should restore database with usage windows', async () => {
+      // Add usage windows to test database
+      const db = new Database(TEST_DB_PATH);
+      db.prepare('INSERT INTO usage_windows (api_key, window_start, tokens_used) VALUES (?, ?, ?)').run(
+        'sk-test-key-1',
+        '2024-01-22T10:00:00.000Z',
+        5000
+      );
+      db.prepare('INSERT INTO usage_windows (api_key, window_start, tokens_used) VALUES (?, ?, ?)').run(
+        'sk-test-key-2',
+        '2024-01-22T11:00:00.000Z',
+        10000
+      );
+      db.close();
+
+      // Create backup
+      const backup = await backupDatabase({
+        outputDir: TEST_BACKUP_DIR,
+        compress: false,
+      });
+
+      // Modify database
+      const modifyDb = new Database(TEST_DB_PATH);
+      modifyDb.exec('DELETE FROM usage_windows');
+      modifyDb.close();
+
+      // Restore
+      const restoreResult = await restoreDatabase(backup.backupPath, {
+        backupBeforeRestore: false,
+        verifyBackup: true,
+      });
+
+      expect(restoreResult.keysRestored).toBe(2);
+      expect(restoreResult.usageWindowsRestored).toBe(2);
+    });
+
+    test('should handle WAL and SHM files during restore', async () => {
+      // Create backup
+      const backup = await backupDatabase({
+        outputDir: TEST_BACKUP_DIR,
+        compress: false,
+      });
+
+      // Ensure WAL and SHM files exist (they should from normal operations)
+      const _walPath = TEST_DB_PATH + '-wal';
+      const _shmPath = TEST_DB_PATH + '-shm';
+
+      // Restore (should clean up WAL and SHM files)
+      const restoreResult = await restoreDatabase(backup.backupPath, {
+        backupBeforeRestore: false,
+        verifyBackup: true,
+      });
+
+      expect(restoreResult.keysRestored).toBe(2);
+
+      // Database should still work after restore
+      const verifyDb = new Database(TEST_DB_PATH, { readonly: true });
+      const result = verifyDb
+        .query('SELECT COUNT(*) as count FROM api_keys')
+        .get() as { count: number };
+      verifyDb.close();
+      expect(result.count).toBe(2);
+    });
+  });
+
+  describe('restoreDatabase integration tests', () => {
+    test('should complete full backup and restore cycle', async () => {
+      // Create backup with all options
+      const backup = await backupDatabase({
+        outputDir: TEST_BACKUP_DIR,
+        compress: true,
+        retain: 5,
+      });
+
+      // Modify database significantly
+      const db = new Database(TEST_DB_PATH);
+      db.exec('DELETE FROM api_keys');
+      db.prepare('INSERT INTO api_keys (key, name, model, token_limit_per_5h, expiry_date, created_at, last_used, total_lifetime_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+        'sk-different-key',
+        'Different Key',
+        'claude-3-opus-20240229',
+        500000,
+        '2026-12-31T23:59:59.999Z',
+        '2024-01-22T10:00:00.000Z',
+        '2024-01-22T12:00:00.000Z',
+        25000
+      );
+      db.close();
+
+      // Restore with all safety options
+      const restoreResult = await restoreDatabase(backup.backupPath, {
+        backupBeforeRestore: true,
+        verifyBackup: true,
+        preRestoreBackupDir: TEST_BACKUP_DIR,
+      });
+
+      // Verify restoration
+      expect(restoreResult.keysRestored).toBe(2);
+      expect(restoreResult.preRestoreBackup).toBeTruthy();
+
+      // Verify database state matches backup
+      const verifyDb = new Database(TEST_DB_PATH, { readonly: true });
+      const keys = verifyDb
+        .query('SELECT key FROM api_keys ORDER BY key')
+        .all() as { key: string }[];
+      verifyDb.close();
+
+      expect(keys.length).toBe(2);
+      expect(keys[0].key).toBe('sk-test-key-1');
+      expect(keys[1].key).toBe('sk-test-key-2');
+    });
+
+    test('should handle multiple backup and restore cycles', async () => {
+      // Create first backup
+      const backup1 = await backupDatabase({
+        outputDir: TEST_BACKUP_DIR,
+        filename: 'backup-1',
+      });
+
+      // Modify database
+      const db = new Database(TEST_DB_PATH);
+      db.exec('DELETE FROM api_keys WHERE key = "sk-test-key-2"');
+      db.close();
+
+      // Create second backup
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      const backup2 = await backupDatabase({
+        outputDir: TEST_BACKUP_DIR,
+        filename: 'backup-2',
+      });
+
+      // Restore from first backup
+      await restoreDatabase(backup1.backupPath, {
+        backupBeforeRestore: false,
+        verifyBackup: true,
+      });
+
+      const verifyDb1 = new Database(TEST_DB_PATH, { readonly: true });
+      const result1 = verifyDb1
+        .query('SELECT COUNT(*) as count FROM api_keys')
+        .get() as { count: number };
+      verifyDb1.close();
+      expect(result1.count).toBe(2);
+
+      // Restore from second backup
+      await restoreDatabase(backup2.backupPath, {
+        backupBeforeRestore: false,
+        verifyBackup: true,
+      });
+
+      const verifyDb2 = new Database(TEST_DB_PATH, { readonly: true });
+      const result2 = verifyDb2
+        .query('SELECT COUNT(*) as count FROM api_keys')
+        .get() as { count: number };
+      verifyDb2.close();
+      expect(result2.count).toBe(1);
     });
   });
 });
