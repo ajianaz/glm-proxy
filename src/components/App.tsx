@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import ApiKeyTable from './ApiKeyTable';
 import type { ApiKey } from '../types';
 
 /**
@@ -370,23 +371,8 @@ function AppContent(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Placeholder for API Key Table - will be implemented in subtask 3.2 */}
-      <div className="table-placeholder">
-        <h2>API Keys</h2>
-        <p>API key table component will be implemented in the next subtask.</p>
-        <div className="debug-info">
-          <p><strong>Debug:</strong> Found {apiKeys.length} API keys</p>
-          {apiKeys.length > 0 && (
-            <ul>
-              {apiKeys.map((key) => (
-                <li key={key.key}>
-                  {key.name} ({key.key}) - {key.model || 'default model'}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+      {/* API Key Table */}
+      <ApiKeyTable />
     </div>
   );
 }

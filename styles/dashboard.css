@@ -873,3 +873,282 @@ a:hover {
     border: 1px solid var(--color-gray-300);
   }
 }
+
+/* ============================================
+   API Key Table Component Styles
+   ============================================ */
+
+/* Table Controls */
+.api-keys-table .table-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-4);
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.api-keys-table .table-controls-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.api-keys-table .table-controls-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.api-keys-table .search-box {
+  flex: 1;
+  min-width: 200px;
+}
+
+.api-keys-table .filter-box {
+  min-width: 150px;
+}
+
+.api-keys-table .filter-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--text-sm);
+  color: var(--color-gray-700);
+  cursor: pointer;
+  user-select: none;
+}
+
+.api-keys-table .filter-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.api-keys-table .results-count {
+  font-size: var(--text-sm);
+  color: var(--color-gray-500);
+  white-space: nowrap;
+}
+
+/* Table Header Sortable */
+.api-keys-table .table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--transition-fast);
+}
+
+.api-keys-table .table th.sortable:hover {
+  background-color: var(--color-gray-100);
+}
+
+.api-keys-table .th-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.api-keys-table .sort-indicator {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.3;
+  transition: opacity var(--transition-fast);
+}
+
+.api-keys-table .sort-indicator.active {
+  opacity: 1;
+}
+
+.api-keys-table .sort-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Table Cells */
+.api-keys-table .cell-key {
+  max-width: 150px;
+}
+
+.api-keys-table .key-code {
+  display: inline-block;
+  padding: var(--spacing-1) var(--spacing-2);
+  font-family: var(--font-family-mono);
+  font-size: var(--text-xs);
+  background-color: var(--color-gray-100);
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-700);
+  word-break: break-all;
+}
+
+.api-keys-table .cell-name {
+  max-width: 200px;
+}
+
+.api-keys-table .name-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.api-keys-table .name-text {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-gray-900);
+}
+
+.api-keys-table .cell-model {
+  width: 100px;
+}
+
+.api-keys-table .cell-quota {
+  width: 100px;
+  text-align: right;
+}
+
+.api-keys-table .quota-text {
+  font-family: var(--font-family-mono);
+  font-size: var(--text-sm);
+  color: var(--color-gray-700);
+}
+
+.api-keys-table .cell-usage {
+  min-width: 180px;
+}
+
+.api-keys-table .usage-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-1);
+}
+
+.api-keys-table .usage-bar-wrapper {
+  flex: 1;
+  height: 8px;
+  background-color: var(--color-gray-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.api-keys-table .usage-bar {
+  height: 100%;
+  background-color: var(--color-success);
+  transition: width var(--transition-slow);
+}
+
+.api-keys-table .usage-bar.usage-bar-caution {
+  background-color: var(--color-warning);
+}
+
+.api-keys-table .usage-bar.usage-bar-warning {
+  background-color: var(--color-error);
+}
+
+.api-keys-table .usage-text {
+  font-family: var(--font-family-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-gray-700);
+  min-width: 45px;
+  text-align: right;
+}
+
+.api-keys-table .usage-lifetime {
+  font-size: var(--text-xs);
+  color: var(--color-gray-500);
+}
+
+.api-keys-table .cell-expiry {
+  min-width: 140px;
+}
+
+.api-keys-table .expiry-date {
+  font-size: var(--text-sm);
+  color: var(--color-gray-700);
+}
+
+.api-keys-table .cell-actions {
+  width: 100px;
+  text-align: center;
+}
+
+.api-keys-table .action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1);
+}
+
+/* Row States */
+.api-keys-table .row-expired {
+  opacity: 0.6;
+  background-color: var(--color-gray-50);
+}
+
+.api-keys-table .row-expired:hover {
+  background-color: var(--color-gray-100);
+}
+
+/* Badge Variants */
+.api-keys-table .badge-danger {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+}
+
+/* Utility Classes */
+.api-keys-table .text-muted {
+  color: var(--color-gray-500);
+  font-style: italic;
+}
+
+.api-keys-table .text-error {
+  color: var(--color-error);
+  font-weight: var(--font-weight-medium);
+}
+
+.api-keys-table .no-data {
+  text-align: center !important;
+  padding: var(--spacing-8) !important;
+  color: var(--color-gray-500);
+  font-size: var(--text-sm);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+  .api-keys-table .table-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .api-keys-table .table-controls-left {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .api-keys-table .search-box,
+  .api-keys-table .filter-box {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .api-keys-table .table-controls-right {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 768px) {
+  .api-keys-table .cell-key,
+  .api-keys-table .cell-name {
+    max-width: none;
+  }
+
+  .api-keys-table .usage-lifetime {
+    display: none;
+  }
+
+  .api-keys-table .cell-usage {
+    min-width: 120px;
+  }
+}

@@ -289,6 +289,51 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - Tested server startup and HTML serving
   - All TypeScript type errors resolved for new files
   - Follows React 18+ best practices with StrictMode
+- ✅ [2026-01-22] Subtask 3.2 - Build API key table component
+  - Created comprehensive src/components/ApiKeyTable.tsx (447 lines)
+  - Implemented sortable columns for all fields (key, name, model, quota, usage, expiry)
+  - Sort indicators showing current sort direction (↑/↓/⇅)
+  - Click column headers to sort ascending/descending or reset
+  - Implemented filtering functionality:
+    - Search by name or key (case-insensitive)
+    - Filter by model (dropdown with unique models)
+    - Filter by expired status (checkbox to show/hide expired keys)
+  - Display of all required fields:
+    - Key ID: displayed in monospace font with background
+    - Name: with expired badge for expired keys
+    - Model: displayed as badge or "Default"
+    - Quota: formatted with commas
+    - Usage: progress bar with color coding (green/yellow/red)
+    - Expiry: formatted date/time with error color for expired
+  - Action buttons:
+    - Edit button (disabled, coming in subtask 3.3)
+    - Delete button with confirmation dialog
+  - Usage visualization:
+    - 5h window usage percentage calculation
+    - Progress bar with color thresholds (70% caution, 90% warning)
+    - Lifetime token usage display
+  - Responsive design:
+    - Mobile-friendly table controls
+    - Collapsible columns on smaller screens
+    - Proper overflow handling
+  - Empty state handling:
+    - Message when no API keys exist
+    - Message when no keys match filters
+  - Type-safe implementation with TypeScript
+  - Added comprehensive CSS styles (dashboard.css +250 lines):
+    - Table control styles (search, filters, checkboxes)
+    - Sortable column header styles with hover effects
+    - Cell-specific styles for each column type
+    - Usage bar styles with color coding
+    - Badge styles for models and status
+    - Responsive breakpoints for mobile/tablet
+  - Updated App.tsx to use ApiKeyTable instead of placeholder
+  - Removed debug placeholder content
+  - All TypeScript compilation successful
+  - No console.log debugging statements
+  - Follows existing code patterns from App.tsx
+  - React best practices with hooks (useState, useMemo)
+  - Accessible UI with proper ARIA labels and keyboard navigation
 
 ### Phase Breakdown
 
