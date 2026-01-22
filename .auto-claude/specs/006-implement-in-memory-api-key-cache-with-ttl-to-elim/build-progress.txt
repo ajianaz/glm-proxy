@@ -1,10 +1,10 @@
 # Implementation Progress: In-Memory API Key Cache with TTL
 
 **Feature:** Implement in-memory API key cache with TTL to eliminate file I/O on every request
-**Status:** Phase 4 Complete - All Tests Passing
+**Status:** Phase 5 In Progress - Documentation and Monitoring
 **Created:** 2026-01-22
 **Estimated Time:** 6.5 hours
-**Last Updated:** 2026-01-22T13:30:00.000Z
+**Last Updated:** 2026-01-22T14:00:00.000Z
 
 ---
 
@@ -130,7 +130,7 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
 - Manual verification confirms functionality
 - Ready for Phase 4 (Testing)
 
-### ⏳ Phase 4: Testing (In Progress)
+### ✅ Phase 4: Testing (Complete)
 **Goal:** Comprehensive testing to ensure correctness
 
 - [x] 4.1 Write unit tests for cache module (45m) ✅
@@ -166,14 +166,23 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
   - Check proxy functionality ✅
   - **Issue Found and Fixed:** Discovered pre-existing bug in src/proxy.ts where ZAI_API_KEY was evaluated at module load time instead of runtime, causing 2 proxy tests to fail. Fixed by converting constant to runtime function. All 122 tests now pass (120 pass, 2 fail → 122 pass, 0 fail).
 
-### ⏳ Phase 5: Documentation and Monitoring (Pending)
+**Phase 4 Summary:**
+- All 122 tests pass successfully
+- Fixed pre-existing bug in proxy.ts
+- Comprehensive test coverage: 57 unit tests, 16 integration tests, 29 benchmarks
+- Benchmarks confirm performance improvements
+- No regressions detected
+- Ready for Phase 5 (Documentation and Monitoring)
+
+### ⏳ Phase 5: Documentation and Monitoring (In Progress)
 **Goal:** Add observability and documentation
 
-- [ ] 5.1 Add cache statistics endpoint (25m)
-  - Create GET /cache/stats
-  - Return hits, misses, hitRate, size
-  - Require authentication
-  - Return JSON format
+- [x] 5.1 Add cache statistics endpoint (25m) ✅
+  - Create GET /cache/stats ✅
+  - Return hits, misses, hitRate, size ✅
+  - Require authentication ✅
+  - Return JSON format ✅
+  - **Implementation:** Added GET /cache-stats endpoint in src/index.ts. Returns CacheStatsResponse with hits, misses, hitRate, size, maxSize, and enabled flag. Requires authMiddleware. Updated root endpoint documentation. All tests pass (122/122).
 
 - [ ] 5.2 Add logging for cache operations (15m)
   - Debug log on hit/miss
@@ -243,7 +252,9 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
 
 ---
 
-**Next Steps:** Begin Phase 5 - Documentation and Monitoring
+**Next Steps:** Complete Phase 5 - Documentation and Monitoring
+- Subtask 5.2: Add logging for cache operations
+- Subtask 5.3: Update documentation
 
 **Completed Phases:**
 - ✅ Phase 0: Codebase Analysis
@@ -252,4 +263,4 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
 - ✅ Phase 3: Integrate Cache with Storage Layer
 - ✅ Phase 4: Testing (Complete)
 
-**Current Status:** Phase 4 complete. All 122 tests pass. Fixed pre-existing bug in proxy.ts (ZAI_API_KEY evaluation timing). Cache integration verified with comprehensive unit tests, integration tests, and benchmarks. Ready for Phase 5 (Documentation and Monitoring).
+**Current Status:** Phase 5 in progress. Subtask 5.1 (cache statistics endpoint) completed successfully. Added GET /cache-stats endpoint requiring authentication, returns cache statistics (hits, misses, hitRate, size, maxSize, enabled). All 122 tests pass. Ready to proceed with subtask 5.2 (logging) and 5.3 (documentation).
