@@ -8,6 +8,7 @@ import { authMiddleware, getApiKeyFromContext, type AuthContext } from './middle
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { createProxyHandler } from './handlers/proxyHandler.js';
 import type { StatsResponse } from './types.js';
+import { warmupCache } from './storage.js';
 
 type Bindings = {
   ZAI_API_KEY: string;
@@ -92,3 +93,11 @@ export default {
 };
 
 console.log(`Proxy Gateway starting on port ${port}`);
+
+// Optional cache warm-up on startup (non-blocking)
+if (process.env.CACHE_WARMUP_ON_START === 'true') {
+  // Fire and forget - don't await, let it run in background
+  warmupCache().catch(error => {
+    console.error('Cache warm-up error:', error);
+  });
+}

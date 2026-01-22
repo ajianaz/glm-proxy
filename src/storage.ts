@@ -125,3 +125,37 @@ export async function updateApiKeyUsage(
 export async function getKeyStats(key: string): Promise<ApiKey | null> {
   return await findApiKey(key);
 }
+
+/**
+ * Warm up the cache by loading all API keys into memory.
+ * This is optional and should be called on application startup if enabled.
+ * Runs asynchronously and doesn't block the startup process.
+ */
+export async function warmupCache(): Promise<void> {
+  if (!CACHE_ENABLED) {
+    return;
+  }
+
+  try {
+    // Read all API keys from storage
+    const data = await withLock(async () => {
+      return await readApiKeys();
+    });
+
+    // Populate cache with all keys
+    let loaded = 0;
+    for (const apiKey of data.keys) {
+      apiKeyCache.set(apiKey.key, apiKey);
+      loaded++;
+    }
+
+    // Log warm-up completion (only in development or if explicitly enabled)
+    if (process.env.NODE_ENV === 'development' || process.env.CACHE_LOG_LEVEL === 'info') {
+      const stats = apiKeyCache.getStats();
+      console.log(`Cache warm-up completed: ${loaded} API keys loaded (cache size: ${stats.size}/${stats.maxSize})`);
+    }
+  } catch (error) {
+    // Don't fail startup if warm-up fails, just log the error
+    console.error('Cache warm-up failed:', error);
+  }
+}
