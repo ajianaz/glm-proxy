@@ -77,6 +77,10 @@ export interface WebSocketClientConfig {
   reconnectDelay?: number;
   /** Maximum reconnection attempts (default: Infinity) */
   maxReconnectAttempts?: number;
+  /** Auth token for bearer authentication (optional, will be read from sessionStorage if not provided) */
+  authToken?: string;
+  /** Auth type ('bearer' or 'basic', optional, will be read from sessionStorage if not provided) */
+  authType?: 'bearer' | 'basic';
 }
 
 /**
@@ -94,6 +98,8 @@ export class WebSocketClient {
   private reconnectAttempts: number = 0;
   private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private isManualClose: boolean = false;
+  private authToken: string | null;
+  private authType: 'bearer' | 'basic' | null;
 
   // Event handlers
   private eventCallbacks: Map<WebSocketEventType, Set<EventCallback>> = new Map();
@@ -101,6 +107,8 @@ export class WebSocketClient {
   private errorCallbacks: Set<ErrorCallback> = new Set();
 
   constructor(config: WebSocketClientConfig = {}) {
+    this.authToken = config.authToken || null;
+    this.authType = config.authType || null;
     this.url = config.url || this.getDefaultUrl();
     this.autoReconnect = config.autoReconnect !== false;
     this.reconnectDelay = config.reconnectDelay || 3000;
@@ -109,10 +117,28 @@ export class WebSocketClient {
 
   /**
    * Get the default WebSocket URL based on current location
+   * Includes authentication credentials as query parameters
    */
   private getDefaultUrl(): string {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}/ws`;
+    const baseUrl = `${protocol}//${window.location.host}/ws`;
+
+    // Get auth credentials from sessionStorage if not already set
+    if (!this.authToken || !this.authType) {
+      this.authToken = sessionStorage.getItem('dashboard_auth_token');
+      const storedAuthType = sessionStorage.getItem('dashboard_auth_type');
+      this.authType = storedAuthType === 'bearer' || storedAuthType === 'basic' ? storedAuthType : null;
+    }
+
+    // Add authentication to URL if available
+    if (this.authToken && this.authType) {
+      const url = new URL(baseUrl);
+      url.searchParams.set('auth_type', this.authType);
+      url.searchParams.set('auth_token', this.authToken);
+      return url.toString();
+    }
+
+    return baseUrl;
   }
 
   /**

@@ -10,6 +10,7 @@ import {
   handleClientMessage,
   getConnectedClientCount,
 } from './src/websocket-manager.js';
+import { authenticateRequest, createUnauthorizedResponse } from './src/auth-middleware.js';
 
 /**
  * Handle HTTP requests
@@ -639,6 +640,16 @@ const server = Bun.serve({
 
     // Upgrade WebSocket connections
     if (url.pathname === '/ws') {
+      // Validate authentication before upgrading WebSocket connection
+      // Pass URL search parameters to support query parameter auth for WebSocket
+      const authResult = authenticateRequest(req.headers, url.searchParams);
+
+      if (!authResult.authenticated) {
+        // Return 401 if authentication fails
+        return createUnauthorizedResponse(authResult.error || 'Unauthorized');
+      }
+
+      // Authentication successful, proceed with WebSocket upgrade
       const upgraded = server.upgrade(req);
       if (upgraded) {
         return undefined; // Connection upgraded successfully

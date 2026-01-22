@@ -94,6 +94,7 @@ function validateBasicAuth(base64Credentials: string): boolean {
  * Supports:
  * - Bearer token: Authorization: Bearer <token>
  * - Basic auth: Authorization: Basic <base64(username:password)>
+ * - Query parameters: auth_type=bearer&auth_token=<token> or auth_type=basic&auth_token=<base64>
  *
  * Environment variables:
  * - DASHBOARD_AUTH_TOKEN: Valid bearer token (optional, if unset auth is disabled)
@@ -103,9 +104,39 @@ function validateBasicAuth(base64Credentials: string): boolean {
  * If neither token nor basic auth credentials are configured, authentication is disabled.
  *
  * @param headers - Request headers object
+ * @param searchParams - Optional URLSearchParams for query parameter auth (used for WebSocket)
  * @returns AuthResult with authentication status and error details
  */
-export function authenticateRequest(headers: Headers): AuthResult {
+export function authenticateRequest(headers: Headers, searchParams?: URLSearchParams): AuthResult {
+  // Try query parameter authentication first (for WebSocket connections)
+  // Query params take precedence over headers for WebSocket connections
+  if (searchParams) {
+    const authType = searchParams.get('auth_type');
+    const authToken = searchParams.get('auth_token');
+
+    if (authType && authToken) {
+      // Validate based on auth type from query parameters
+      let valid = false;
+
+      if (authType === 'bearer') {
+        valid = validateBearerToken(authToken);
+      } else if (authType === 'basic') {
+        valid = validateBasicAuth(authToken);
+      }
+
+      if (!valid) {
+        return {
+          authenticated: false,
+          statusCode: 401,
+          error: 'Invalid credentials',
+        };
+      }
+
+      return { authenticated: true, statusCode: 200 };
+    }
+  }
+
+  // Fall back to header-based authentication
   const authHeader = headers.get('authorization');
 
   // If no authorization header present, check if auth is configured
