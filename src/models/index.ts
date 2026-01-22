@@ -9,3 +9,6 @@ export * from './schema.js';
 
 // Database initialization and connection management
 export * from './database.js';
+
+// API Key model with CRUD operations
+export * from './apiKey.js';

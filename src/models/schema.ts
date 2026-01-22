@@ -65,7 +65,7 @@ export interface UpdateApiKeyData {
   name?: string;
 
   /** Optional description of the API key's purpose */
-  description?: string;
+  description?: string | null;
 
   /** Array of scopes/permissions */
   scopes?: string[];
