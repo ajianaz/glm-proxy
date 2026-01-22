@@ -595,7 +595,30 @@ Building a responsive web dashboard for managing API keys with real-time usage v
 - 3.7 Add responsive design and mobile optimizations ✅
 
 #### Phase 4: Authentication (Est: 80 min)
-- 4.1 Implement authentication middleware
+- ✅ [2026-01-22] Subtask 4.1 - Implement authentication middleware
+  - Created comprehensive src/auth-middleware.ts module (280 lines)
+  - Implemented bearer token authentication via DASHBOARD_AUTH_TOKEN env var
+  - Implemented basic authentication via DASHBOARD_AUTH_USERNAME and DASHBOARD_AUTH_PASSWORD env vars
+  - Configurable authentication: disabled if no credentials configured
+  - Case-insensitive auth type parsing (Bearer/Basic/bearer/basic)
+  - Proper WWW-Authenticate headers for 401 responses with both Bearer and Basic challenges
+  - Robust error handling for malformed credentials, invalid base64, special characters
+  - Support for unicode characters in credentials
+  - Functions provided:
+    * authenticateRequest(): Main auth validation function
+    * requireAuth(): Middleware function for Bun.serve() integration
+    * createUnauthorizedResponse(): Creates proper 401 responses
+  - Created comprehensive test suite (tests/auth-middleware.test.ts, 330+ lines)
+  - All 25 tests passing covering:
+    * Bearer token authentication (valid, invalid, missing)
+    * Basic authentication (valid, invalid username/password, partial config)
+    * Edge cases (empty tokens, special chars, unicode, malformed base64, very long tokens)
+    * Authorization header parsing (case-insensitive, extra spaces)
+  - Updated .env.example with auth configuration documentation
+  - TypeScript compilation successful with no errors
+  - No console.log debugging statements (only console.error for errors)
+  - Follows existing code patterns from api-key-manager.ts
+  - Manual verification: Middleware correctly validates credentials and returns appropriate responses
 - 4.2 Create login page
 - 4.3 Add logout functionality
 - 4.4 Secure WebSocket connections
