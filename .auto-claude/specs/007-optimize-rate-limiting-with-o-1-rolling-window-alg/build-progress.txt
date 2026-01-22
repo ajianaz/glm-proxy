@@ -115,9 +115,20 @@ Optimize rate limiting from O(n) to O(1) complexity by implementing a rolling wi
 - Refactor checkRateLimit() to use O(1) algorithm ✅
 - Update rate limit tests ✅
 
-**Phase 5: Update Storage Logic** (2 subtasks)
-- Update updateApiKeyUsage() to maintain rolling window cache
-- Add migration logic for existing keys
+**Phase 5: Update Storage Logic** (2 subtasks) 🚧 IN PROGRESS
+- [x] **phase-5-subtask-1**: Update updateApiKeyUsage to maintain rolling window cache ✅ COMPLETED
+  - Modified src/storage.ts to update rolling window cache when recording usage
+  - Imported RollingWindow class
+  - Updated updateApiKeyUsage() to maintain both usage_windows and rolling_window_cache
+  - Keep usage_windows as source of truth for persistence
+  - Use rolling_window_cache for O(1) read performance
+  - Implementation:
+    * If cache exists, load it with RollingWindow.fromSerializable()
+    * If not, create new cache from existing usage_windows
+    * Add current usage to rolling window cache
+    * Serialize and store cache back to apiKey.rolling_window_cache
+  - All tests passing (37 rolling window tests, 12 rate limit tests)
+- [ ] **phase-5-subtask-2**: Add migration logic for existing keys
 
 **Phase 6: Performance Testing and Benchmarking** (2 subtasks)
 - Create performance benchmarks comparing O(n) vs O(1)
