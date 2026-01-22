@@ -6,7 +6,6 @@
  */
 
 import { serve } from 'bun';
-import app from '../../src/index';
 import fs from 'fs';
 import path from 'path';
 import type { ApiKey, UsageWindow } from '../../src/types';
@@ -52,6 +51,9 @@ export interface RateLimitInfo {
 export async function startTestServer(port?: number): Promise<TestServer> {
   // Find available port if not specified
   const actualPort = port || (await findAvailablePort());
+
+  // Import app dynamically to ensure test environment is set up first
+  const app = (await import('../../src/index')).default;
 
   // Start the server
   const server = serve({
