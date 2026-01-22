@@ -8,6 +8,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { adminAuthMiddleware, type AdminAuthContext } from '../../middleware/adminAuth.js';
+import { requestLoggerMiddleware } from '../../middleware/requestLogger.js';
 import { ApiKeyModel, ApiKeyValidationError, ApiKeyDuplicateError, ApiKeyNotFoundError } from '../../models/apiKey.js';
 import type { ApiKeyResponse, CreateApiKeyData } from '../../models/schema.js';
 import {
@@ -27,6 +28,9 @@ import { formatValidationErrors } from '../../middleware/validation.js';
 
 // Create Hono app with admin auth context
 const app = new Hono<{ Variables: AdminAuthContext }>();
+
+// Apply request logging middleware to all admin API routes
+app.use('/*', requestLoggerMiddleware);
 
 /**
  * Request validation schema for creating API keys
