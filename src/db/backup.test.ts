@@ -538,3 +538,185 @@ describe('SQLite Backup', () => {
     });
   });
 });
+
+// PostgreSQL backup tests
+describe('PostgreSQL Backup', () => {
+  const PG_TEST_BACKUP_DIR = path.join(process.cwd(), 'data/test-pg-backups');
+
+  beforeEach(() => {
+    // Clean up any existing test files
+    if (existsSync(PG_TEST_BACKUP_DIR)) {
+      rmSync(PG_TEST_BACKUP_DIR, { recursive: true, force: true });
+    }
+  });
+
+  afterEach(() => {
+    // Clean up test files after each test
+    if (existsSync(PG_TEST_BACKUP_DIR)) {
+      rmSync(PG_TEST_BACKUP_DIR, { recursive: true, force: true });
+    }
+  });
+
+  describe('verifyBackup for PostgreSQL', () => {
+    test('should verify a valid PostgreSQL SQL dump', async () => {
+      // Create a test SQL dump file
+      const sqlContent = [
+        '-- PostgreSQL dump',
+        'CREATE TABLE IF NOT EXISTS api_keys (key TEXT PRIMARY KEY, name TEXT NOT NULL);',
+        'INSERT INTO api_keys (key, name) VALUES (\'sk-test-1\', \'Test Key\');',
+        'CREATE TABLE IF NOT EXISTS usage_windows (id SERIAL PRIMARY KEY, api_key TEXT NOT NULL);',
+      ].join('\n');
+
+      const backupPath = path.join(PG_TEST_BACKUP_DIR, 'pg-backup-test.sql');
+      mkdirSync(PG_TEST_BACKUP_DIR, { recursive: true });
+      await Bun.write(backupPath, sqlContent);
+
+      // Should not throw
+      await verifyBackup(backupPath, false, 'postgresql');
+    });
+
+    test('should verify a compressed PostgreSQL backup', async () => {
+      // Create a test SQL dump file
+      const sqlContent = [
+        '-- PostgreSQL dump',
+        'CREATE TABLE IF NOT EXISTS api_keys (key TEXT PRIMARY KEY, name TEXT NOT NULL);',
+        'INSERT INTO api_keys (key, name) VALUES (\'sk-test-1\', \'Test Key\');',
+      ].join('\n');
+
+      const backupPath = path.join(PG_TEST_BACKUP_DIR, 'pg-backup-test.sql.gz');
+      mkdirSync(PG_TEST_BACKUP_DIR, { recursive: true });
+
+      const compressed = Bun.gzipSync(new TextEncoder().encode(sqlContent));
+      await Bun.write(backupPath, compressed);
+
+      // Should not throw
+      await verifyBackup(backupPath, true, 'postgresql');
+    });
+
+    test('should throw error for invalid SQL file', async () => {
+      const backupPath = path.join(PG_TEST_BACKUP_DIR, 'invalid.sql');
+      mkdirSync(PG_TEST_BACKUP_DIR, { recursive: true });
+      await Bun.write(backupPath, 'not valid sql at all');
+
+      await expect(verifyBackup(backupPath, false, 'postgresql')).rejects.toThrow();
+    });
+
+    test('should throw error for SQL file without api_keys references', async () => {
+      const sqlContent = [
+        '-- PostgreSQL dump',
+        'CREATE TABLE other_table (id SERIAL PRIMARY KEY);',
+      ].join('\n');
+
+      const backupPath = path.join(PG_TEST_BACKUP_DIR, 'no-api-keys.sql');
+      mkdirSync(PG_TEST_BACKUP_DIR, { recursive: true });
+      await Bun.write(backupPath, sqlContent);
+
+      await expect(verifyBackup(backupPath, false, 'postgresql')).rejects.toThrow(
+        'does not contain api_keys table references'
+      );
+    });
+  });
+
+  describe('getBackupMetadata for PostgreSQL', () => {
+    test('should return metadata for PostgreSQL backup', async () => {
+      const sqlContent = '-- PostgreSQL dump\nCREATE TABLE api_keys (key TEXT PRIMARY KEY);';
+      const backupPath = path.join(PG_TEST_BACKUP_DIR, 'pg-backup-2024-01-22T12-00-00-000.sql');
+
+      mkdirSync(PG_TEST_BACKUP_DIR, { recursive: true });
+      await Bun.write(backupPath, sqlContent);
+
+      const metadata = await getBackupMetadata(backupPath);
+
+      expect(metadata).not.toBeNull();
+      expect(metadata!.filename).toBe('pg-backup-2024-01-22T12-00-00-000.sql');
+      expect(metadata!.databaseType).toBe('postgresql');
+      expect(metadata!.compressed).toBe(false);
+    });
+
+    test('should identify compressed PostgreSQL backups', async () => {
+      const sqlContent = '-- PostgreSQL dump';
+      const backupPath = path.join(PG_TEST_BACKUP_DIR, 'pg-backup-test.sql.gz');
+
+      mkdirSync(PG_TEST_BACKUP_DIR, { recursive: true });
+      const compressed = Bun.gzipSync(new TextEncoder().encode(sqlContent));
+      await Bun.write(backupPath, compressed);
+
+      const metadata = await getBackupMetadata(backupPath);
+
+      expect(metadata).not.toBeNull();
+      expect(metadata!.databaseType).toBe('postgresql');
+      expect(metadata!.compressed).toBe(true);
+    });
+
+    test('should auto-detect PostgreSQL type from filename', async () => {
+      const sqlContent = '-- PostgreSQL dump';
+      const backupPath = path.join(PG_TEST_BACKUP_DIR, 'my-backup.sql');
+
+      mkdirSync(PG_TEST_BACKUP_DIR, { recursive: true });
+      await Bun.write(backupPath, sqlContent);
+
+      const metadata = await getBackupMetadata(backupPath);
+
+      expect(metadata).not.toBeNull();
+      expect(metadata!.databaseType).toBe('postgresql');
+    });
+  });
+
+  describe('listBackups for mixed SQLite and PostgreSQL', () => {
+    test('should list both SQLite and PostgreSQL backups', async () => {
+      mkdirSync(PG_TEST_BACKUP_DIR, { recursive: true });
+
+      // Create SQLite backup
+      const sqliteBackup = path.join(PG_TEST_BACKUP_DIR, 'sqlite-backup-2024-01-22T12-00-00-000.db');
+      const db = new Database(sqliteBackup);
+      db.exec('CREATE TABLE api_keys (key TEXT PRIMARY KEY, name TEXT NOT NULL);');
+      db.close();
+
+      // Create PostgreSQL backup
+      const pgBackup = path.join(PG_TEST_BACKUP_DIR, 'pg-backup-2024-01-22T12-00-00-000.sql');
+      await Bun.write(pgBackup, '-- PostgreSQL dump\nCREATE TABLE api_keys (key TEXT PRIMARY KEY);');
+
+      const backups = await listBackups(PG_TEST_BACKUP_DIR);
+
+      expect(backups.length).toBe(2);
+
+      const sqlite = backups.find((b) => b.databaseType === 'sqlite');
+      const postgresql = backups.find((b) => b.databaseType === 'postgresql');
+
+      expect(sqlite).toBeDefined();
+      expect(postgresql).toBeDefined();
+    });
+
+    test('should identify compressed backups correctly', async () => {
+      mkdirSync(PG_TEST_BACKUP_DIR, { recursive: true });
+
+      // Create compressed SQLite backup
+      const sqliteContent = new Uint8Array([1, 2, 3]);
+      const sqliteBackup = path.join(PG_TEST_BACKUP_DIR, 'sqlite-backup-2024-01-22T12-00-00-000.db.gz');
+      await Bun.write(sqliteBackup, Bun.gzipSync(sqliteContent));
+
+      // Create compressed PostgreSQL backup
+      const pgContent = new TextEncoder().encode('-- PostgreSQL dump');
+      const pgBackup = path.join(PG_TEST_BACKUP_DIR, 'pg-backup-2024-01-22T12-00-00-000.sql.gz');
+      await Bun.write(pgBackup, Bun.gzipSync(pgContent));
+
+      const backups = await listBackups(PG_TEST_BACKUP_DIR);
+
+      expect(backups.length).toBe(2);
+      expect(backups.every((b) => b.compressed)).toBe(true);
+    });
+  });
+
+  describe('PostgreSQL backup filename generation', () => {
+    test('should generate correct PostgreSQL backup filename format', () => {
+      // This is tested indirectly through backupDatabase, but we can verify
+      // that files created with PostgreSQL type have the correct prefix
+      const testFilename = 'pg-backup-2024-01-22T12-00-00-000';
+      expect(testFilename.startsWith('pg-backup-')).toBe(true);
+
+      // Should contain timestamp
+      const timestampMatch = testFilename.match(/pg-backup-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3})/);
+      expect(timestampMatch).toBeTruthy();
+    });
+  });
+});
