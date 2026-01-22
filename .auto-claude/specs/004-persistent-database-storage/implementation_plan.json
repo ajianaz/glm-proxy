@@ -737,7 +737,7 @@
           "id": "8.3",
           "name": "Document backup/restore",
           "description": "Create documentation for backup and restore procedures",
-          "status": "pending",
+          "status": "completed",
           "files": [
             "docs/backup-restore.md"
           ],
@@ -746,23 +746,33 @@
             "Automated backup setup",
             "Restore procedures",
             "Disaster recovery plan"
-          ]
+          ],
+          "completed_at": "2026-01-22T22:00:00.000Z",
+          "notes": "Created comprehensive backup and restore documentation at docs/backup-restore.md (1002 lines, 32KB):\n\n**Structure:**\n- Overview section explaining backup features and file formats\n- Manual backup procedures for SQLite and PostgreSQL\n- Automated backup setup with cron expressions\n- Restore procedures with safety features\n- Disaster recovery plan (3 levels: single corruption, server failure, region-wide)\n- Best practices (frequency, retention, security, verification, monitoring)\n- Troubleshooting section (backup issues, restore issues, scheduled backup issues, recovery issues)\n- Quick reference with essential commands\n\n**Key Features:**\n- Comprehensive manual backup procedures for both SQLite and PostgreSQL\n- Multiple backup methods (CLI, direct file copy, VACUUM, pg_dump, docker)\n- Automated backup setup with detailed cron expression examples\n- Scheduled backup configuration with environment variables\n- System-level scheduling alternatives (Linux cron, Docker, Kubernetes CronJob)\n- Complete restore procedures with safety features (verification, pre-restore backup, type checking)\n- Database-specific restore methods for SQLite and PostgreSQL\n- Point-in-time recovery scenarios with examples\n- Three-level disaster recovery plan with RPO/RTO objectives\n- Backup storage strategy (local, network, cloud)\n- Testing recovery procedures with monthly drill scripts\n- Best practices: backup frequency table, retention policies, encryption, access control, verification, monitoring/alerting\n- Comprehensive troubleshooting section for all common issues\n- Quick reference with essential commands and environment variables\n\n**Documentation Quality:**\n- 1002 lines of comprehensive documentation\n- Follows existing documentation style from migration.md\n- Clear table of contents with sections and subsections\n- Code examples with bash commands throughout\n- Real-world scenarios and use cases\n- Production-ready recommendations\n- Clear formatting with headers, lists, tables, and code blocks\n- Links to related documentation\n\nAll acceptance criteria met:\n✅ Manual backup procedures (SQLite and PostgreSQL, multiple methods, off-site strategy)\n✅ Automated backup setup (cron expressions, configuration, monitoring, system-level alternatives)\n✅ Restore procedures (basic, database-specific, point-in-time recovery scenarios)\n✅ Disaster recovery plan (3 levels, RPO/RTO objectives, backup storage strategy, testing procedures)"
         },
         {
           "id": "8.4",
           "name": "Add configuration examples",
           "description": "Provide example configuration files for different deployment scenarios",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            ".env.example",
-            "docker-compose.yml"
+            "docker-compose.dev.yml",
+            "docker-compose.prod.yml",
+            "docker-compose.sqlite.yml",
+            ".env.development.example",
+            ".env.production.example",
+            ".env.sqlite.example",
+            "docs/configuration-examples.md",
+            "README.md"
           ],
           "acceptance_criteria": [
             "Development SQLite setup",
             "Production PostgreSQL setup",
             "Docker deployment example",
             "Environment variable templates"
-          ]
+          ],
+          "completed_at": "2026-01-22T14:30:00.000Z",
+          "notes": "Created comprehensive configuration examples for different deployment scenarios:\n\n**Docker Compose Files (3 variants):**\n- docker-compose.dev.yml: Development environment with SQLite, hot reload, debug logging, faster retry intervals\n- docker-compose.prod.yml: Production environment with PostgreSQL, automated backups, resource limits, health checks, HA support\n- docker-compose.sqlite.yml: Simple production deployment with SQLite, automatic backups, lower resource requirements\n\n**Environment Examples (3 configurations):**\n- .env.development.example: Local development with SQLite, debug logging, verbose error messages, scheduled backups disabled\n- .env.production.example: Production PostgreSQL with security best practices, strong passwords, monitoring guidance, HA setup instructions\n- .env.sqlite.example: SQLite deployment with performance recommendations, backup strategies, migration path to PostgreSQL\n\n**Documentation:**\n- docs/configuration-examples.md: Comprehensive 500+ line guide covering:\n  - Quick start for each deployment scenario\n  - When to use each configuration (comparison table)\n  - Detailed Docker Compose file explanations\n  - Environment file examples with comments\n  - 5 deployment scenarios with step-by-step instructions\n  - Configuration best practices (security, performance, monitoring, HA)\n  - Troubleshooting common issues (database connections, SQLite locking, backup failures, health checks)\n  - Quick reference commands for all operations\n\n**README Update:**\n- Added \"Deployment Configurations\" section in Advanced Configuration\n- Links to all configuration examples\n- Quick start commands for each scenario\n- Clear guidance on choosing the right configuration\n\n**Code Quality:**\n- All docker-compose YAML files validated with docker-compose config\n- Follows existing documentation patterns and style\n- Comprehensive inline comments in all configuration files\n- Production-ready security recommendations\n- All acceptance criteria met:\n  ✅ Development SQLite setup (docker-compose.dev.yml + .env.development.example)\n  ✅ Production PostgreSQL setup (docker-compose.prod.yml + .env.production.example)\n  ✅ Docker deployment examples (3 docker-compose variants for different scenarios)\n  ✅ Environment variable templates (3 .env.example files with detailed comments)\n\n**Files Created/Modified:**\n- Created: docker-compose.dev.yml (91 lines)\n- Created: docker-compose.prod.yml (189 lines)\n- Created: docker-compose.sqlite.yml (118 lines)\n- Created: .env.development.example (118 lines)\n- Created: .env.production.example (194 lines)\n- Created: .env.sqlite.example (159 lines)\n- Created: docs/configuration-examples.md (500+ lines)\n- Modified: README.md (added Deployment Configurations section)"
         },
         {
           "id": "8.5",
