@@ -169,6 +169,21 @@ export const ANTHROPIC_MODEL_API_KEY: ApiKey = {
 };
 
 /**
+ * API key for concurrent request testing with moderate limit
+ */
+export const CONCURRENT_TEST_API_KEY: ApiKey = {
+  key: 'pk_test_concurrent',
+  name: 'Concurrent Test User',
+  model: 'glm-4.7',
+  token_limit_per_5h: 5000,
+  expiry_date: '2026-12-31T23:59:59Z',
+  created_at: '2026-01-18T00:00:00Z',
+  last_used: new Date().toISOString(),
+  total_lifetime_tokens: 0,
+  usage_windows: [],
+};
+
+/**
  * Collection of all test API keys
  */
 export const TEST_API_KEYS: ApiKey[] = [
@@ -181,6 +196,7 @@ export const TEST_API_KEYS: ApiKey[] = [
   MIXED_WINDOWS_API_KEY,
   CUSTOM_MODEL_API_KEY,
   ANTHROPIC_MODEL_API_KEY,
+  CONCURRENT_TEST_API_KEY,
 ];
 
 /**
