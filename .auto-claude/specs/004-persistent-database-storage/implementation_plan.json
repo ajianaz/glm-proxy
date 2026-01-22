@@ -296,16 +296,20 @@
           "id": "4.3",
           "name": "Implement migration validation",
           "description": "Add validation to ensure all data migrated correctly",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "scripts/migrate.ts"
+            "scripts/migrate.ts",
+            "test/migration-validation.test.ts",
+            "test/manual-verification.ts"
           ],
           "acceptance_criteria": [
             "Compares record counts before/after",
             "Validates data integrity",
             "Reports any discrepancies",
             "Exits with error on validation failure"
-          ]
+          ],
+          "completed_at": "2026-01-22T13:00:00.000Z",
+          "notes": "Implemented comprehensive migration validation:\n\n**Core Functions Added:**\n- validateMigration(): Compares source data with migrated data for integrity\n- getDatabaseKeyCount(): Counts API keys in database\n- insertUsageWindows(): Inserts usage windows for migrated keys\n- usageWindowsEqual(): Helper to compare usage window arrays\n\n**Migration Enhancements:**\n- Updated migrateApiKeys() to insert usage windows after creating keys\n- Exported functions for testing (getDatabaseKeyCount, validateMigration, usageWindowsEqual, migrateApiKeys)\n- Updated help text to document validation feature\n\n**Validation Features:**\n- Record count comparison (source count vs database new keys count)\n- Field-by-field verification:\n  - name, model, token_limit_per_5h\n  - expiry_date, created_at, last_used (timestamp comparison)\n  - total_lifetime_tokens\n  - usage_windows (count and content comparison)\n- Detailed discrepancy reporting with specific field and value differences\n- Exits with error code 1 on validation failure\n- Preserves backup on validation failure for recovery\n\n**Testing:**\n- Created test/migration-validation.test.ts with unit tests for usageWindowsEqual:\n  - Identical windows comparison\n  - Different order handling\n  - Different counts detection\n  - Different values detection\n  - Empty array handling\n  - All 6 unit tests passing\n- Created test/manual-verification.ts with end-to-end migration test:\n  - Database initialization\n  - Migration with usage windows\n  - Post-migration validation\n  - All validation checks passing\n- Verified migration with 2 keys and multiple usage windows\n- Confirmed all field values match after migration\n\n**Code Quality:**\n- Follows existing code patterns and conventions\n- No console.log statements (only user-facing output)\n- Comprehensive JSDoc documentation for all functions\n- Proper error handling with meaningful error messages\n- TypeScript compilation verified\n\nAll acceptance criteria met:\n✅ Compares record counts before/after (getDatabaseKeyCount before/after migration)\n✅ Validates data integrity (field-by-field comparison including usage windows)\n✅ Reports any discrepancies (detailed list with specific field and value differences)\n✅ Exits with error on validation failure (process.exit(1) when validation.valid === false)"
         },
         {
           "id": "4.4",

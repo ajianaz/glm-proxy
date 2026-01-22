@@ -30,7 +30,7 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 ### Phase 4: Migration Tool [IN PROGRESS]
 - ✅ CLI migration script (COMPLETED: 4.1)
 - ✅ Backup before migration (COMPLETED: 4.2)
-- Validation
+- ✅ Validation (COMPLETED: 4.3)
 - Rollback capability
 - npm scripts
 
@@ -107,6 +107,46 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
   - No console.log statements (only user-facing CLI output)
   - Comprehensive JSDoc documentation added
   - All acceptance criteria met: creates timestamped backup, verifies backup creation, stores backup in safe location
+- **4.3** Implement migration validation (COMPLETED)
+  - Added validateMigration() function to compare source data with migrated data for integrity
+  - Added getDatabaseKeyCount() to count records before/after migration
+  - Added insertUsageWindows() to properly migrate usage windows during migration
+  - Added usageWindowsEqual() helper function for comparing usage window arrays
+  - Updated migrateApiKeys() to insert usage windows for each key after creation
+  - Exported validation functions for testing (getDatabaseKeyCount, validateMigration, usageWindowsEqual, migrateApiKeys)
+  - Updated help text to document validation feature
+  - Created test/migration-validation.test.ts with 6 unit tests for usageWindowsEqual:
+    * Identical windows comparison
+    * Different order handling (sorted comparison)
+    * Different counts detection
+    * Different values detection
+    * Empty array handling
+    * All 6 unit tests passing
+  - Created test/manual-verification.ts with end-to-end migration test:
+    * Database initialization and schema creation
+    * Migration of 2 keys with multiple usage windows
+    * Post-migration validation with detailed reporting
+    * Verified all field values match after migration
+    * Confirmed usage windows integrity
+    * All validation checks passing
+  - Validation includes:
+    * Record count comparison (source count vs database new keys count)
+    * Field-by-field verification: name, model, token_limit_per_5h, timestamps, total_lifetime_tokens
+    * Usage windows integrity check (count and content comparison)
+    * Detailed discrepancy reporting with specific field and value differences
+    * Exits with error code 1 on validation failure
+    * Preserves backup on validation failure for recovery
+  - Code quality:
+    * Follows existing code patterns and conventions
+    * No console.log statements (only user-facing output)
+    * Comprehensive JSDoc documentation for all functions
+    * Proper error handling with meaningful error messages
+    * TypeScript compilation verified
+  - All acceptance criteria met:
+    ✅ Compares record counts before/after (getDatabaseKeyCount before/after migration)
+    ✅ Validates data integrity (field-by-field comparison including usage windows)
+    ✅ Reports any discrepancies (detailed list with specific field and value differences)
+    ✅ Exits with error on validation failure (process.exit(1) when validation.valid === false)
 - **1.1** Install Drizzle ORM and drivers
   - Installed drizzle-orm@0.45.1
   - Installed postgres@3.4.8
