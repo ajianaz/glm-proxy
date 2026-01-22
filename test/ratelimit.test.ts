@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { checkRateLimit } from '../src/ratelimit.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { checkRateLimit, clearRateLimitCache } from '../src/ratelimit.js';
 import type { ApiKey } from '../src/types.js';
 
 // Helper function to calculate bucket time (rounded down to nearest 5-minute boundary)
@@ -19,6 +19,11 @@ describe('Rate Limiting', () => {
     last_used: '2026-01-18T00:00:00Z',
     total_lifetime_tokens: 0,
     usage_windows: windows,
+  });
+
+  beforeEach(() => {
+    // Clear cache before each test to ensure fresh calculations
+    clearRateLimitCache();
   });
 
   describe('checkRateLimit', () => {

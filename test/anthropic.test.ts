@@ -7,16 +7,15 @@ vi.mock('../src/storage.js', () => ({
   updateApiKeyUsage: vi.fn(),
 }));
 
+// Mock pool manager
+vi.mock('../src/pool/PoolManager.js', () => ({
+  getAnthropicPool: vi.fn(),
+}));
+
+const mockGetAnthropicPool = vi.fn();
+const mockPoolRequest = vi.fn();
+
 describe('Anthropic Proxy', () => {
-  beforeEach(() => {
-    // Set ZAI_API_KEY for tests
-    process.env.ZAI_API_KEY = 'test_zai_key';
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   const mockApiKey: ApiKey = {
     key: 'pk_test_key',
     name: 'Test User',
@@ -28,6 +27,39 @@ describe('Anthropic Proxy', () => {
     total_lifetime_tokens: 0,
     usage_windows: [],
   };
+
+  beforeEach(() => {
+    // Set ZAI_API_KEY for tests
+    process.env.ZAI_API_KEY = 'test_zai_key';
+
+    // Mock pool request
+    mockPoolRequest.mockResolvedValue({
+      success: true,
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: 'msg_123',
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Hello!' }],
+        usage: { input_tokens: 10, output_tokens: 20 },
+      }),
+      duration: 50,
+    });
+
+    // Mock pool
+    mockGetAnthropicPool.mockReturnValue({
+      request: mockPoolRequest,
+    });
+
+    // Mock getAnthropicPool function
+    const { getAnthropicPool } = require('../src/pool/PoolManager.js');
+    getAnthropicPool.mockImplementation(mockGetAnthropicPool);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
 
   describe('proxyAnthropicRequest', () => {
     it('should return error when ZAI_API_KEY is not configured', async () => {
@@ -46,7 +78,160 @@ describe('Anthropic Proxy', () => {
       expect(result.tokensUsed).toBe(0);
     });
 
-    it('should proxy request to Z.AI Anthropic API', async () => {
+    it('should use connection pool for requests', async () => {
+      await proxyAnthropicRequest({
+        apiKey: mockApiKey,
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'Hello' }],
+        }),
+      });
+
+      expect(mockGetAnthropicPool).toHaveBeenCalled();
+      expect(mockPoolRequest).toHaveBeenCalledWith({
+        method: 'POST',
+        path: '/v1/messages',
+        headers: expect.objectContaining({
+          'x-api-key': 'test_zai_key',
+          'anthropic-version': '2023-06-01',
+        }),
+        body: expect.stringContaining('messages'),
+        timeout: 30000,
+        streamResponse: false,
+      });
+    });
+
+    it('should inject model from API key when using pool', async () => {
+      await proxyAnthropicRequest({
+        apiKey: mockApiKey,
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {},
+        body: JSON.stringify({
+          model: 'wrong-model',
+          messages: [],
+        }),
+      });
+
+      const poolCall = mockPoolRequest.mock.calls[0];
+      const bodyArg = JSON.parse(poolCall[0].body as string);
+      expect(bodyArg.model).toBe('glm-4.7');
+    });
+
+    it('should fall back to regular fetch when pool fails', async () => {
+      // Mock pool to fail
+      mockPoolRequest.mockRejectedValue(new Error('Pool exhausted'));
+
+      // Mock fetch to succeed
+      const mockFetch = vi.fn();
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: {
+          get: (name: string) => {
+            if (name === 'content-type') return 'application/json';
+            return null;
+          },
+        },
+        text: async () => JSON.stringify({
+          id: 'msg_123',
+          usage: { input_tokens: 10, output_tokens: 20 },
+        }),
+      });
+      global.fetch = mockFetch as any;
+
+      const result = await proxyAnthropicRequest({
+        apiKey: mockApiKey,
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {},
+        body: JSON.stringify({ messages: [] }),
+      });
+
+      expect(mockFetch).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.tokensUsed).toBe(30);
+    });
+
+    it('should disable pool when DISABLE_CONNECTION_POOL is set', async () => {
+      process.env.DISABLE_CONNECTION_POOL = 'true';
+
+      // Mock fetch to succeed
+      const mockFetch = vi.fn();
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: {
+          get: (name: string) => {
+            if (name === 'content-type') return 'application/json';
+            return null;
+          },
+        },
+        text: async () => JSON.stringify({
+          id: 'msg_123',
+          usage: { input_tokens: 10, output_tokens: 20 },
+        }),
+      });
+      global.fetch = mockFetch as any;
+
+      await proxyAnthropicRequest({
+        apiKey: mockApiKey,
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {},
+        body: JSON.stringify({ messages: [] }),
+      });
+
+      // Pool should not be called
+      expect(mockGetAnthropicPool).not.toHaveBeenCalled();
+      // Fetch should be called instead
+      expect(mockFetch).toHaveBeenCalled();
+
+      delete process.env.DISABLE_CONNECTION_POOL;
+    });
+
+    it('should handle streaming response content-type', async () => {
+      // Mock pool to return streaming response
+      mockPoolRequest.mockResolvedValue({
+        success: true,
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+        body: 'data: {"content": "Hello"}\n\n',
+        duration: 50,
+      });
+
+      const result = await proxyAnthropicRequest({
+        apiKey: mockApiKey,
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {},
+        body: JSON.stringify({ stream: true, messages: [] }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.headers['content-type']).toBe('text/event-stream');
+    });
+  });
+
+  // Keep the original fetch-based tests for backward compatibility testing
+  describe('proxyAnthropicRequest with fetch fallback', () => {
+    beforeEach(() => {
+      // Set ZAI_API_KEY for tests
+      process.env.ZAI_API_KEY = 'test_zai_key';
+      // Disable pool for fetch fallback tests
+      process.env.DISABLE_CONNECTION_POOL = 'true';
+    });
+
+    afterEach(() => {
+      delete process.env.DISABLE_CONNECTION_POOL;
+    });
+
+    it('should proxy request to Z.AI Anthropic API with fetch', async () => {
       const mockFetch = vi.fn();
       mockFetch.mockResolvedValue({
         ok: true,
@@ -91,7 +276,7 @@ describe('Anthropic Proxy', () => {
       expect(fetchCall[1].headers['anthropic-version']).toBe('2023-06-01');
     });
 
-    it('should inject model from API key configuration', async () => {
+    it('should inject model from API key configuration with fetch', async () => {
       const mockFetch = vi.fn();
       mockFetch.mockResolvedValue({
         ok: true,
@@ -126,7 +311,7 @@ describe('Anthropic Proxy', () => {
       expect(sentBody.model).toBe('glm-4.7'); // Should be overridden
     });
 
-    it('should handle upstream request failure', async () => {
+    it('should handle upstream request failure with fetch', async () => {
       const mockFetch = vi.fn();
       mockFetch.mockRejectedValue(new Error('Network error'));
       global.fetch = mockFetch as any;

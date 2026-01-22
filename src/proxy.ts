@@ -1,34 +1,33 @@
 import type { ApiKey } from './types.js';
 import { getModelForKey } from './validator.js';
-import { getStorage } from './storage/index.js';
+import { updateApiKeyUsage } from './storage.js';
+import { getZaiPool } from './pool/PoolManager.js';
+import { injectModel, extractTokens } from './json/index.js';
 
-const ZAI_API_BASE = 'https://api.z.ai/api/coding/paas/v4';
-
-function getZaiApiKey(): string | undefined {
-  return process.env.ZAI_API_KEY;
-}
+const ZAI_API_BASE = process.env.ZAI_API_BASE || 'https://api.z.ai/api/coding/paas/v4';
 
 export interface ProxyOptions {
   apiKey: ApiKey;
   path: string;
   method: string;
   headers: Record<string, string>;
-  body: string | null;
+  body: string | ReadableStream<Uint8Array> | null;
 }
 
 export interface ProxyResult {
   success: boolean;
   status: number;
   headers: Record<string, string>;
-  body: string;
+  body: string | ReadableStream<Uint8Array>;
   tokensUsed?: number;
+  streamed?: boolean;
 }
 
 export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> {
   const { apiKey, path, method, headers, body } = options;
 
   // Runtime check for ZAI_API_KEY
-  const ZAI_API_KEY = getZaiApiKey();
+  const ZAI_API_KEY = process.env.ZAI_API_KEY;
   if (!ZAI_API_KEY) {
     return {
       success: false,
@@ -55,7 +54,7 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
 
   // Prepare headers for Z.AI - always forward Authorization with master key
   const proxyHeaders: Record<string, string> = {
-    'Authorization': `Bearer ${ZAI_API_KEY}`,
+    'Authorization': `Bearer ${process.env.ZAI_API_KEY}`,
   };
 
   // Forward relevant headers from client (but not Authorization)
@@ -68,70 +67,143 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
   }
 
   // Inject/override model in request body
-  let processedBody = body;
+  let processedBody: string | ReadableStream<Uint8Array> | null = body;
   let tokensUsed = 0;
 
-  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+  // For non-streaming requests with body, inject model
+  if (body && typeof body === 'string' && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
     try {
-      const bodyJson = JSON.parse(body);
+      // Use optimized model injection (avoids full parse+stringify cycle)
+      const injectionResult = injectModel(body, model);
 
-      // Inject model for chat/completions endpoint
-      if (path.includes('/chat/completions') || path.includes('/completions')) {
-        bodyJson.model = model;
+      // Only use modified body if injection was successful
+      if (injectionResult.modified) {
+        processedBody = injectionResult.json;
       }
-
-      processedBody = JSON.stringify(bodyJson);
     } catch {
-      // Body not JSON, leave as-is
+      // Body not JSON or injection failed, leave as-is
     }
   }
+  // For streaming bodies, we can't easily inject model without buffering
+  // In production, you'd want to use a streaming JSON transformer
+  // For now, we pass the stream through without modification
 
   // Make request to Z.AI
   try {
-    const response = await fetch(targetUrl, {
-      method,
-      headers: proxyHeaders,
-      body: processedBody,
-    });
+    let responseBody: string;
+    let statusCode: number;
+    let responseHeaders: Record<string, string>;
 
-    // Get response body
-    const responseBody = await response.text();
+    // Try connection pool first, fall back to regular fetch
+    // Enable streaming for non-streaming request bodies
+    const useStreaming = typeof processedBody !== 'string' && processedBody instanceof ReadableStream;
 
-    // Extract token usage from response
-    if (response.ok) {
+    if (process.env.DISABLE_CONNECTION_POOL !== 'true') {
       try {
-        const responseJson = JSON.parse(responseBody);
+        const pool = getZaiPool();
 
-        // OpenAI format usage
-        if (responseJson.usage) {
-          tokensUsed = responseJson.usage.total_tokens || 0;
+        // Build the path for the pool (relative to base URL)
+        const cleanPath = path.startsWith('/v1/') ? path.substring(4) : path;
+        const poolPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
+
+        const pooledResponse = await pool.request({
+          method,
+          path: poolPath,
+          headers: proxyHeaders,
+          body: processedBody,
+          timeout: 30000,
+          streamResponse: useStreaming, // Enable streaming response for streaming requests
+        });
+
+        responseBody = pooledResponse.body;
+        statusCode = pooledResponse.status;
+        responseHeaders = pooledResponse.headers;
+
+        // Mark if response is streamed
+        if (pooledResponse.streamed) {
+          return {
+            success: statusCode >= 200 && statusCode < 300,
+            status: statusCode,
+            headers: responseHeaders,
+            body: responseBody as ReadableStream<Uint8Array>,
+            streamed: true,
+          };
+        }
+      } catch (poolError) {
+        // Pool failed, fall back to regular fetch
+        const response = await fetch(targetUrl, {
+          method,
+          headers: proxyHeaders,
+          body: processedBody,
+          // @ts-ignore - Bun supports duplex for streaming
+          duplex: 'half',
+        });
+
+        // For streaming requests, stream the response
+        if (useStreaming && response.body) {
+          return {
+            success: response.ok,
+            status: response.status,
+            headers: Object.fromEntries(response.headers.entries()),
+            body: response.body,
+            streamed: true,
+          };
         }
 
-        // Update usage after successful request
-        if (tokensUsed > 0) {
+        responseBody = await response.text();
+        statusCode = response.status;
+        responseHeaders = {
+          'content-type': response.headers.get('content-type') || 'application/json',
+        };
+      }
+    } else {
+      // Connection pool disabled, use regular fetch
+      const response = await fetch(targetUrl, {
+        method,
+        headers: proxyHeaders,
+        body: processedBody,
+        // @ts-ignore - Bun supports duplex for streaming
+        duplex: 'half',
+      });
+
+      // For streaming requests, stream the response
+      if (useStreaming && response.body) {
+        return {
+          success: response.ok,
+          status: response.status,
+          headers: Object.fromEntries(response.headers.entries()),
+          body: response.body,
+          streamed: true,
+        };
+      }
+
+      responseBody = await response.text();
+      statusCode = response.status;
+      responseHeaders = {
+        'content-type': response.headers.get('content-type') || 'application/json',
+      };
+    }
+
+    // Extract token usage from response (only for non-streaming responses)
+    if (typeof responseBody === 'string' && statusCode >= 200 && statusCode < 300) {
+      try {
+        // Use optimized token extraction (avoids full parse when possible)
+        const tokenResult = extractTokens(responseBody);
+
+        if (tokenResult.tokensUsed !== null && tokenResult.tokensUsed > 0) {
+          tokensUsed = tokenResult.tokensUsed;
+
           // Don't await - fire and forget for performance
-          (async () => {
-            try {
-              const storage = await getStorage();
-              await storage.updateApiKeyUsage(apiKey.key, tokensUsed, model);
-            } catch (error) {
-              console.error('Failed to update API key usage:', error);
-            }
-          })();
+          updateApiKeyUsage(apiKey.key, tokensUsed, model).catch(console.error);
         }
       } catch {
         // Response not JSON or no usage field
       }
     }
 
-    // Build response headers
-    const responseHeaders: Record<string, string> = {
-      'content-type': response.headers.get('content-type') || 'application/json',
-    };
-
     return {
-      success: response.ok,
-      status: response.status,
+      success: statusCode >= 200 && statusCode < 300,
+      status: statusCode,
       headers: responseHeaders,
       body: responseBody,
       tokensUsed,

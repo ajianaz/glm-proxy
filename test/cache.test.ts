@@ -1,619 +1,649 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { LRUCacheImpl, LRUCache, CacheStats } from '../src/cache.js';
+/**
+ * Cache Module Tests
+ *
+ * Comprehensive tests for cache functionality including:
+ * - Cache key generation
+ * - LRU eviction
+ * - TTL expiration
+ * - Metrics tracking
+ * - Cache manager integration
+ */
 
-describe('LRUCache', () => {
-  let cache: LRUCache<string>;
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import {
+  generateCacheKey,
+  extractCacheKeyParams,
+  isCacheableRequest,
+  generateCacheKeyFromRequest,
+  CacheStore,
+  CacheManager,
+  getCacheManager,
+  resetCacheManager,
+} from '../src/cache/index.js';
+
+describe('Cache Key Generation', () => {
+  it('should generate consistent keys for identical requests', () => {
+    const params = {
+      model: 'gpt-4',
+      messages: [
+        { role: 'user', content: 'Hello' },
+      ],
+      temperature: 0.7,
+    };
+
+    const key1 = generateCacheKey(params);
+    const key2 = generateCacheKey(params);
+
+    expect(key1).toBe(key2);
+    expect(key1).toHaveLength(64); // SHA-256 hex length
+  });
+
+  it('should generate different keys for different requests', () => {
+    const params1 = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Hello' }],
+    };
+
+    const params2 = {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Goodbye' }],
+    };
+
+    const key1 = generateCacheKey(params1);
+    const key2 = generateCacheKey(params2);
+
+    expect(key1).not.toBe(key2);
+  });
+
+  it('should handle different models correctly', () => {
+    const params1 = { model: 'gpt-4', messages: [] };
+    const params2 = { model: 'gpt-3.5', messages: [] };
+
+    expect(generateCacheKey(params1)).not.toBe(generateCacheKey(params2));
+  });
+
+  it('should handle temperature parameter', () => {
+    const params1 = {
+      model: 'gpt-4',
+      messages: [],
+      temperature: 0.7,
+    };
+    const params2 = {
+      model: 'gpt-4',
+      messages: [],
+      temperature: 0.5,
+    };
+
+    expect(generateCacheKey(params1)).not.toBe(generateCacheKey(params2));
+  });
+
+  it('should ignore default temperature (0.7)', () => {
+    const params1 = { model: 'gpt-4', messages: [] };
+    const params2 = { model: 'gpt-4', messages: [], temperature: 0.7 };
+
+    expect(generateCacheKey(params1)).toBe(generateCacheKey(params2));
+  });
+
+  it('should handle max_tokens parameter', () => {
+    const params1 = {
+      model: 'gpt-4',
+      messages: [],
+      maxTokens: 1000,
+    };
+    const params2 = {
+      model: 'gpt-4',
+      messages: [],
+      maxTokens: 2000,
+    };
+
+    expect(generateCacheKey(params1)).not.toBe(generateCacheKey(params2));
+  });
+
+  it('should handle top_p parameter', () => {
+    const params1 = {
+      model: 'gpt-4',
+      messages: [],
+      topP: 0.9,
+    };
+    const params2 = {
+      model: 'gpt-4',
+      messages: [],
+      topP: 0.8,
+    };
+
+    expect(generateCacheKey(params1)).not.toBe(generateCacheKey(params2));
+  });
+
+  it('should ignore default top_p (1.0)', () => {
+    const params1 = { model: 'gpt-4', messages: [] };
+    const params2 = { model: 'gpt-4', messages: [], topP: 1.0 };
+
+    expect(generateCacheKey(params1)).toBe(generateCacheKey(params2));
+  });
+});
+
+describe('extractCacheKeyParams', () => {
+  it('should extract parameters from valid request body', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Hello' }],
+      temperature: 0.7,
+    });
+
+    const params = extractCacheKeyParams(body);
+    expect(params).not.toBeNull();
+    expect(params?.model).toBe('gpt-4');
+    expect(params?.messages).toEqual([{ role: 'user', content: 'Hello' }]);
+    expect(params?.temperature).toBe(0.7);
+  });
+
+  it('should return null for invalid JSON', () => {
+    const params = extractCacheKeyParams('invalid json');
+    expect(params).toBeNull();
+  });
+
+  it('should return null when model is missing', () => {
+    const body = JSON.stringify({
+      messages: [{ role: 'user', content: 'Hello' }],
+    });
+
+    const params = extractCacheKeyParams(body);
+    expect(params).toBeNull();
+  });
+
+  it('should return null when messages are missing', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+    });
+
+    const params = extractCacheKeyParams(body);
+    expect(params).toBeNull();
+  });
+
+  it('should handle optional parameters', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
+      temperature: 0.5,
+      max_tokens: 1000,
+      top_p: 0.9,
+      frequency_penalty: 0.5,
+      presence_penalty: 0.5,
+    });
+
+    const params = extractCacheKeyParams(body);
+    expect(params?.temperature).toBe(0.5);
+    expect(params?.maxTokens).toBe(1000);
+    expect(params?.topP).toBe(0.9);
+    expect(params?.frequency_penalty).toBe(0.5);
+    expect(params?.presence_penalty).toBe(0.5);
+  });
+});
+
+describe('isCacheableRequest', () => {
+  it('should return true for POST request with valid body', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Hello' }],
+    });
+
+    expect(isCacheableRequest('POST', body)).toBe(true);
+  });
+
+  it('should return true for PUT request with valid body', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
+    });
+
+    expect(isCacheableRequest('PUT', body)).toBe(true);
+  });
+
+  it('should return true for PATCH request with valid body', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
+    });
+
+    expect(isCacheableRequest('PATCH', body)).toBe(true);
+  });
+
+  it('should return false for GET request', () => {
+    expect(isCacheableRequest('GET', null)).toBe(false);
+  });
+
+  it('should return false for DELETE request', () => {
+    expect(isCacheableRequest('DELETE', null)).toBe(false);
+  });
+
+  it('should return false when body is null', () => {
+    expect(isCacheableRequest('POST', null)).toBe(false);
+  });
+
+  it('should return false for invalid JSON', () => {
+    expect(isCacheableRequest('POST', 'invalid')).toBe(false);
+  });
+
+  it('should return false when model is missing', () => {
+    const body = JSON.stringify({ messages: [] });
+    expect(isCacheableRequest('POST', body)).toBe(false);
+  });
+
+  it('should return false when messages are missing', () => {
+    const body = JSON.stringify({ model: 'gpt-4' });
+    expect(isCacheableRequest('POST', body)).toBe(false);
+  });
+});
+
+describe('generateCacheKeyFromRequest', () => {
+  it('should generate key for valid request', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Hello' }],
+    });
+
+    const key = generateCacheKeyFromRequest('POST', body);
+    expect(key).not.toBeNull();
+    expect(key?.length).toBe(64);
+  });
+
+  it('should return null for non-cacheable request', () => {
+    const key = generateCacheKeyFromRequest('GET', null);
+    expect(key).toBeNull();
+  });
+
+  it('should return null for invalid body', () => {
+    const key = generateCacheKeyFromRequest('POST', 'invalid');
+    expect(key).toBeNull();
+  });
+});
+
+describe('CacheStore', () => {
+  let store: CacheStore;
 
   beforeEach(() => {
-    cache = new LRUCacheImpl<string>(3, 100); // maxSize: 3, TTL: 100ms for testing
+    store = new CacheStore(3, 1000); // Small size for testing
   });
 
-  describe('Basic get/set operations', () => {
-    it('should set and get a value', () => {
-      cache.set('key1', 'value1');
-      expect(cache.get('key1')).toBe('value1');
-    });
+  it('should store and retrieve entries', () => {
+    store.set('key1', 'response1', 200, { 'content-type': 'application/json' }, 100);
 
-    it('should return null for non-existent key', () => {
-      expect(cache.get('nonexistent')).toBeNull();
-    });
-
-    it('should update existing key', () => {
-      cache.set('key1', 'value1');
-      cache.set('key1', 'value2');
-      expect(cache.get('key1')).toBe('value2');
-      expect(cache.size).toBe(1);
-    });
-
-    it('should store null values', () => {
-      cache.set('key1', null);
-      expect(cache.get('key1')).toBeNull();
-      expect(cache.has('key1')).toBe(true);
-    });
-
-    it('should return correct size', () => {
-      expect(cache.size).toBe(0);
-      cache.set('key1', 'value1');
-      expect(cache.size).toBe(1);
-      cache.set('key2', 'value2');
-      expect(cache.size).toBe(2);
-    });
-
-    it('should return correct maxSize', () => {
-      expect(cache.maxSize).toBe(3);
-    });
+    const entry = store.get('key1');
+    expect(entry).not.toBeNull();
+    expect(entry?.body).toBe('response1');
+    expect(entry?.status).toBe(200);
+    expect(entry?.tokensUsed).toBe(100);
   });
 
-  describe('TTL expiration', () => {
-    it('should return value before TTL expires', () => {
-      cache.set('key1', 'value1', 100);
-      expect(cache.get('key1')).toBe('value1');
-    });
-
-    it('should return null after TTL expires', async () => {
-      cache.set('key1', 'value1', 50); // 50ms TTL
-      await new Promise(resolve => setTimeout(resolve, 60)); // Wait for expiration
-      expect(cache.get('key1')).toBeNull();
-    });
-
-    it('should remove expired entries from cache', async () => {
-      cache.set('key1', 'value1', 50);
-      expect(cache.size).toBe(1);
-      await new Promise(resolve => setTimeout(resolve, 60));
-      cache.get('key1'); // Trigger expiration check
-      expect(cache.size).toBe(0);
-    });
-
-    it('should count expired entries as cache misses', async () => {
-      cache.set('key1', 'value1', 50);
-      await new Promise(resolve => setTimeout(resolve, 60));
-      cache.get('key1'); // Expired, should be a miss
-      const stats = cache.getStats();
-      expect(stats.misses).toBe(1);
-      expect(stats.hits).toBe(0);
-    });
-
-    it('should use default TTL when not specified', async () => {
-      const defaultCache = new LRUCacheImpl<string>(10, 50); // 50ms default TTL
-      defaultCache.set('key1', 'value1');
-      await new Promise(resolve => setTimeout(resolve, 60));
-      expect(defaultCache.get('key1')).toBeNull();
-    });
-
-    it('should allow custom TTL override', async () => {
-      const defaultCache = new LRUCacheImpl<string>(10, 50); // 50ms default TTL
-      defaultCache.set('key1', 'value1', 200); // 200ms custom TTL
-      await new Promise(resolve => setTimeout(resolve, 60));
-      expect(defaultCache.get('key1')).toBe('value1'); // Should still be valid
-    });
+  it('should return null for non-existent key', () => {
+    const entry = store.get('nonexistent');
+    expect(entry).toBeNull();
   });
 
-  describe('LRU eviction', () => {
-    it('should evict least recently used entry when cache is full', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
-      expect(cache.size).toBe(3);
+  it('should update last accessed time on get', () => {
+    store.set('key1', 'response1', 200, {});
 
-      // This should evict key1 (least recently used)
-      cache.set('key4', 'value4');
-      expect(cache.size).toBe(3);
-      expect(cache.get('key1')).toBeNull(); // key1 was evicted
-      expect(cache.get('key2')).toBe('value2');
-      expect(cache.get('key3')).toBe('value3');
-      expect(cache.get('key4')).toBe('value4');
-    });
+    const entry1 = store.get('key1');
+    const lastAccessed1 = entry1?.lastAccessedAt ?? 0;
 
-    it('should update LRU order on get', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
+    // Wait a bit and get again
+    const startTime = Date.now();
+    while (Date.now() - startTime < 2) {
+      // Small delay
+    }
 
-      // Access key1 to make it more recently used
-      cache.get('key1');
+    const entry2 = store.get('key1');
+    const lastAccessed2 = entry2?.lastAccessedAt ?? 0;
 
-      // Add key4, should evict key2 (now least recently used)
-      cache.set('key4', 'value4');
-      expect(cache.get('key2')).toBeNull(); // key2 was evicted
-      expect(cache.get('key1')).toBe('value1'); // key1 still exists
-      expect(cache.get('key3')).toBe('value3');
-      expect(cache.get('key4')).toBe('value4');
-    });
-
-    it('should update LRU order on set', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
-
-      // Update key1 to make it more recently used
-      cache.set('key1', 'value1-updated');
-
-      // Add key4, should evict key2 (now least recently used)
-      cache.set('key4', 'value4');
-      expect(cache.get('key2')).toBeNull(); // key2 was evicted
-      expect(cache.get('key1')).toBe('value1-updated'); // key1 still exists
-      expect(cache.get('key3')).toBe('value3');
-      expect(cache.get('key4')).toBe('value4');
-    });
-
-    it('should handle eviction correctly with repeated access', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
-
-      // Access key1 and key2 multiple times
-      cache.get('key1');
-      cache.get('key2');
-      cache.get('key1');
-
-      // Add key4, should evict key3
-      cache.set('key4', 'value4');
-      expect(cache.get('key3')).toBeNull(); // key3 was evicted
-      expect(cache.get('key1')).toBe('value1');
-      expect(cache.get('key2')).toBe('value2');
-      expect(cache.get('key4')).toBe('value4');
-    });
+    expect(lastAccessed2).toBeGreaterThan(lastAccessed1);
   });
 
-  describe('Cache statistics tracking', () => {
-    beforeEach(() => {
-      cache = new LRUCacheImpl<string>(10, 100);
+  it('should increment access count on get', () => {
+    store.set('key1', 'response1', 200, {});
+
+    store.get('key1');
+    store.get('key1');
+    const entry = store.get('key1');
+
+    expect(entry?.accessCount).toBe(3);
+  });
+
+  it('should evict LRU entry when cache is full', () => {
+    store.set('key1', 'response1', 200, {});
+    store.set('key2', 'response2', 200, {});
+    store.set('key3', 'response3', 200, {});
+
+    // Access key1 to make it MRU
+    store.get('key1');
+
+    // Add key4, should evict key2 (LRU)
+    store.set('key4', 'response4', 200, {});
+
+    expect(store.has('key1')).toBe(true);
+    expect(store.has('key2')).toBe(false);
+    expect(store.has('key3')).toBe(true);
+    expect(store.has('key4')).toBe(true);
+  });
+
+  it('should expire entries after TTL', async () => {
+    const shortTtl = 100; // 100ms
+    store.set('key1', 'response1', 200, {}, undefined, shortTtl);
+
+    // Should be available immediately
+    expect(store.has('key1')).toBe(true);
+
+    // Wait for expiration
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    // Should be expired
+    expect(store.has('key1')).toBe(false);
+    expect(store.get('key1')).toBeNull();
+  });
+
+  it('should handle size limit correctly', () => {
+    store.set('key1', 'response1', 200, {});
+    store.set('key2', 'response2', 200, {});
+    store.set('key3', 'response3', 200, {});
+
+    expect(store.size()).toBe(3);
+
+    store.set('key4', 'response4', 200, {});
+
+    expect(store.size()).toBe(3); // Should still be 3 due to eviction
+  });
+
+  it('should delete entries', () => {
+    store.set('key1', 'response1', 200, {});
+
+    expect(store.has('key1')).toBe(true);
+
+    store.delete('key1');
+
+    expect(store.has('key1')).toBe(false);
+  });
+
+  it('should clear all entries', () => {
+    store.set('key1', 'response1', 200, {});
+    store.set('key2', 'response2', 200, {});
+
+    expect(store.size()).toBe(2);
+
+    store.clear();
+
+    expect(store.size()).toBe(0);
+  });
+
+  it('should cleanup expired entries', async () => {
+    const shortTtl = 100;
+    store.set('key1', 'response1', 200, {}, undefined, shortTtl);
+    store.set('key2', 'response2', 200, {}, undefined, shortTtl);
+    store.set('key3', 'response3', 200, {}, undefined, 10000); // Long TTL
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    const removed = store.cleanup();
+
+    expect(removed).toBe(2);
+    expect(store.size()).toBe(1);
+  });
+
+  it('should track metrics correctly', () => {
+    store.set('key1', 'response1', 200, {});
+
+    store.get('key1'); // Hit
+    store.get('key2'); // Miss
+    store.get('key3'); // Miss
+
+    const metrics = store.getMetrics();
+
+    expect(metrics.totalLookups).toBe(3);
+    expect(metrics.hits).toBe(1);
+    expect(metrics.misses).toBe(2);
+    expect(metrics.hitRate).toBeCloseTo(0.333, 2);
+  });
+
+  it('should reset metrics', () => {
+    store.set('key1', 'response1', 200, {});
+    store.get('key1');
+
+    store.resetMetrics();
+
+    const metrics = store.getMetrics();
+    expect(metrics.totalLookups).toBe(0);
+    expect(metrics.hits).toBe(0);
+    expect(metrics.misses).toBe(0);
+  });
+
+  it('should support streaming bodies', () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('chunk1'));
+        controller.close();
+      },
     });
 
-    it('should track cache hits', () => {
-      cache.set('key1', 'value1');
-      cache.get('key1'); // Hit
-      cache.get('key1'); // Hit
+    store.set('key1', stream, 200, {});
 
-      const stats = cache.getStats();
-      expect(stats.hits).toBe(2);
-      expect(stats.misses).toBe(0);
-    });
+    const entry = store.get('key1');
+    expect(entry).not.toBeNull();
+    expect(entry?.body).toBeInstanceOf(ReadableStream);
+  });
 
-    it('should track cache misses', () => {
-      cache.get('nonexistent1'); // Miss
-      cache.get('nonexistent2'); // Miss
+  it('should replace existing entry when setting same key', () => {
+    store.set('key1', 'response1', 200, {});
+    store.set('key1', 'response2', 200, {});
 
-      const stats = cache.getStats();
-      expect(stats.hits).toBe(0);
-      expect(stats.misses).toBe(2);
-    });
+    const entry = store.get('key1');
+    expect(entry?.body).toBe('response2');
+    expect(store.size()).toBe(1);
+  });
+});
 
-    it('should calculate hit rate correctly', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
+describe('CacheManager', () => {
+  let manager: CacheManager;
 
-      cache.get('key1'); // Hit
-      cache.get('key2'); // Hit
-      cache.get('nonexistent'); // Miss
-
-      const stats = cache.getStats();
-      expect(stats.hits).toBe(2);
-      expect(stats.misses).toBe(1);
-      expect(stats.hitRate).toBeCloseTo(66.67, 1);
-    });
-
-    it('should return 0% hit rate when no operations', () => {
-      const stats = cache.getStats();
-      expect(stats.hitRate).toBe(0);
-    });
-
-    it('should track size in statistics', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-
-      const stats = cache.getStats();
-      expect(stats.size).toBe(2);
-      expect(stats.maxSize).toBe(10);
-    });
-
-    it('should reset statistics', () => {
-      cache.set('key1', 'value1');
-      cache.get('key1'); // Hit
-      cache.get('nonexistent'); // Miss
-
-      cache.resetStats();
-
-      const stats = cache.getStats();
-      expect(stats.hits).toBe(0);
-      expect(stats.misses).toBe(0);
-      expect(stats.hitRate).toBe(0);
-      expect(stats.size).toBe(1); // Size should remain
-    });
-
-    it('should track expired entries as misses', async () => {
-      cache.set('key1', 'value1', 50);
-      await new Promise(resolve => setTimeout(resolve, 60));
-      cache.get('key1'); // Expired = miss
-
-      const stats = cache.getStats();
-      expect(stats.hits).toBe(0);
-      expect(stats.misses).toBe(1);
+  beforeEach(() => {
+    manager = new CacheManager({
+      enabled: true,
+      maxSize: 10,
+      ttl: 1000,
+      enableMetrics: true,
     });
   });
 
-  describe('has operation', () => {
-    it('should return true for existing key', () => {
-      cache.set('key1', 'value1');
-      expect(cache.has('key1')).toBe(true);
-    });
-
-    it('should return false for non-existent key', () => {
-      expect(cache.has('nonexistent')).toBe(false);
-    });
-
-    it('should return false for expired entries', async () => {
-      cache.set('key1', 'value1', 50);
-      await new Promise(resolve => setTimeout(resolve, 60));
-      expect(cache.has('key1')).toBe(false);
-    });
-
-    it('should not update LRU order', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
-
-      cache.has('key1'); // Should not update LRU order
-
-      // Add key4, should evict key1 (least recently used, has() didn't update order)
-      cache.set('key4', 'value4');
-      expect(cache.get('key1')).toBeNull(); // key1 was evicted (was least recently used)
-      expect(cache.get('key2')).toBe('value2');
-    });
+  afterEach(() => {
+    manager.shutdown();
   });
 
-  describe('delete operation', () => {
-    it('should delete existing key', () => {
-      cache.set('key1', 'value1');
-      cache.delete('key1');
-      expect(cache.get('key1')).toBeNull();
-      expect(cache.has('key1')).toBe(false);
-      expect(cache.size).toBe(0);
-    });
-
-    it('should be no-op for non-existent key', () => {
-      cache.delete('nonexistent');
-      expect(cache.size).toBe(0);
-    });
-
-    it('should handle deleting from middle of cache', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
-
-      cache.delete('key2');
-      expect(cache.size).toBe(2);
-      expect(cache.has('key2')).toBe(false);
-      expect(cache.has('key1')).toBe(true);
-      expect(cache.has('key3')).toBe(true);
-    });
-
-    it('should handle deleting oldest entry', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
-
-      cache.delete('key1');
-      expect(cache.size).toBe(2);
-      expect(cache.get('key1')).toBeNull();
-    });
-
-    it('should handle deleting newest entry', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
-
-      cache.delete('key3');
-      expect(cache.size).toBe(2);
-      expect(cache.get('key3')).toBeNull();
-    });
+  it('should be enabled by default when configured', () => {
+    expect(manager.isEnabled()).toBe(true);
   });
 
-  describe('clear operation', () => {
-    it('should clear all entries', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
-
-      cache.clear();
-
-      expect(cache.size).toBe(0);
-      expect(cache.get('key1')).toBeNull();
-      expect(cache.get('key2')).toBeNull();
-      expect(cache.get('key3')).toBeNull();
+  it('should cache and retrieve responses', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: 'Hello' }],
     });
 
-    it('should preserve statistics after clear', () => {
-      cache.set('key1', 'value1');
-      cache.get('key1'); // Hit
-      cache.get('nonexistent'); // Miss
+    manager.set('POST', body, 'response', 200, { 'content-type': 'application/json' }, 100);
 
-      cache.clear();
-
-      const stats = cache.getStats();
-      expect(stats.hits).toBe(1);
-      expect(stats.misses).toBe(1);
-      expect(cache.size).toBe(0);
-    });
-
-    it('should allow adding entries after clear', () => {
-      cache.set('key1', 'value1');
-      cache.clear();
-      expect(cache.size).toBe(0);
-
-      cache.set('key2', 'value2');
-      expect(cache.size).toBe(1);
-      expect(cache.get('key2')).toBe('value2');
-    });
+    const entry = manager.get('POST', body);
+    expect(entry).not.toBeNull();
+    expect(entry?.body).toBe('response');
   });
 
-  describe('Edge cases', () => {
-    it('should handle empty cache', () => {
-      expect(cache.size).toBe(0);
-      expect(cache.get('key1')).toBeNull();
-      expect(cache.has('key1')).toBe(false);
+  it('should return null when disabled', () => {
+    manager.setEnabled(false);
+
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
     });
 
-    it('should handle duplicate keys', () => {
-      cache.set('key1', 'value1');
-      cache.set('key1', 'value2');
-      cache.set('key1', 'value3');
+    manager.set('POST', body, 'response', 200, {});
 
-      expect(cache.get('key1')).toBe('value3');
-      expect(cache.size).toBe(1);
-    });
-
-    it('should handle special characters in keys', () => {
-      const largeCache = new LRUCacheImpl<string>(10, 100);
-
-      largeCache.set('key with spaces', 'value1');
-      largeCache.set('key-with-dashes', 'value2');
-      largeCache.set('key_with_underscores', 'value3');
-      largeCache.set('key.with.dots', 'value4');
-
-      expect(largeCache.get('key with spaces')).toBe('value1');
-      expect(largeCache.get('key-with-dashes')).toBe('value2');
-      expect(largeCache.get('key_with_underscores')).toBe('value3');
-      expect(largeCache.get('key.with.dots')).toBe('value4');
-    });
-
-    it('should handle empty string as key', () => {
-      cache.set('', 'empty-key-value');
-      expect(cache.get('')).toBe('empty-key-value');
-    });
-
-    it('should handle very long keys', () => {
-      const longKey = 'a'.repeat(1000);
-      cache.set(longKey, 'value');
-      expect(cache.get(longKey)).toBe('value');
-    });
-
-    it('should handle null values correctly', () => {
-      cache.set('key1', null);
-      expect(cache.get('key1')).toBeNull();
-      expect(cache.has('key1')).toBe(true);
-
-      // Distinguish between null value and missing key
-      expect(cache.get('nonexistent')).toBeNull();
-      expect(cache.has('nonexistent')).toBe(false);
-    });
-
-    it('should handle updating value from non-null to null', () => {
-      cache.set('key1', 'value1');
-      cache.set('key1', null);
-      expect(cache.get('key1')).toBeNull();
-      expect(cache.has('key1')).toBe(true);
-    });
-
-    it('should handle updating value from null to non-null', () => {
-      cache.set('key1', null);
-      cache.set('key1', 'value1');
-      expect(cache.get('key1')).toBe('value1');
-    });
-
-    it('should handle cache with maxSize of 1', () => {
-      const smallCache = new LRUCacheImpl<string>(1, 100);
-
-      smallCache.set('key1', 'value1');
-      expect(smallCache.size).toBe(1);
-      expect(smallCache.get('key1')).toBe('value1');
-
-      smallCache.set('key2', 'value2');
-      expect(smallCache.size).toBe(1);
-      expect(smallCache.get('key1')).toBeNull(); // Evicted
-      expect(smallCache.get('key2')).toBe('value2');
-    });
-
-    it('should handle very large maxSize', () => {
-      const largeCache = new LRUCacheImpl<string>(10000, 100);
-
-      for (let i = 0; i < 1000; i++) {
-        largeCache.set(`key${i}`, `value${i}`);
-      }
-
-      expect(largeCache.size).toBe(1000);
-      expect(largeCache.get('key0')).toBe('value0');
-      expect(largeCache.get('key999')).toBe('value999');
-    });
+    const entry = manager.get('POST', body);
+    expect(entry).toBeNull();
   });
 
-  describe('Concurrent access simulation', () => {
-    it('should handle rapid set operations', () => {
-      for (let i = 0; i < 100; i++) {
-        cache.set(`key${i % 3}`, `value${i}`); // Only 3 keys due to maxSize
-      }
-
-      expect(cache.size).toBe(3);
-      expect(cache.has('key0')).toBe(true);
-      expect(cache.has('key1')).toBe(true);
-      expect(cache.has('key2')).toBe(true);
+  it('should not cache error responses', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
     });
 
-    it('should handle rapid get operations', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
+    manager.set('POST', body, 'error', 400, {});
 
-      for (let i = 0; i < 100; i++) {
-        cache.get('key1');
-        cache.get('key2');
-      }
-
-      const stats = cache.getStats();
-      expect(stats.hits).toBe(200);
-      expect(stats.misses).toBe(0);
-    });
-
-    it('should handle interleaved operations', () => {
-      cache.set('key1', 'value1');
-      cache.get('key1'); // Hit
-      cache.get('key2'); // Miss (doesn't exist yet)
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
-      cache.delete('key1');
-      cache.set('key4', 'value4'); // Should add without eviction (size is 2 after delete)
-
-      expect(cache.size).toBe(3);
-      expect(cache.has('key1')).toBe(false);
-      expect(cache.has('key2')).toBe(true);
-      expect(cache.has('key3')).toBe(true);
-      expect(cache.has('key4')).toBe(true);
-
-      const stats = cache.getStats();
-      expect(stats.hits).toBe(1);
-      expect(stats.misses).toBe(1);
-    });
+    const entry = manager.get('POST', body);
+    expect(entry).toBeNull();
   });
 
-  describe('Statistics accuracy', () => {
-    it('should maintain accurate statistics across all operations', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-
-      cache.get('key1'); // Hit (1)
-      cache.get('key2'); // Hit (2)
-      cache.get('key3'); // Miss (1)
-
-      cache.has('key1'); // No stats change
-      cache.has('key4'); // No stats change
-
-      cache.set('key3', 'value3');
-      cache.get('key3'); // Hit (3)
-
-      cache.delete('key1'); // No stats change
-      cache.get('key1'); // Miss (2)
-
-      cache.clear(); // No stats reset
-
-      const stats = cache.getStats();
-      expect(stats.hits).toBe(3);
-      expect(stats.misses).toBe(2);
-      expect(stats.hitRate).toBe(60);
-      expect(stats.size).toBe(0);
-    });
-
-    it('should track LRU eviction without affecting stats', () => {
-      cache.set('key1', 'value1');
-      cache.set('key2', 'value2');
-      cache.set('key3', 'value3');
-
-      cache.get('key1'); // Hit (1)
-      cache.get('key2'); // Hit (2)
-
-      cache.set('key4', 'value4'); // Evicts key3
-
-      cache.get('key3'); // Miss (1) - evicted
-      cache.get('key4'); // Hit (3)
-
-      const stats = cache.getStats();
-      expect(stats.hits).toBe(3);
-      expect(stats.misses).toBe(1);
-    });
+  it('should not cache non-cacheable requests', () => {
+    const entry = manager.get('GET', null);
+    expect(entry).toBeNull();
   });
 
-  describe('TTL edge cases', () => {
-    it('should handle zero TTL', async () => {
-      cache.set('key1', 'value1', 0);
-      await new Promise(resolve => setTimeout(resolve, 10));
-      expect(cache.get('key1')).toBeNull(); // Should expire immediately
+  it('should invalidate cache entries', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
     });
 
-    it('should handle very short TTL', async () => {
-      cache.set('key1', 'value1', 1); // 1ms TTL
-      await new Promise(resolve => setTimeout(resolve, 10));
-      expect(cache.get('key1')).toBeNull();
-    });
+    manager.set('POST', body, 'response', 200, {});
 
-    it('should handle very long TTL', () => {
-      cache.set('key1', 'value1', 999999999); // Very long TTL
-      expect(cache.get('key1')).toBe('value1');
-    });
+    expect(manager.get('POST', body)).not.toBeNull();
 
-    it('should refresh TTL on update', async () => {
-      cache.set('key1', 'value1', 50);
-      await new Promise(resolve => setTimeout(resolve, 30));
+    manager.invalidate('POST', body);
 
-      cache.set('key1', 'value1-updated', 100); // Refresh TTL
-      await new Promise(resolve => setTimeout(resolve, 30));
-
-      // Original TTL would have expired, but updated one is still valid
-      expect(cache.get('key1')).toBe('value1-updated');
-    });
+    expect(manager.get('POST', body)).toBeNull();
   });
 
-  describe('Real-world scenarios', () => {
-    it('should simulate API key caching pattern', () => {
-      // Simulate API keys
-      const apiKey1 = { key: 'pk_1', name: 'User1', model: 'glm-4.7' };
-      const apiKey2 = { key: 'pk_2', name: 'User2', model: 'glm-4' };
+  it('should clear all entries', () => {
+    const body1 = JSON.stringify({ model: 'gpt-4', messages: [] });
+    const body2 = JSON.stringify({ model: 'gpt-3.5', messages: [] });
 
-      const apiCache = new LRUCacheImpl<typeof apiKey1>(10, 5000);
+    manager.set('POST', body1, 'response1', 200, {});
+    manager.set('POST', body2, 'response2', 200, {});
 
-      // First request - cache miss
-      let result = apiCache.get('pk_1');
-      expect(result).toBeNull();
+    manager.clear();
 
-      // Populate cache
-      apiCache.set('pk_1', apiKey1);
-      apiCache.set('pk_2', apiKey2);
+    expect(manager.get('POST', body1)).toBeNull();
+    expect(manager.get('POST', body2)).toBeNull();
+  });
 
-      // Subsequent requests - cache hits
-      result = apiCache.get('pk_1');
-      expect(result).toEqual(apiKey1);
-
-      result = apiCache.get('pk_2');
-      expect(result).toEqual(apiKey2);
-
-      const stats = apiCache.getStats();
-      expect(stats.hits).toBe(2);
-      expect(stats.misses).toBe(1);
-      expect(stats.hitRate).toBeCloseTo(66.67, 1);
+  it('should track metrics', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
     });
 
-    it('should simulate negative caching for invalid keys', () => {
-      const invalidKeyCache = new LRUCacheImpl<string | null>(10, 5000);
+    manager.set('POST', body, 'response', 200, {});
+    manager.get('POST', body); // Hit
+    manager.get('POST', JSON.stringify({ model: 'gpt-3.5', messages: [] })); // Miss
 
-      // Cache negative result (key not found)
-      invalidKeyCache.set('pk_invalid', null);
+    const metrics = manager.getMetrics();
 
-      // Check - should find it (to avoid repeated disk lookups)
-      expect(invalidKeyCache.has('pk_invalid')).toBe(true);
-      expect(invalidKeyCache.get('pk_invalid')).toBeNull();
+    expect(metrics.hits).toBe(1);
+    expect(metrics.misses).toBe(1);
+    expect(metrics.totalLookups).toBe(2);
+  });
 
-      // Distinguish from truly non-existent key
-      expect(invalidKeyCache.has('pk_another_invalid')).toBe(false);
+  it('should provide stats snapshot', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
     });
 
-    it('should handle cache warm-up scenario', () => {
-      const warmCache = new LRUCacheImpl<string>(100, 5000);
+    manager.set('POST', body, 'response', 200, {});
+    manager.get('POST', body);
 
-      // Simulate loading many keys at startup
-      for (let i = 0; i < 50; i++) {
-        warmCache.set(`pk_${i}`, `key_data_${i}`);
-      }
+    const stats = manager.getStats();
 
-      expect(warmCache.size).toBe(50);
-      expect(warmCache.get('pk_0')).toBe('key_data_0');
-      expect(warmCache.get('pk_49')).toBe('key_data_49');
+    expect(stats.size).toBe(1);
+    expect(stats.hitRate).toBe(100);
+    expect(stats.hits).toBe(1);
+  });
+
+  it('should cleanup expired entries', async () => {
+    const manager = new CacheManager({
+      enabled: true,
+      maxSize: 10,
+      ttl: 100, // Short TTL
     });
+
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
+    });
+
+    manager.set('POST', body, 'response', 200, {});
+
+    expect(manager.get('POST', body)).not.toBeNull();
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    const removed = manager.cleanup();
+    expect(removed).toBe(1);
+    expect(manager.get('POST', body)).toBeNull();
+
+    manager.shutdown();
+  });
+
+  it('should reset metrics', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
+    });
+
+    manager.set('POST', body, 'response', 200, {});
+    manager.get('POST', body);
+
+    manager.resetMetrics();
+
+    const metrics = manager.getMetrics();
+    expect(metrics.totalLookups).toBe(0);
+    expect(metrics.hits).toBe(0);
+  });
+
+  it('should handle streaming responses', () => {
+    const body = JSON.stringify({
+      model: 'gpt-4',
+      messages: [],
+    });
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('chunk'));
+        controller.close();
+      },
+    });
+
+    manager.set('POST', body, stream, 200, {});
+
+    const entry = manager.get('POST', body);
+    expect(entry).not.toBeNull();
+    expect(entry?.body).toBeInstanceOf(ReadableStream);
+  });
+});
+
+describe('Global Cache Manager', () => {
+  afterEach(() => {
+    // Reset global instance after each test
+    resetCacheManager({ enabled: false });
+  });
+
+  it('should create singleton instance', () => {
+    const manager1 = getCacheManager({ enabled: true });
+    const manager2 = getCacheManager();
+
+    expect(manager1).toBe(manager2);
+  });
+
+  it('should reset global instance', () => {
+    const manager1 = getCacheManager({ enabled: true });
+    const manager2 = resetCacheManager({ enabled: false });
+
+    expect(manager1).not.toBe(manager2);
+    expect(manager2.isEnabled()).toBe(false);
   });
 });

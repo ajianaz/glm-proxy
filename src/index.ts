@@ -6,15 +6,12 @@ import { proxyAnthropicRequest } from './anthropic.js';
 import { checkRateLimit } from './ratelimit.js';
 import { authMiddleware, getApiKeyFromContext, type AuthContext } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
+import { profilingMiddleware, type ProfilingContext } from './middleware/profiling.js';
 import { createProxyHandler } from './handlers/proxyHandler.js';
-import { keysRoutes } from './routes/admin/index.js';
-import type { StatsResponse, CacheStatsResponse } from './types.js';
-import { internalServerError } from './utils/errors.js';
-import { startScheduler, loadSchedulerConfigFromEnv, type ScheduledBackupResult } from './db/scheduler.js';
-import { checkHealth, type HealthCheckResult } from './db/health.js';
-import { getStorageType, isInFallbackMode, getFallbackState } from './storage/index.js';
-import { warmupCache } from './storage.js';
-import { apiKeyCache } from './cache.js';
+import type { StatsResponse } from './types.js';
+import { Profiler } from './profiling/Profiler.js';
+import dashboardApi from './dashboard/api.js';
+import { readFileSync } from 'fs';
 
 type Bindings = {
   ZAI_API_KEY: string;
@@ -22,28 +19,21 @@ type Bindings = {
   PORT: string;
 };
 
-const app = new Hono<{ Bindings: Bindings; Variables: AuthContext }>();
+const app = new Hono<{ Bindings: Bindings; Variables: AuthContext & ProfilingContext }>();
+
+// Configure profiling based on environment variable
+const PROFILING_ENABLED = process.env.PROFILING_ENABLED !== 'false';
+Profiler.configure({ enabled: PROFILING_ENABLED });
 
 // Enable CORS
 app.use('/*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+  allowHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'X-Request-ID'],
 }));
 
-// Global error handler - catches all unhandled errors across all routes
-app.onError((error, c) => {
-  // Log the error for debugging
-  console.error('Unhandled error:', {
-    message: error.message,
-    stack: error.stack,
-    path: c.req.path,
-    method: c.req.method,
-  });
-
-  // Return 500 Internal Server Error with generic message
-  return internalServerError(c, 'An unexpected error occurred');
-});
+// Profiling middleware - must be before auth to capture full request duration
+app.use('/*', profilingMiddleware);
 
 // Stats endpoint
 app.get('/stats', authMiddleware, async (c) => {
@@ -76,25 +66,49 @@ app.get('/stats', authMiddleware, async (c) => {
   return c.json(stats);
 });
 
-// Cache statistics endpoint
-app.get('/cache-stats', authMiddleware, async (c) => {
-  const cacheStats = apiKeyCache.getStats();
-  const cacheEnabled = process.env.CACHE_ENABLED !== 'false';
+// Profiling data export endpoint
+app.get('/profiling', authMiddleware, async (c) => {
+  const stats = Profiler.getStatistics();
 
-  const stats: CacheStatsResponse = {
-    ...cacheStats,
-    enabled: cacheEnabled,
-  };
+  return c.json({
+    summary: {
+      totalRequests: stats.totalRequests,
+      averageDuration: `${stats.averageDuration.toFixed(2)}ms`,
+      p50Duration: `${stats.p50Duration.toFixed(2)}ms`,
+      p95Duration: `${stats.p95Duration.toFixed(2)}ms`,
+      p99Duration: `${stats.p99Duration.toFixed(2)}ms`,
+    },
+    slowestRequests: stats.slowestRequests.slice(0, 5).map(req => ({
+      requestId: req.requestId,
+      duration: `${req.totalDuration.toFixed(2)}ms`,
+      method: req.metadata.method,
+      path: req.metadata.path,
+      status: req.metadata.status,
+    })),
+  });
+});
 
-  return c.json(stats);
+// Profiling data by request ID
+app.get('/profiling/:requestId', authMiddleware, async (c) => {
+  const requestId = c.req.param('requestId');
+  const data = Profiler.getDataById(requestId);
+
+  if (!data) {
+    return c.json({ error: 'Request not found' }, 404);
+  }
+
+  return c.json(data);
+});
+
+// Clear profiling data
+app.delete('/profiling', authMiddleware, async (c) => {
+  Profiler.clearData();
+  return c.json({ message: 'Profiling data cleared' });
 });
 
 // Create proxy handlers
 const openaiProxyHandler = createProxyHandler(proxyRequest);
 const anthropicProxyHandler = createProxyHandler(proxyAnthropicRequest);
-
-// Admin API - API Key Management
-app.route('/admin/api/keys', keysRoutes);
 
 // Anthropic Messages API - must be defined before /v1/* catch-all
 app.post('/v1/messages', authMiddleware, rateLimitMiddleware, anthropicProxyHandler);
@@ -102,101 +116,18 @@ app.post('/v1/messages', authMiddleware, rateLimitMiddleware, anthropicProxyHand
 // OpenAI-Compatible API - catch-all for /v1/*
 app.all('/v1/*', authMiddleware, rateLimitMiddleware, openaiProxyHandler);
 
-// Health check endpoint with database status
-app.get('/health', async (c) => {
-  const storageType = getStorageType();
-  const inFallbackMode = isInFallbackMode();
-  const timestamp = new Date().toISOString();
+// Dashboard API routes
+app.route('/api/metrics', dashboardApi);
 
-  // Build base health response
-  const healthResponse: Record<string, any> = {
-    status: 'ok',
-    timestamp,
-    storage: {
-      type: storageType,
-      inFallbackMode,
-    },
-  };
+// Dashboard HTML page
+app.get('/dashboard', (c) => {
+  const html = readFileSync('./src/dashboard/index.html', 'utf-8');
+  return c.html(html);
+});
 
-  // Add fallback state details if in fallback mode
-  if (inFallbackMode) {
-    const fallbackState = getFallbackState();
-    if (fallbackState) {
-      healthResponse.storage.fallback = {
-        retryCount: fallbackState.retryCount,
-        lastRetryAt: fallbackState.lastRetryAt,
-      };
-    }
-  }
-
-  // Check database health if using database storage
-  if (storageType === 'database') {
-    try {
-      const dbHealth: HealthCheckResult = await checkHealth({
-        includeKeyCount: false, // Don't count keys for faster health checks
-        slowQueryThreshold: 1000,
-      });
-
-      // Add database health details to response
-      healthResponse.database = {
-        type: dbHealth.databaseType,
-        connected: dbHealth.connected,
-        responseTimeMs: dbHealth.responseTimeMs,
-        status: dbHealth.status,
-      };
-
-      // Add error details if unhealthy
-      if (dbHealth.error) {
-        healthResponse.database.error = dbHealth.error;
-      }
-
-      // Determine overall health status and HTTP status code
-      if (!dbHealth.connected || dbHealth.status === 'unhealthy') {
-        // Database is unhealthy
-        if (inFallbackMode) {
-          // Using file storage fallback, service is degraded but operational
-          healthResponse.status = 'degraded';
-          healthResponse.message = 'Service is running in fallback mode using file storage';
-          return c.json(healthResponse, 200); // Return 200 because service is still operational
-        } else {
-          // No fallback available, service is unhealthy
-          healthResponse.status = 'unhealthy';
-          healthResponse.message = 'Database connection failed and no fallback available';
-          return c.json(healthResponse, 503); // Return 503 for load balancers
-        }
-      } else if (dbHealth.status === 'degraded') {
-        // Database is slow but connected
-        healthResponse.status = 'degraded';
-        healthResponse.message = 'Database is slow but operational';
-        return c.json(healthResponse, 200); // Return 200 because service is operational
-      }
-
-      // Database is healthy
-      healthResponse.message = inFallbackMode
-        ? 'Service is running in fallback mode (database recovering)'
-        : 'All systems operational';
-      return c.json(healthResponse, 200);
-    } catch (error) {
-      // Health check itself failed (unexpected error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      healthResponse.status = 'unhealthy';
-      healthResponse.database = {
-        error: errorMessage,
-      };
-
-      if (inFallbackMode) {
-        healthResponse.message = 'Health check failed but service is running in fallback mode';
-        return c.json(healthResponse, 200); // Return 200 because fallback is working
-      } else {
-        healthResponse.message = 'Health check failed and no fallback available';
-        return c.json(healthResponse, 503);
-      }
-    }
-  }
-
-  // Using file storage (no database)
-  healthResponse.message = 'Service is running with file storage';
-  return c.json(healthResponse, 200);
+// Health check
+app.get('/health', (c) => {
+  return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Root
@@ -207,8 +138,9 @@ app.get('/', (c) => {
     endpoints: {
       health: 'GET /health',
       stats: 'GET /stats',
-      admin_api: 'GET, POST /admin/api/keys',
-      cache_stats: 'GET /cache-stats',
+      dashboard: 'GET /dashboard',
+      metrics_api: 'GET /api/metrics/*',
+      profiling: 'GET /profiling',
       openai_compatible: 'ALL /v1/* (except /v1/messages)',
       anthropic_compatible: 'POST /v1/messages',
     },
@@ -217,48 +149,9 @@ app.get('/', (c) => {
 
 const port = parseInt(process.env.PORT || '3000');
 
-// Start scheduled backups if enabled
-const startScheduledBackups = async (): Promise<void> => {
-  try {
-    const config = loadSchedulerConfigFromEnv();
-
-    if (config.enabled) {
-      // Add callback to log backup completions and errors
-      config.onBackupComplete = (result: ScheduledBackupResult) => {
-        console.log(`[${result.timestamp}] Scheduled backup created: ${result.backupPath}`);
-        console.log(`  Size: ${(result.size / 1024).toFixed(2)} KB, Compressed: ${result.compressed}`);
-        console.log(`  Removed old backups: ${result.removedOldBackups}`);
-        console.log(`  Next backup: ${result.nextBackupTime}`);
-      };
-
-      config.onBackupError = (error: Error) => {
-        console.error(`Scheduled backup failed: ${error.message}`);
-      };
-
-      await startScheduler(config);
-      console.log('Scheduled backups enabled with schedule:', config.schedule);
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('Failed to start scheduled backups:', errorMessage);
-  }
-};
-
-// Start the application
-(async () => {
-  await startScheduledBackups();
-  console.log(`Proxy Gateway starting on port ${port}`);
-
-  // Optional cache warm-up on startup (non-blocking)
-  if (process.env.CACHE_WARMUP_ON_START === 'true') {
-    // Fire and forget - don't await, let it run in background
-    warmupCache().catch(error => {
-      console.error('Cache warm-up error:', error);
-    });
-  }
-})();
-
 export default {
   port,
   fetch: app.fetch,
 };
+
+console.log(`Proxy Gateway starting on port ${port}`);
