@@ -1,7 +1,7 @@
 {
   "spec_id": "003-integration-test-suite",
   "created_at": "2026-01-22T03:27:47.106652+00:00",
-  "updated_at": "2026-01-22T04:43:13.816198+00:00",
+  "updated_at": "2026-01-22T04:45:28.675015+00:00",
   "phases": {
     "planning": {
       "phase": "planning",
@@ -10271,6 +10271,340 @@
           "phase": "coding",
           "tool_name": "Bash",
           "tool_input": "git add .auto-claude/specs/003-integration-test...",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:15.347362+00:00",
+          "type": "tool_end",
+          "content": "[Bash] Done",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "session": 1,
+          "detail": "[auto-claude/003-integration-test-suite d663565] auto-claude: Update build progress for subtask 5.1 completion\n 3 files changed, 177 insertions(+), 11 deletions(-)",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:43:21.389850+00:00",
+          "type": "text",
+          "content": "Perfect! I have successfully completed **subtask 5.1: Test OpenAI streaming responses**. Here's a summary of what was accomplished:\n\n## ✅ Completed: OpenAI Streaming Response Integration Tests\n\n### Test File Created\n- **File:** `test/integration/streaming-openai.test.ts`\n- **Tests:** 31 comprehensive tests\n- **Execution Time:** 17.12 seconds\n- **Status:** All tests passing ✅\n\n### Test Coverage\n\nThe test suite includes comprehensive coverage of:\n\n#### 1. **Basic Streaming** (3 tests)\n- Content-type validation for streaming requests\n- Stream parameter handling (true/false)\n- Response format verification\n\n#### 2. **SSE Chunk Format** (5 tests)\n- Proper `data: ` prefix formatting\n- Valid JSON in data chunks\n- `[DONE]` termination marker\n- Newline separators between chunks\n\n#### 3. **Delta Updates** (4 tests)\n- Choices array structure\n- Delta object presence\n- Content in delta updates\n- Finish reason in final chunk\n\n#### 4. **Various Request Formats** (4 tests)\n- Conversation history\n- System messages\n- Custom model overrides\n- Additional parameters (temperature, max_tokens, top_p)\n\n#### 5. **Authentication** (3 tests)\n- Authentication requirement\n- Expired API key rejection\n- Valid API key acceptance\n\n#### 6. **Rate Limiting** (2 tests)\n- Rate limit enforcement\n- Token usage updates\n\n#### 7. **Response Structure** (4 tests)\n- ID field\n- Object type (chat.completion.chunk)\n- Created timestamp\n- Model field\n\n#### 8. **Edge Cases** (5 tests)\n- Empty messages\n- Concurrent streaming requests\n- Very long messages\n- Special characters\n- Unicode characters\n\n#### 9. **Performance** (1 test)\n- First chunk timing\n- Connection closure handling\n\n### Git Commits\n1. **4ed634f** - Added OpenAI streaming response integration tests\n2. **d663565** - Updated build progress for subtask 5.1 completion\n\n### Next Steps\nThe next subtask would be **5.2: Test Anthropic streaming responses**, which will verify SSE streaming for Anthropic messages with proper event types and chunk handling.",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:32.019048+00:00",
+          "type": "text",
+          "content": "I'll help you implement the SSE streaming verification for Anthropic messages. Let me start by understanding the project context and requirements.",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:32.039871+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...claude/specs/003-integration-test-suite/spec.md",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...claude/specs/003-integration-test-suite/spec.md",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:32.049924+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...integration-test-suite/implementation_plan.json",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...integration-test-suite/implementation_plan.json",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:32.061279+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:32.072542+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "     1→# Integration Test Suite\n     2→\n     3→Comprehensive integration tests covering all API endpoints, rate limiting behavior, streaming responses, error scenarios, and multi-user interactions.\n     4→\n     5→## Rationale\n     6→Addresses technical debt of no integration tests. Ensures reliability and prevents regressions. Critical for production confidence and distinguishes from competitors with buggy implementations (Portkey).\n     7→\n     8→## User Stories\n     9→- As a developer, I want integration tests so that I can confidently make changes without breaking functionality\n    10→- As a maintainer, I want automated tests in CI/CD so that pull requests are automatically validated\n    11→- As a user, I want reliable software so that I don't encounter unexpected bugs\n    12→\n    13→## Acceptance Criteria\n    14→- [ ] Tests cover all API endpoints (/v1/chat/completions, /v1/messages, /stats, /health)\n    15→- [ ] Tests verify rate limiting enforcement with rolling window\n    16→- [ ] Tests validate streaming responses for both OpenAI and Anthropic formats\n    17→- [ ] Tests verify error handling for all error types\n    18→- [ ] Tests check authentication and authorization\n    19→- [ ] Tests validate API key expiry handling\n    20→- [ ] Tests verify concurrent request handling\n    21→- [ ] Tests can be run in CI/CD pipeline\n    22→- [ ] Test coverage report available\n    23→- [ ] Tests complete in under 60 seconds\n    24→\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:43:35.460379+00:00",
+          "type": "text",
+          "content": "Now let me check the existing OpenAI streaming test to understand the pattern and see what's already implemented:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:35.475880+00:00",
+          "type": "tool_start",
+          "content": "[Read] ./test/integration/streaming-openai.test.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "./test/integration/streaming-openai.test.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:35.487942+00:00",
+          "type": "tool_start",
+          "content": "[Glob] pattern: **/*.test.ts",
+          "phase": "coding",
+          "tool_name": "Glob",
+          "tool_input": "pattern: **/*.test.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:36.070065+00:00",
+          "type": "tool_end",
+          "content": "[Glob] Done",
+          "phase": "coding",
+          "tool_name": "Glob",
+          "session": 1,
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:43:40.401509+00:00",
+          "type": "text",
+          "content": "Now let me check the helpers and fixtures to understand the available test utilities, and look at the existing Anthropic non-streaming test:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:40.459114+00:00",
+          "type": "tool_start",
+          "content": "[Read] ./test/integration/helpers.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "./test/integration/helpers.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:40.483495+00:00",
+          "type": "tool_start",
+          "content": "[Read] ./test/integration/anthropic-messages.test.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "./test/integration/anthropic-messages.test.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:40.529743+00:00",
+          "type": "tool_start",
+          "content": "[Read] ./test/integration/fixtures.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "./test/integration/fixtures.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:40.588356+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "     1→/**\n     2→ * Integration Test Helpers\n     3→ *\n     4→ * Provides utilities for setting up test servers, making HTTP requests,\n     5→ * and validating responses in integration tests.\n     6→ */\n     7→\n     8→import { serve } from 'bun';\n     9→import fs from 'fs';\n    10→import path from 'path';\n    11→import type { ApiKey, UsageWindow } from '../../src/types';\n    12→\n    13→/**\n    14→ * Test server interface\n    15→ */\n    16→export interface TestServer {\n    17→  url: string;\n    18→  port: number;\n    19→  stop: () => Promise<void>;\n    20→}\n    21→\n    22→/**\n    23→ * HTTP response wrapper\n    24→ */\n    25→export interface TestResponse {\n    26→  status: number;\n    27→  headers: Headers;\n    28→  body: string;\n    29→  json: () => any;\n    30→}\n    31→\n    32→/**\n    33→ * Rate limit info for validation\n    34→ */\n    35→export interface RateLimitInfo {\n    36→  allowed: boolean;\n    37→  tokensUsed: number;\n    38→  tokensLimit: number;\n    39→  windowStart?: string;\n    40→  windowEnd?: string;\n    41→  reason?: string;\n    42→  retryAfter?: number;\n    43→}\n    44→\n    45→/**\n    46→ * Starts a test server instance\n    47→ *\n    48→ * @param port - Optional port number (defaults to random available port)\n    49→ * @returns Test server instance with URL and stop function\n    50→ */\n    51→export async function startTestServer(port?: number): Promise<TestServer> {\n    52→  // Find available port if not specified\n    53→  const actualPort = port || (await findAvailablePort());\n    54→\n    55→  // Import app dynamically to ensure test environment is set up first\n    56→  const app = (await import('../../src/index')).default;\n    57→\n    58→  // Start the server\n    59→  const server = serve({\n    60→    fetch: app.fetch,\n    61→    port: actualPort,\n    62→  });\n    63→\n    64→  return {\n    65→    url: `http://localhost:${actualPort}`,\n    66→    port: actualPort,\n    67→    stop: async () => {\n    68→      server.stop();\n    69→    },\n    70→  };\n    71→}\n    72→\n    73→/**\n    74→ * Finds an available port for testing\n    75→ */\n    76→async function findAvailablePort(): Promise<number> {\n    77→  // Try ports starting from 3001\n    78→  for (let port = 3001; port < 4000; port++) {\n    79→    try {\n    80→      const server = serve({ port, fetch: () => new Response('ok') });\n    81→      server.stop();\n    82→      return port;\n    83→    } catch (e) {\n    84→      // Port in use, try next\n    85→      continue;\n    86→    }\n    87→  }\n    88→  throw new Error('No available port found for test server');\n    89→}\n    90→\n    91→/**\n    92→ * Makes an HTTP request to the test server\n    93→ *\n    94→ * @param url - Request URL\n    95→ * @param options - Request options\n    96→ * @returns Test response wrapper\n    97→ */\n    98→export async function makeRequest(\n    99→  url: string,\n   100→  options: RequestInit = {}\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:43:43.367209+00:00",
+          "type": "tool_start",
+          "content": "[Read] ./test/integration/fixtures.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "./test/integration/fixtures.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:43.397082+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "   100→  total_lifetime_tokens: 90000,\n   101→  usage_windows: [\n   102→    {\n   103→      window_start: new Date(Date.now() - 3600000).toISOString(),\n   104→      tokens_used: 30000,\n   105→    },\n   106→    {\n   107→      window_start: new Date(Date.now() - 7200000).toISOString(),\n   108→      tokens_used: 40000,\n   109→    },\n   110→    {\n   111→      window_start: new Date(Date.now() - 14400000).toISOString(),\n   112→      tokens_used: 20000,\n   113→    },\n   114→  ],\n   115→};\n   116→\n   117→/**\n   118→ * API key with old usage windows (some expired) for testing cleanup\n   119→ */\n   120→export const MIXED_WINDOWS_API_KEY: ApiKey = {\n   121→  key: 'pk_test_mixed_windows',\n   122→  name: 'Mixed Windows User',\n   123→  model: 'glm-4.7',\n   124→  token_limit_per_5h: 100000,\n   125→  expiry_date: '2026-12-31T23:59:59Z',\n   126→  created_at: '2026-01-18T00:00:00Z',\n   127→  last_used: new Date().toISOString(),\n   128→  total_lifetime_tokens: 80000,\n   129→  usage_windows: [\n   130→    {\n   131→      window_start: new Date(Date.now() - 3600000).toISOString(),\n   132→      tokens_used: 30000,\n   133→    },\n   134→    {\n   135→      window_start: new Date(Date.now() - 21600000).toISOString(),\n   136→      tokens_used: 50000,\n   137→    },\n   138→  ],\n   139→};\n   140→\n   141→/**\n   142→ * API key with custom model override\n   143→ */\n   144→export const CUSTOM_MODEL_API_KEY: ApiKey = {\n   145→  key: 'pk_test_custom_model',\n   146→  name: 'Custom Model User',\n   147→  model: 'custom-model-123',\n   148→  token_limit_per_5h: 100000,\n   149→  expiry_date: '2026-12-31T23:59:59Z',\n   150→  created_at: '2026-01-18T00:00:00Z',\n   151→  last_used: new Date().toISOString(),\n   152→  total_lifetime_tokens: 5000,\n   153→  usage_windows: [],\n   154→};\n   155→\n   156→/**\n   157→ * API key with Anthropic model\n   158→ */\n   159→export const ANTHROPIC_MODEL_API_KEY: ApiKey = {\n   160→  key: 'pk_test_anthropic',\n   161→  name: 'Anthropic User',\n   162→  model: 'claude-3-5-sonnet-20241022',\n   163→  token_limit_per_5h: 100000,\n   164→  expiry_date: '2026-12-31T23:59:59Z',\n   165→  created_at: '2026-01-18T00:00:00Z',\n   166→  last_used: new Date().toISOString(),\n   167→  total_lifetime_tokens: 15000,\n   168→  usage_windows: [],\n   169→};\n   170→\n   171→/**\n   172→ * API key for concurrent request testing with moderate limit\n   173→ */\n   174→export const CONCURRENT_TEST_API_KEY: ApiKey = {\n   175→  key: 'pk_test_concurrent',\n   176→  name: 'Concurrent Test User',\n   177→  model: 'glm-4.7',\n   178→  token_limit_per_5h: 5000,\n   179→  expiry_date: '2026-12-31T23:59:59Z',\n   180→  created_at: '2026-01-18T00:00:00Z',\n   181→  last_used: new Date().toISOString(),\n   182→  total_lifetime_tokens: 0,\n   183→  usage_windows: [],\n   184→};\n   185→\n   186→/**\n   187→ * Collection of all test API keys\n   188→ */\n   189→export const TEST_API_KEYS: ApiKey[] = [\n   190→  VALID_API_KEY,\n   191→  EXPIRED_API_KEY,\n   192→  EXPIRING_SOON_API_KEY,\n   193→  LOW_LIMIT_API_KEY,\n   194→  RATE_LIMITED_API_KEY,\n   195→  MULTI_WINDOW_API_KEY,\n   196→  MIXED_WINDOWS_API_KEY,\n   197→  CUSTOM_MODEL_API_KEY,\n   198→  ANTHROPIC_MODEL_API_KEY,\n   199→  CONCURRENT_TEST_API_KEY,\n   200→];\n   201→\n   202→/**\n   203→ * Get a specific API key by its key value\n   204→ */\n   205→export function getApiKeyByKeyValue(keyValue: string): ApiKey | undefined {\n   206→  return TEST_API_KEYS.find(k => k.key === keyValue);\n   207→}\n   208→\n   209→/**\n   210→ * Get API keys that match a predicate\n   211→ */\n   212→export function filterApiKeys(predicate: (key: ApiKey) => boolean): ApiKey[] {\n   213→  return TEST_API_KEYS.filter(predicate);\n   214→}\n   215→\n   216→/**\n   217→ * Get all valid (non-expired) API keys\n   218→ */\n   219→export function getValidApiKeys(): ApiKey[] {\n   220→  return filterApiKeys(key => new Date(key.expiry_date) > new Date());\n   221→}\n   222→\n   223→/**\n   224→ * Get all expired API keys\n   225→ */\n   226→export function getExpiredApiKeys(): ApiKey[] {\n   227→  return filterApiKeys(key => new Date(key.expiry_date) < new Date());\n   228→}\n   229→\n   230→/**\n   231→ * Get all rate-limited API keys (currently over limit)\n   232→ */\n   233→export function getRateLimitedApiKeys(): ApiKey[] {\n   234→  return filterApiKeys(key => {\n   235→    const totalTokens = key.usage_windows.reduce((sum, w) => sum + w.tokens_used, 0);\n   236→    return totalTokens > key.token_limit_per_5h;\n   237→  });\n   238→}\n   239→\n   240→/**\n   241→ * Test messages for OpenAI format\n   242→ */\n   243→export const TEST_OPENAI_MESSAGES = [\n   244→  { role: 'user', content: 'Hello, how are you?' },\n   245→];\n   246→\n   247→/**\n   248→ * Test messages for Anthropic format\n   249→ */\n   250→export const TEST_ANTHROPIC_MESSAGES = [\n   251→  { role: 'user', content: 'Hello, how are you?' },\n   252→];\n   253→\n   254→/**\n   255→ * Test message with conversation history\n   256→ */\n   257→export const TEST_CONVERSATION_MESSAGES = [\n   258→  { role: 'user', content: 'What is the capital of France?' },\n   259→  { role: 'assistant', content: 'The capital of France is Paris.' },\n   260→  { role: 'user', content: 'What is the population?' },\n   261→];\n   262→\n   263→/**\n   264→ * Long test message for testing token counting\n   265→ */\n   266→export const TEST_LONG_MESSAGE = {\n   267→  role: 'user' as const,\n   268→  content: 'This is a longer message that will consume more tokens. '.repeat(100),\n   269→};\n   270→\n   271→/**\n   272→ * Invalid API keys for testing authentication failure\n   273→ */\n   274→export const INVALID_API_KEYS = {\n   275→  empty: '',\n   276→  malformed: 'invalid-key-format',\n   277→  nonexistent: 'pk_test_does_not_exist',\n   278→  expired: EXPIRED_API_KEY.key,\n   279→};\n   280→\n   281→/**\n   282→ * Sample OpenAI chat completion request bodies\n   283→ */\n   284→export const OPENAI_REQUEST_BODIES = {\n   285→  basic: {\n   286→    model: 'glm-4',\n   287→    messages: [{ role: 'user', content: 'Test message' }],\n   288→    stream: false,\n   289→  },\n   290→  withModel: {\n   291→    model: 'custom-model',\n   292→    messages: [{ role: 'user', content: 'Test message' }],\n   293→    stream: false,\n   294→  },\n   295→  streaming: {\n   296→    model: 'glm-4',\n   297→    messages: [{ role: 'user', content: 'Test message' }],\n   298→    stream: true,\n   299→  },\n   300→  conversation: {\n   301→    model: 'glm-4',\n   302→    messages: TEST_CONVERSATION_MESSAGES,\n   303→    stream: false,\n   304→  },\n   305→};\n   306→\n   307→/**\n   308→ * Sample Anthropic messages request bodies\n   309→ */\n   310→export const ANTHROPIC_REQUEST_BODIES = {\n   311→  basic: {\n   312→    model: 'claude-3-5-sonnet-20241022',\n   313→    messages: [{ role: 'user', content: 'Test message' }],\n   314→    max_tokens: 1024,\n   315→    stream: false,\n   316→  },\n   317→  streaming: {\n   318→    model: 'claude-3-5-sonnet-20241022',\n   319→    messages: [{ role: 'user', content: 'Test message' }],\n   320→    max_tokens: 1024,\n   321→    stream: true,\n   322→  },\n   323→  conversation: {\n   324→    model: 'claude-3-5-sonnet-20241022',\n   325→    messages: TEST_CONVERSATION_MESSAGES,\n   326→    max_tokens: 1024,\n   327→    stream: false,\n   328→  },\n   329→};\n   330→\n   331→/**\n   332→ * Malformed request bodies for testing validation\n   333→ */\n   334→export const MALFORMED_REQUESTS = {\n   335→  emptyJson: '',\n   336→  invalidJson: '{ invalid json }',\n   337→  missingMessages: JSON.stringify({ model: 'glm-4' }),\n   338→  emptyMessages: JSON.stringify({ model: 'glm-4', messages: [] }),\n   339→  invalidRole: JSON.stringify({\n   340→    model: 'glm-4',\n   341→    messages: [{ role: 'invalid', content: 'test' }],\n   342→  }),\n   343→};\n   344→\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:43:45.804652+00:00",
+          "type": "text",
+          "content": "Now let me check the source code to understand how Anthropic streaming is implemented:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:45.838668+00:00",
+          "type": "tool_start",
+          "content": "[Glob] pattern: src/**/*.ts",
+          "phase": "coding",
+          "tool_name": "Glob",
+          "tool_input": "pattern: src/**/*.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:46.772865+00:00",
+          "type": "tool_end",
+          "content": "[Glob] Done",
+          "phase": "coding",
+          "tool_name": "Glob",
+          "session": 1,
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:43:48.649640+00:00",
+          "type": "tool_start",
+          "content": "[Read] ./src/anthropic.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "./src/anthropic.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:48.685679+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "     1→import type { ApiKey } from './types.js';\n     2→import { getModelForKey } from './validator.js';\n     3→import { updateApiKeyUsage } from './storage.js';\n     4→\n     5→const ZAI_ANTHROPIC_BASE = 'https://open.bigmodel.cn/api/anthropic';\n     6→\n     7→export interface AnthropicProxyOptions {\n     8→  apiKey: ApiKey;\n     9→  path: string;\n    10→  method: string;\n    11→  headers: Record<string, string>;\n    12→  body: string | null;\n    13→}\n    14→\n    15→export interface AnthropicProxyResult {\n    16→  success: boolean;\n    17→  status: number;\n    18→  headers: Record<string, string>;\n    19→  body: string;\n    20→  tokensUsed?: number;\n    21→}\n    22→\n    23→export async function proxyAnthropicRequest(options: AnthropicProxyOptions): Promise<AnthropicProxyResult> {\n    24→  const { apiKey, path, method, headers, body } = options;\n    25→\n    26→  // Runtime check for ZAI_API_KEY\n    27→  if (!process.env.ZAI_API_KEY) {\n    28→    return {\n    29→      success: false,\n    30→      status: 500,\n    31→      headers: { 'content-type': 'application/json' },\n    32→      body: JSON.stringify({\n    33→        error: {\n    34→          message: 'ZAI_API_KEY environment variable is not configured',\n    35→          type: 'configuration_error',\n    36→        },\n    37→      }),\n    38→      tokensUsed: 0,\n    39→    };\n    40→  }\n    41→\n    42→  const model = getModelForKey(apiKey);\n    43→\n    44→  // Build target URL for Anthropic API\n    45→  // Path will be /v1/messages, so we use it directly\n    46→  const targetUrl = `${ZAI_ANTHROPIC_BASE}${path}`;\n    47→\n    48→  // Prepare headers for Z.AI Anthropic API\n    49→  const proxyHeaders: Record<string, string> = {\n    50→    'x-api-key': process.env.ZAI_API_KEY,\n    51→    'anthropic-version': headers['anthropic-version'] || '2023-06-01',\n    52→  };\n    53→\n    54→  // Forward relevant headers from client (but not x-api-key)\n    55→  const forwardHeaders = ['content-type', 'accept', 'user-agent'];\n    56→  for (const h of forwardHeaders) {\n    57→    const key = Object.keys(headers).find(k => k.toLowerCase() === h);\n    58→    if (key) {\n    59→      proxyHeaders[key] = headers[key];\n    60→    }\n    61→  }\n    62→\n    63→  // Inject/override model in request body\n    64→  let processedBody = body;\n    65→  let tokensUsed = 0;\n    66→\n    67→  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {\n    68→    try {\n    69→      const bodyJson = JSON.parse(body);\n    70→\n    71→      // Inject model for messages endpoint\n    72→      if (path.includes('/messages')) {\n    73→        bodyJson.model = model;\n    74→      }\n    75→\n    76→      processedBody = JSON.stringify(bodyJson);\n    77→    } catch {\n    78→      // Body not JSON, leave as-is\n    79→    }\n    80→  }\n    81→\n    82→  // Make request to Z.AI\n    83→  try {\n    84→    const response = await fetch(targetUrl, {\n    85→      method,\n    86→      headers: proxyHeaders,\n    87→      body: processedBody,\n    88→    });\n    89→\n    90→    // Get response body\n    91→    const responseBody = await response.text();\n    92→\n    93→    // Extract token usage from response\n    94→    if (response.ok) {\n    95→      try {\n    96→        const responseJson = JSON.parse(responseBody);\n    97→\n    98→        // Anthropic format usage\n    99→        if (responseJson.usage) {\n   100→          tokensUsed = responseJson.usage.input_tokens + responseJson.usage.output_tokens;\n   101→        }\n   102→\n   103→        // Update usage after successful request\n   104→        if (tokensUsed > 0) {\n   105→          // Don't await - fire and forget for performance\n   106→          updateApiKeyUsage(apiKey.key, tokensUsed, model).catch(console.error);\n   107→        }\n   108→      } catch {\n   109→        // Response not JSON or no usage field\n   110→      }\n   111→    }\n   112→\n   113→    // Build response headers\n   114→    const responseHeaders: Record<string, string> = {\n   115→      'content-type': response.headers.get('content-type') || 'application/json',\n   116→    };\n   117→\n   118→    // Handle streaming response\n   119→    if (response.headers.get('content-type')?.includes('text/event-stream')) {\n   120→      responseHeaders['content-type'] = 'text/event-stream';\n   121→    }\n   122→\n   123→    return {\n   124→      success: response.ok,\n   125→      status: response.status,\n   126→      headers: responseHeaders,\n   127→      body: responseBody,\n   128→      tokensUsed,\n   129→    };\n   130→  } catch (error: unknown) {\n   131→    const errorMessage = error instanceof Error ? error.message : 'Unknown error';\n   132→    return {\n   133→      success: false,\n   134→      status: 502,\n   135→      headers: { 'content-type': 'application/json' },\n   136→      body: JSON.stringify({\n   137→        error: {\n   138→          message: `Upstream request failed: ${errorMessage}`,\n   139→          type: 'upstream_error',\n   140→        },\n   141→      }),\n   142→      tokensUsed: 0,\n   143→    };\n   144→  }\n   145→}\n   146→\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:43:51.072750+00:00",
+          "type": "tool_start",
+          "content": "[Read] ./src/handlers/proxyHandler.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "./src/handlers/proxyHandler.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:43:51.096144+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "     1→import type { Context } from 'hono';\n     2→import type { ApiKey } from '../types.js';\n     3→import type { AuthContext } from '../middleware/auth.js';\n     4→\n     5→// Result type from proxy functions\n     6→export interface ProxyResult {\n     7→  success: boolean;\n     8→  status: number;\n     9→  headers: Record<string, string>;\n    10→  body: string;\n    11→  tokensUsed?: number;\n    12→}\n    13→\n    14→// Proxy function signature\n    15→export type ProxyFunction = (options: {\n    16→  apiKey: ApiKey;\n    17→  path: string;\n    18→  method: string;\n    19→  headers: Record<string, string>;\n    20→  body: string | null;\n    21→}) => Promise<ProxyResult>;\n    22→\n    23→// Create a proxy handler from a proxy function\n    24→export function createProxyHandler(proxyFn: ProxyFunction) {\n    25→  return async (c: Context<{ Variables: AuthContext }>) => {\n    26→    const apiKey: ApiKey = c.get('apiKey');\n    27→    const path = c.req.path;\n    28→    const method = c.req.method;\n    29→\n    30→    // Extract headers\n    31→    const headers: Record<string, string> = {};\n    32→    c.req.raw.headers.forEach((value, key) => {\n    33→      headers[key] = value;\n    34→    });\n    35→\n    36→    // Extract body\n    37→    const body = c.req.raw.body ? await c.req.text() : null;\n    38→\n    39→    // Call proxy function\n    40→    const result = await proxyFn({\n    41→      apiKey,\n    42→      path,\n    43→      method,\n    44→      headers,\n    45→      body,\n    46→    });\n    47→\n    48→    // Set response headers\n    49→    Object.entries(result.headers).forEach(([key, value]) => {\n    50→      c.header(key, value);\n    51→    });\n    52→\n    53→    return c.body(result.body, result.status as any);\n    54→  };\n    55→}\n    56→\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:45:11.000913+00:00",
+          "type": "text",
+          "content": "Perfect! Now I understand the codebase structure. Let me create a comprehensive test file for Anthropic streaming responses. I'll base it on the OpenAI streaming test pattern but adapted for Anthropic's SSE format with proper event types.",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:45:11.159048+00:00",
+          "type": "tool_start",
+          "content": "[Write] ./test/integration/streaming-anthropic.test.ts",
+          "phase": "coding",
+          "tool_name": "Write",
+          "tool_input": "./test/integration/streaming-anthropic.test.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:45:11.707073+00:00",
+          "type": "tool_end",
+          "content": "[Write] Done",
+          "phase": "coding",
+          "tool_name": "Write",
+          "session": 1,
+          "detail": "File created successfully at: ./test/integration/streaming-anthropic.test.ts",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:45:14.007193+00:00",
+          "type": "text",
+          "content": "Perfect! I've created a comprehensive test file for Anthropic streaming. Now let's run the tests to verify they work:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:45:14.025064+00:00",
+          "type": "tool_start",
+          "content": "[Bash] bun test test/integration/streaming-anthropic.t...",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "tool_input": "bun test test/integration/streaming-anthropic.t...",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:45:19.054710+00:00",
+          "type": "tool_end",
+          "content": "[Bash] Done",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "session": 1,
+          "detail": "bun test v1.2.23 (cf136713)\nProxy Gateway starting on port 0\n\n 31 pass\n 0 fail\n 36 expect() calls\nRan 31 tests across 1 file. [4.01s]",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:45:22.261869+00:00",
+          "type": "text",
+          "content": "Excellent! All 31 tests are passing. Now let me update the implementation plan and commit the changes:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:45:22.287457+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...integration-test-suite/implementation_plan.json",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...integration-test-suite/implementation_plan.json",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:45:22.301284+00:00",
+          "type": "tool_end",
+          "content": "[Read] Error: BLOCKED",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "     1→{\n     2→  \"spec_id\": \"003-integration-test-suite\",\n     3→  \"spec_title\": \"Integration Test Suite\",\n     4→  \"description\": \"# Integration Test Suite\\n\\nComprehensive integration tests covering all API endpoints, rate limiting behavior, streaming responses, error scenarios, and multi-user interactions.\\n\\n## Rationale\\nAddresses technical debt of no integration tests. Ensures reliability and prevents regressions. Critical for production confidence and distinguishes from competitors with buggy implementations (Portkey).\\n\\n## User Stories\\n- As a developer, I want integration tests so that I can confidently make changes without breaking functionality\\n- As a maintainer, I want automated tests in CI/CD so that pull requests are automatically validated\\n- As a user, I want reliable software so that I don't encounter unexpected bugs\\n\\n## Acceptance Criteria\\n- [ ] Tests cover all API endpoints (/v1/chat/completions, /v1/messages, /stats, /health)\\n- [ ] Tests verify rate limiting enforcement with rolling window\\n- [ ] Tests validate streaming responses for both OpenAI and Anthropic formats\\n- [ ] Tests verify error handling for all error types\\n- [ ] Tests check authentication and authorization\\n- [ ] Tests validate API key expiry handling\\n- [ ] Tests verify concurrent request handling\\n- [ ] Tests can be run in CI/CD pipeline\\n- [ ] Test coverage report available\\n- [ ] Tests complete in under 60 seconds\\n\",\n     5→  \"created_at\": \"2026-01-22T03:27:43.251Z\",\n     6→  \"updated_at\": \"2026-01-22T04:43:21.439Z\",\n     7→  \"status\": \"in_progress\",\n     8→  \"planStatus\": \"in_progress\",\n     9→  \"phases\": [\n    10→    {\n    11→      \"phase_id\": 1,\n    12→      \"phase_name\": \"Foundation & Infrastructure\",\n    13→      \"phase_description\": \"Set up the testing infrastructure, utilities, and fixtures needed for integration tests\",\n    14→      \"status\": \"pending\",\n    15→      \"subtasks\": [\n    16→        {\n    17→          \"subtask_id\": \"1.1\",\n    18→          \"title\": \"Create test utilities and helper functions\",\n    19→          \"description\": \"Build reusable test utilities including test server setup/teardown, API key fixtures, request builders, and response validators\",\n    20→          \"status\": \"completed\",\n    21→          \"file\": \"test/integration/helpers.ts\",\n    22→          \"estimated_minutes\": 20\n    23→        },\n    24→        {\n    25→          \"subtask_id\": \"1.2\",\n    26→          \"title\": \"Set up test fixtures and data\",\n    27→          \"description\": \"Create mock API keys with various configurations (expired, active, rate-limited) for testing different scenarios\",\n    28→          \"status\": \"completed\",\n    29→          \"file\": \"test/integration/fixtures.ts\",\n    30→          \"estimated_minutes\": 15\n    31→        },\n    32→        {\n    33→          \"subtask_id\": \"1.3\",\n    34→          \"title\": \"Configure test environment setup\",\n    35→          \"description\": \"Create test setup script that initializes temporary data directory, environment variables, and cleans up after tests\",\n    36→          \"status\": \"completed\",\n    37→          \"file\": \"test/integration/setup.ts\",\n    38→          \"estimated_minutes\": 15\n    39→        }\n    40→      ]\n    41→    },\n    42→    {\n    43→      \"phase_id\": 2,\n    44→      \"phase_name\": \"API Endpoint Tests\",\n    45→      \"phase_description\": \"Create integration tests for all API endpoints\",\n    46→      \"status\": \"completed\",\n    47→      \"subtasks\": [\n    48→        {\n    49→          \"subtask_id\": \"2.1\",\n    50→          \"title\": \"Test /health endpoint\",\n    51→          \"description\": \"Verify health endpoint returns correct status and format, handles CORS properly\",\n    52→          \"status\": \"completed\",\n    53→          \"file\": \"test/integration/health.test.ts\",\n    54→          \"estimated_minutes\": 10\n    55→        },\n    56→        {\n    57→          \"subtask_id\": \"2.2\",\n    58→          \"title\": \"Test /stats endpoint\",\n    59→          \"description\": \"Verify stats endpoint returns correct API key information, usage statistics, rate limit data, and expiry status\",\n    60→          \"status\": \"completed\",\n    61→          \"file\": \"test/integration/stats.test.ts\",\n    62→          \"estimated_minutes\": 20\n    63→        },\n    64→        {\n    65→          \"subtask_id\": \"2.3\",\n    66→          \"title\": \"Test /v1/chat/completions (OpenAI format)\",\n    67→          \"description\": \"Verify OpenAI-compatible chat completions endpoint with various request formats, model overrides, and response handling\",\n    68→          \"status\": \"completed\",\n    69→          \"file\": \"test/integration/openai-chat.test.ts\",\n    70→          \"estimated_minutes\": 30\n    71→        },\n    72→        {\n    73→          \"subtask_id\": \"2.4\",\n    74→          \"title\": \"Test /v1/messages (Anthropic format)\",\n    75→          \"description\": \"Verify Anthropic-compatible messages endpoint with proper request/response format conversion\",\n    76→          \"status\": \"completed\",\n    77→          \"file\": \"test/integration/anthropic-messages.test.ts\",\n    78→          \"estimated_minutes\": 30\n    79→        },\n    80→        {\n    81→          \"subtask_id\": \"2.5\",\n    82→          \"title\": \"Test root endpoint documentation\",\n    83→          \"description\": \"Verify root endpoint returns proper API documentation and endpoint listing\",\n    84→          \"status\": \"completed\",\n    85→          \"file\": \"test/integration/root.test.ts\",\n    86→          \"estimated_minutes\": 10\n    87→        }\n    88→      ]\n    89→    },\n    90→    {\n    91→      \"phase_id\": 3,\n    92→      \"phase_name\": \"Authentication & Authorization Tests\",\n    93→      \"phase_description\": \"Test authentication middleware and API key validation\",\n    94→      \"status\": \"completed\",\n    95→      \"subtasks\": [\n    96→        {\n    97→          \"subtask_id\": \"3.1\",\n    98→          \"title\": \"Test valid API key authentication\",\n    99→          \"description\": \"Verify requests with valid API keys are properly authenticated and processed\",\n   100→          \"status\": \"completed\",\n   101→          \"file\": \"test/integration/auth.test.ts\",\n   102→          \"estimated_minutes\": 15\n   103→        },\n   104→        {\n   105→          \"subtask_id\": \"3.2\",\n   106→          \"title\": \"Test invalid API key rejection\",\n   107→          \"description\": \"Verify requests with invalid, missing, or malformed API keys are rejected with proper error messages\",\n   108→          \"status\": \"completed\",\n   109→          \"file\": \"test/integration/auth.test.ts\",\n   110→          \"estimated_minutes\": 15\n   111→        },\n   112→        {\n   113→          \"subtask_id\": \"3.3\",\n   114→          \"title\": \"Test API key expiry handling\",\n   115→          \"description\": \"Verify expired API keys are rejected and upcoming expiry is properly handled\",\n   116→          \"status\": \"completed\",\n   117→          \"file\": \"test/integration/auth-expiry.test.ts\",\n   118→          \"estimated_minutes\": 20\n   119→        },\n   120→        {\n   121→          \"subtask_id\": \"3.4\",\n   122→          \"title\": \"Test authentication via x-api-key header\",\n   123→          \"description\": \"Verify authentication works with x-api-key header in addition to Authorization header\",\n   124→          \"status\": \"completed\",\n   125→          \"file\": \"test/integration/auth.test.ts\",\n   126→          \"estimated_minutes\": 10\n   127→        }\n   128→      ]\n   129→    },\n   130→    {\n   131→      \"phase_id\": 4,\n   132→      \"phase_name\": \"Rate Limiting Tests\",\n   133→      \"phase_description\": \"Test rate limiting behavior with rolling window implementation\",\n   134→      \"status\": \"completed\",\n   135→      \"subtasks\": [\n   136→        {\n   137→          \"subtask_id\": \"4.1\",\n   138→          \"title\": \"Test rate limit enforcement\",\n   139→          \"description\": \"Verify requests are blocked when token limit is exceeded within 5-hour window\",\n   140→          \"status\": \"completed\",\n   141→          \"file\": \"test/integration/ratelimit.test.ts\",\n   142→          \"estimated_minutes\": 25\n   143→        },\n   144→        {\n   145→          \"subtask_id\": \"4.2\",\n   146→          \"title\": \"Test rolling window behavior\",\n   147→          \"description\": \"Verify old usage windows are cleaned up and new windows are created correctly\",\n   148→          \"status\": \"completed\",\n   149→          \"file\": \"test/integration/ratelimit-rolling.test.ts\",\n   150→          \"estimated_minutes\": 25\n   151→        },\n   152→        {\n   153→          \"subtask_id\": \"4.3\",\n   154→          \"title\": \"Test rate limit reset after window expires\",\n   155→          \"description\": \"Verify token usage is properly reset when 5-hour window expires\",\n   156→          \"status\": \"completed\",\n   157→          \"file\": \"test/integration/ratelimit-reset.test.ts\",\n   158→          \"estimated_minutes\": 20\n   159→        },\n   160→        {\n   161→          \"subtask_id\": \"4.4\",\n   162→          \"title\": \"Test concurrent request rate limiting\",\n   163→          \"description\": \"Verify rate limiting works correctly with multiple simultaneous requests\",\n   164→          \"status\": \"completed\",\n   165→          \"file\": \"test/integration/ratelimit-concurrent.test.ts\",\n   166→          \"estimated_minutes\": 20\n   167→        }\n   168→      ]\n   169→    },\n   170→    {\n   171→      \"phase_id\": 5,\n   172→      \"phase_name\": \"Streaming Response Tests\",\n   173→      \"phase_description\": \"Test streaming response handling for both OpenAI and Anthropic formats\",\n   174→      \"status\": \"pending\",\n   175→      \"subtasks\": [\n   176→        {\n   177→          \"subtask_id\": \"5.1\",\n   178→          \"title\": \"Test OpenAI streaming responses\",\n   179→          \"description\": \"Verify SSE streaming for OpenAI chat completions with proper chunk formatting and delta updates\",\n   180→          \"status\": \"completed\",\n   181→          \"file\": \"test/integration/streaming-openai.test.ts\",\n   182→          \"estimated_minutes\": 30\n   183→        },\n   184→        {\n   185→          \"subtask_id\": \"5.2\",\n   186→          \"title\": \"Test Anthropic streaming responses\",\n   187→          \"description\": \"Verify SSE streaming for Anthropic messages with proper event types and chunk handling\",\n   188→          \"status\": \"pending\",\n   18\n\n... [truncated - full output was 11114 chars]",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:45:26.237593+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...integration-test-suite/implementation_plan.json",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...integration-test-suite/implementation_plan.json",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:45:26.275261+00:00",
+          "type": "tool_end",
+          "content": "[Edit] Done",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "session": 1,
+          "detail": "The file ./.auto-claude/specs/003-integration-test-suite/implementation_plan.json has been updated successfully.",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T04:45:28.658822+00:00",
+          "type": "text",
+          "content": "Now let's commit the changes:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T04:45:28.674990+00:00",
+          "type": "tool_start",
+          "content": "[Bash] git add .",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "tool_input": "git add .",
           "session": 1
         }
       ]
