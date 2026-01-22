@@ -53,6 +53,76 @@
     - test/unit/ - Unit tests
   - TypeScript compilation passes successfully
 
+## 2026-01-22 - Phase 2: Database Schema & Models
+
+### Completed
+- ✅ **db-1: Design API keys table schema**
+  - Created comprehensive schema design in src/models/schema.ts
+  - Defined TypeScript interfaces for API key records:
+    - ApiKeyRecord: Database storage structure
+    - CreateApiKeyData: Input data for creating keys
+    - UpdateApiKeyData: Input data for updating keys
+    - ApiKeyResponse: Safe client response format
+    - ApiKeyListParams: Pagination and filtering parameters
+    - ApiKeyListResponse: Paginated list response
+  - Designed SQL schema with proper constraints:
+    - id: Primary key with auto-increment
+    - key_hash: SHA-256 hash with UNIQUE constraint
+    - name: Human-readable name (required)
+    - description: Optional description field
+    - scopes: JSON array string with default '[]'
+    - rate_limit: Integer with default 60
+    - is_active: Boolean (INTEGER 0/1) with default 1
+    - created_at: ISO 8601 timestamp (auto-generated)
+    - updated_at: ISO 8601 timestamp (auto-updated)
+  - All fields properly typed and documented with JSDoc comments
+- ✅ **db-2: Implement database initialization**
+  - Created src/models/database.ts for database connection management
+  - Implemented singleton pattern for database connections
+  - Configured SQLite with WAL mode for better concurrency
+  - Set up automatic schema initialization on first connection
+  - Added database reset utility for testing
+  - Implemented database statistics function for monitoring
+  - All database operations use Bun's built-in bun:sqlite module
+  - Connection includes proper PRAGMA settings:
+    - journal_mode = WAL for better performance
+    - foreign_keys = ON for referential integrity
+    - busy_timeout = 5000ms for concurrent access handling
+- ✅ **db-4: Add database indexes**
+  - Created 4 optimized indexes for common query patterns:
+    - idx_api_keys_key_hash: Fast authentication lookups
+    - idx_api_keys_is_active: Filter by active status
+    - idx_api_keys_name: Search by name
+    - idx_api_keys_active_name: Composite index for active + name queries
+  - Implemented auto-updating timestamp trigger:
+    - Triggers on UPDATE operations
+    - Automatically sets updated_at to current timestamp
+    - Uses WHEN clause to prevent infinite recursion
+  - All indexes created with IF NOT EXISTS for safe re-initialization
+- ✅ **Comprehensive test suite**
+  - Created test/unit/schema.test.ts with 15 tests covering:
+    - Database initialization and connection
+    - Table schema validation
+    - Index creation and verification
+    - Trigger functionality for timestamp updates
+    - CRUD operations (insert, update, select)
+    - Unique constraint enforcement
+    - Database utilities (reset, statistics)
+    - Connection management (singleton pattern, close/reopen)
+  - All tests passing (15/15)
+  - TypeScript compilation successful with no errors
+
+### Implementation Notes
+- Database schema designed for security with key hashing
+- Flexible scopes system using JSON arrays for extensibility
+- Performance optimized with strategic indexes
+- Automatic timestamp management reduces application code complexity
+- Comprehensive type safety throughout the stack
+- Database operations follow SQLite best practices
+
+### Next Steps
+- db-3: Create API key model with CRUD operations
+
 ### Implementation Plan Summary
 
 **Phase 1: Project Setup & Environment** (4 subtasks)
