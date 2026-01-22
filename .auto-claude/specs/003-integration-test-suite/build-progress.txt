@@ -137,12 +137,13 @@
 - Streaming error handling ✅ COMPLETE (32 tests passing in 8.82s)
 - Streaming with rate limiting ✅ COMPLETE (25 tests passing in 3.69s)
 
-**Phase 6: Error Handling Tests** (70 min)
+**Phase 6: Error Handling Tests** ✅ COMPLETE (70 min)
 - Upstream API errors ✅ COMPLETE (26 tests passing in 12.91s)
 - Git commit created: ebb6af5 (upstream error propagation tests)
 - Malformed request handling ✅ COMPLETE (50 tests passing in 22.35s)
 - Timeout errors ✅ COMPLETE (20 tests passing in 12.69s)
-- Network errors
+- Network errors ✅ COMPLETE (27 tests passing in 17.46s)
+- Git commit created: 9a94fb9 (network error handling tests)
 
 **Phase 7: Concurrency Tests** (95 min)
 - Concurrent API requests
@@ -178,7 +179,7 @@
 - [x] Tests cover all API endpoints
 - [x] Tests verify rate limiting enforcement with rolling window
 - [x] Tests validate streaming responses (OpenAI ✅, Anthropic ✅)
-- [ ] Tests verify error handling (streaming errors ✅, upstream errors ✅, validation errors ✅, timeout errors ✅, network errors pending)
+- [x] Tests verify error handling (streaming errors ✅, upstream errors ✅, validation errors ✅, timeout errors ✅, network errors ✅)
 - [x] Tests check authentication/authorization
 - [x] Tests validate API key expiry handling
 - [x] Tests verify concurrent request handling (rate limiting concurrent tests done)
@@ -274,3 +275,20 @@
 - Tests verify timeout error recovery and retry scenarios
 - Tests verify OpenAI and Anthropic endpoint timeout handling
 - All 20 tests passing in 12.69s
+- ✅ Subtask 6.4 Complete: Network error handling tests (27 tests passing in 17.46s)
+- Tests verify connection failures (ECONNREFUSED, ECONNRESET, ETIMEDOUT) are properly handled
+- Tests verify DNS resolution failures (ENOTFOUND) are properly handled
+- Tests verify proper error status codes (502 Bad Gateway, 503 Service Unavailable)
+- Tests verify error response format (JSON content type, error object structure)
+- Tests verify CORS headers are included on network error responses
+- Tests verify streaming requests with network errors return JSON error not stream
+- Tests verify network errors are handled before streaming starts
+- Tests verify network error recovery and retry scenarios
+- Tests verify network error state is not persisted between requests
+- Tests verify concurrent request handling with network errors
+- Tests verify network errors under load
+- Tests verify clear and informative error messages for network failures
+- Tests verify error messages mention upstream, connection, network, or gateway
+- Tests verify OpenAI and Anthropic endpoint network error handling
+- All 27 tests passing in 17.46s
+- Git commit created: 9a94fb9 (network error handling tests)
