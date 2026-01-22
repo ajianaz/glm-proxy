@@ -37,7 +37,7 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 ### Phase 5: Backup & Restore [IN PROGRESS]
 - ✅ SQLite backup (COMPLETED: 5.1)
 - ✅ PostgreSQL backup (COMPLETED: 5.2)
-- Restore functionality
+- ✅ Restore functionality (COMPLETED: 5.3)
 - CLI commands
 - Scheduled backups
 
@@ -484,3 +484,61 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
     ✅ Falls back to SQL dump via Drizzle (backupWithDrizzle with raw SQL queries)
     ✅ Handles large datasets efficiently (streams pg_dump output, raw queries)
     ✅ Creates compressed backups (gzip compression support for both methods)
+- **5.3** Implement restore functionality (COMPLETED)
+  - Implemented comprehensive restore functionality for SQLite and PostgreSQL databases in src/db/backup.ts
+  - Features implemented:
+    * restoreDatabase() main function with full options support
+    * Automatic backup type detection from filename patterns
+    * Pre-restore backup creation for safety (can be disabled)
+    * Backup integrity verification before restore (can be skipped)
+    * Support for compressed and uncompressed backups
+    * Database type mismatch detection with force override option
+  - Restore implementation:
+    * restoreSQLite(): SQLite-specific restore via file replacement
+      - Handles WAL and SHM file cleanup
+      - Closes existing database connections before restore
+      - Validates restored database integrity
+    * restorePostgreSQL(): PostgreSQL-specific restore with fallback
+      - Uses psql command when available for production-grade restores
+      - Falls back to direct SQL execution via postgres client
+      - Handles SQL dump execution with proper error handling
+    * checkPsqlAvailable(): System utility detection
+  - Restore options:
+    * backupBeforeRestore: Auto-create backup before restore (default: true)
+    * verifyBackup: Verify integrity before restore (default: true)
+    * preRestoreBackupDir: Custom directory for pre-restore backups
+    * force: Override database type mismatches (default: false)
+  - Safety features:
+    * Backup verification before restoring (prevents corrupted restores)
+    * Pre-restore backup creation (rollback capability)
+    * Database type checking (prevents accidental type mismatches)
+    * Clear error messages with pre-restore backup location on failure
+    * Proper cleanup of temporary decompressed files
+  - Testing:
+    * Added 11 comprehensive restore tests in src/db/backup.test.ts:
+      - Uncompressed backup restore
+      - Compressed backup restore
+      - Pre-restore backup creation and verification
+      - Database type mismatch detection
+      - Backup verification before restore
+      - Usage windows restoration
+      - WAL and SHM file handling
+      - Full backup/restore cycles
+      - Multiple backup/restore cycles
+    * All 48 backup/restore tests passing (37 existing + 11 new restore tests)
+  - Code quality:
+    * Follows existing code patterns and conventions
+    * No console.log statements
+    * Comprehensive JSDoc documentation with usage examples
+    * TypeScript compilation verified
+    * ESLint validation passed
+    * Bun build successful
+  - Exported functions:
+    * restoreDatabase(): Main restore function with options
+    * RestoreOptions: Interface for restore configuration
+    * RestoreResult: Interface for restore results
+  - All acceptance criteria met:
+    ✅ Supports SQLite restore (via restoreSQLite with file replacement)
+    ✅ Supports PostgreSQL restore (via restorePostgreSQL with psql fallback)
+    ✅ Validates backup before restore (verifyBackup option with verifyBackupIntegrity)
+    ✅ Creates pre-restore backup (backupBeforeRestore option using backupDatabase)

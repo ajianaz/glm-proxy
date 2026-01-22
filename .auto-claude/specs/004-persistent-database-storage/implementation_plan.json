@@ -393,16 +393,19 @@
           "id": "5.3",
           "name": "Implement restore functionality",
           "description": "Create restore function that can restore from backup files",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "src/db/backup.ts"
+            "src/db/backup.ts",
+            "src/db/backup.test.ts"
           ],
           "acceptance_criteria": [
             "Supports SQLite restore",
             "Supports PostgreSQL restore",
             "Validates backup before restore",
             "Creates pre-restore backup"
-          ]
+          ],
+          "completed_at": "2026-01-22T15:30:00.000Z",
+          "notes": "Implemented comprehensive restore functionality for SQLite and PostgreSQL databases:\n\n**Core Functionality:**\n- restoreDatabase() main function with full options support\n- Automatic backup type detection from filename patterns\n- Pre-restore backup creation for safety (can be disabled)\n- Backup integrity verification before restore (can be skipped)\n- Support for compressed and uncompressed backups\n- Database type mismatch detection with force override option\n\n**Restore Implementation:**\n- restoreSQLite(): SQLite-specific restore via file replacement\n  * Handles WAL and SHM file cleanup\n  * Closes existing database connections before restore\n  * Validates restored database integrity\n- restorePostgreSQL(): PostgreSQL-specific restore with fallback\n  * Uses psql command when available for production-grade restores\n  * Falls back to direct SQL execution via postgres client\n  * Handles SQL dump execution with proper error handling\n- checkPsqlAvailable(): System utility detection\n\n**Restore Options:**\n- backupBeforeRestore: Auto-create backup before restore (default: true)\n- verifyBackup: Verify integrity before restore (default: true)\n- preRestoreBackupDir: Custom directory for pre-restore backups\n- force: Override database type mismatches (default: false)\n\n**Safety Features:**\n- Backup verification before restoring (prevents corrupted restores)\n- Pre-restore backup creation (rollback capability)\n- Database type checking (prevents accidental type mismatches)\n- Clear error messages with pre-restore backup location on failure\n- Proper cleanup of temporary decompressed files\n\n**Testing:**\n- Added 11 comprehensive restore tests covering:\n  * Uncompressed backup restore\n  * Compressed backup restore\n  * Pre-restore backup creation and verification\n  * Database type mismatch detection\n  * Backup verification before restore\n  * Usage windows restoration\n  * WAL and SHM file handling\n  * Full backup/restore cycles\n  * Multiple backup/restore cycles\n- All 48 backup/restore tests passing (37 existing + 11 new)\n\n**Code Quality:**\n- Follows existing code patterns and conventions\n- No console.log statements\n- Comprehensive JSDoc documentation with usage examples\n- TypeScript compilation verified\n- ESLint validation passed\n- Bun build successful\n\n**Exported Functions:**\n- restoreDatabase(): Main restore function with options\n- RestoreOptions: Interface for restore configuration\n- RestoreResult: Interface for restore results\n\n**Acceptance Criteria Met:**\n✅ Supports SQLite restore (via restoreSQLite with file replacement)\n✅ Supports PostgreSQL restore (via restorePostgreSQL with psql fallback)\n✅ Validates backup before restore (verifyBackup option with verifyBackupIntegrity)\n✅ Creates pre-restore backup (backupBeforeRestore option using backupDatabase)"
         },
         {
           "id": "5.4",
