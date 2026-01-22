@@ -1,5 +1,5 @@
 import type { ApiKey } from './types.js';
-import { findApiKey } from './storage.js';
+import { getStorage } from './storage/index.js';
 import { isKeyExpired } from './ratelimit.js';
 
 export interface ValidationResult {
@@ -30,7 +30,8 @@ export async function validateApiKey(
     };
   }
 
-  const apiKey = await findApiKey(key);
+  const storage = await getStorage();
+  const apiKey = await storage.findApiKey(key);
 
   if (!apiKey) {
     return {

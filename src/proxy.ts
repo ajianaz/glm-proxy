@@ -1,6 +1,6 @@
 import type { ApiKey } from './types.js';
 import { getModelForKey } from './validator.js';
-import { updateApiKeyUsage } from './storage.js';
+import { getStorage } from './storage/index.js';
 
 const ZAI_API_BASE = 'https://api.z.ai/api/coding/paas/v4';
 const ZAI_API_KEY = process.env.ZAI_API_KEY;
@@ -106,7 +106,14 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
         // Update usage after successful request
         if (tokensUsed > 0) {
           // Don't await - fire and forget for performance
-          updateApiKeyUsage(apiKey.key, tokensUsed, model).catch(console.error);
+          (async () => {
+            try {
+              const storage = await getStorage();
+              await storage.updateApiKeyUsage(apiKey.key, tokensUsed, model);
+            } catch (error) {
+              console.error('Failed to update API key usage:', error);
+            }
+          })();
         }
       } catch {
         // Response not JSON or no usage field

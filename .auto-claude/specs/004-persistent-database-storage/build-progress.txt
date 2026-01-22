@@ -20,12 +20,12 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ Statistics queries (COMPLETED: 2.3)
 - ✅ Helper functions (COMPLETED: 2.4)
 
-### Phase 3: Storage Abstraction [IN PROGRESS]
+### Phase 3: Storage Abstraction [COMPLETED]
 - ✅ Define IStorage interface (COMPLETED: 3.1)
 - ✅ Database adapter (COMPLETED: 3.2)
 - ✅ File storage adapter (COMPLETED: 3.3)
 - ✅ Storage factory (COMPLETED: 3.4)
-- Update existing code
+- ✅ Update existing code to use storage interface (COMPLETED: 3.5)
 
 ### Phase 4: Migration Tool [PENDING]
 - CLI migration script
@@ -270,3 +270,36 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
   - Follows existing code patterns and conventions
   - No console.log statements (only console.warn for configuration issues)
   - All acceptance criteria met: Environment-based selection, defaults to file-based, singleton pattern, graceful fallback
+- **3.5** Update existing code to use storage interface (COMPLETED)
+  - Refactored all consumers to use the IStorage interface via getStorage() factory
+  - Modified src/validator.ts: Changed from importing `findApiKey` from `./storage.js` to using `getStorage()` from `./storage/index.js`
+    - validateApiKey() now calls `storage.findApiKey()` instead of direct import
+    - Maintains same function signatures and behavior
+  - Modified src/anthropic.ts: Changed from importing `updateApiKeyUsage` from `./storage.js` to using `getStorage()` from `./storage/index.js`
+    - Fire-and-forget pattern for usage updates (async IIFE with error handling)
+    - Proper error logging if storage update fails
+    - No impact on proxy performance
+  - Modified src/proxy.ts: Changed from importing `updateApiKeyUsage` from `./storage.js` to using `getStorage()` from `./storage/index.js`
+    - Fire-and-forget pattern for usage updates (async IIFE with error handling)
+    - Proper error logging if storage update fails
+    - No impact on proxy performance
+  - Modified test/validator.test.ts: Updated mock to target `../src/storage/index.js` instead of `../src/storage.js`
+    - Mock now returns storage object with findApiKey method
+    - All 6 validator tests passing
+  - Key design decisions:
+    * Used async IIFE for fire-and-forget pattern in proxy handlers
+    * Error handling for storage updates prevents crashes from update failures
+    * Singleton pattern ensures storage instance is reused across all calls
+    * Backward compatibility maintained - no breaking changes to existing APIs
+  - Code quality:
+    * ESLint validation passed (only 1 pre-existing warning in proxy.ts)
+    * Follows existing code patterns and conventions
+    * No console.log statements (only console.error for error handling)
+    * TypeScript type safety maintained throughout
+    * All validator tests passing (6/6)
+  - Backward compatibility:
+    * Old storage.ts file remains available for other consumers
+    * Function signatures unchanged - same behavior from caller's perspective
+    * Tests updated to work with new interface
+    * No breaking changes to existing code
+  - All acceptance criteria met: All imports use storage interface, no direct database/file operations, backward compatible
