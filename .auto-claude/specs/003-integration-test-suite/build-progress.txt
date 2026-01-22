@@ -138,7 +138,8 @@
 - Streaming with rate limiting ✅ COMPLETE (25 tests passing in 3.69s)
 
 **Phase 6: Error Handling Tests** (70 min)
-- Upstream API errors
+- Upstream API errors ✅ COMPLETE (26 tests passing in 12.91s)
+- Git commit created: ebb6af5 (upstream error propagation tests)
 - Malformed request handling
 - Timeout errors
 - Network errors
@@ -177,7 +178,7 @@
 - [x] Tests cover all API endpoints
 - [x] Tests verify rate limiting enforcement with rolling window
 - [x] Tests validate streaming responses (OpenAI ✅, Anthropic ✅)
-- [ ] Tests verify error handling (streaming errors ✅, upstream/validation/network/timeouts pending)
+- [ ] Tests verify error handling (streaming errors ✅, upstream errors ✅, validation/network/timeouts pending)
 - [x] Tests check authentication/authorization
 - [x] Tests validate API key expiry handling
 - [x] Tests verify concurrent request handling (rate limiting concurrent tests done)
@@ -237,3 +238,15 @@
 - Tests verify CORS headers are included on rate limited streaming requests
 - All 25 tests passing in 3.69s
 - ✅ Phase 5 Complete: All streaming response tests (119 total tests passing across all streaming test suites)
+- ✅ Subtask 6.1 Complete: Upstream API error propagation tests (26 tests passing in 12.91s)
+- Tests verify various HTTP error status codes are properly propagated (400, 401, 403, 404, 429, 500, 502, 503)
+- Tests verify OpenAI chat completions endpoint upstream error handling
+- Tests verify Anthropic messages endpoint upstream error handling
+- Tests verify error response format (JSON content type, error object structure)
+- Tests verify error messages are preserved from upstream
+- Tests verify CORS headers are included on upstream error responses
+- Tests verify distinction between upstream errors and proxy errors
+- Tests verify streaming requests return JSON errors not streams when upstream fails
+- Tests verify HTTP status codes are preserved from upstream
+- All 26 tests passing in 12.91s
+- Git commit created: ebb6af5 (upstream error propagation tests)
