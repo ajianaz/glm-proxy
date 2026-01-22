@@ -8,7 +8,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { adminAuthMiddleware, type AdminAuthContext } from '../../middleware/adminAuth.js';
-import { ApiKeyModel, ApiKeyValidationError, ApiKeyDuplicateError } from '../../models/apiKey.js';
+import { ApiKeyModel, ApiKeyValidationError, ApiKeyDuplicateError, ApiKeyNotFoundError } from '../../models/apiKey.js';
 import type { ApiKeyResponse, CreateApiKeyData } from '../../models/schema.js';
 
 // Create Hono app with admin auth context
@@ -84,6 +84,37 @@ const listApiKeysSchema = z.object({
  * Type for list API keys query parameters
  */
 type ListApiKeysQuery = z.infer<typeof listApiKeysSchema>;
+
+/**
+ * Request validation schema for updating API keys
+ */
+const updateApiKeySchema = z.object({
+  name: z.string()
+    .trim()
+    .min(1, 'Name must be at least 1 character long')
+    .max(255, 'Name must not exceed 255 characters')
+    .optional(),
+
+  description: z.string()
+    .max(1000, 'Description must not exceed 1000 characters')
+    .nullable()
+    .optional(),
+
+  scopes: z.array(z.string()).optional(),
+
+  rate_limit: z.number()
+    .int('Rate limit must be an integer')
+    .min(0, 'Rate limit must be at least 0')
+    .max(10000, 'Rate limit must not exceed 10000')
+    .optional(),
+
+  is_active: z.boolean().optional(),
+});
+
+/**
+ * Type for update API key request body
+ */
+type UpdateApiKeyRequest = z.infer<typeof updateApiKeySchema>;
 
 /**
  * Format validation errors for API response
@@ -296,6 +327,118 @@ app.get('/:id', adminAuthMiddleware, async (c) => {
       {
         error: 'Internal server error',
         details: 'An unexpected error occurred while retrieving the API key',
+      },
+      500
+    );
+  }
+});
+
+/**
+ * PUT /admin/api/keys/:id
+ *
+ * Update an existing API key by ID.
+ *
+ * @example
+ * ```bash
+ * curl -X PUT "http://localhost:3000/admin/api/keys/1" \
+ *   -H "Authorization: Bearer <admin-api-key>" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "name": "Updated Key Name",
+ *     "description": "Updated description",
+ *     "scopes": ["read", "write"],
+ *     "rate_limit": 100,
+ *     "is_active": false
+ *   }'
+ * ```
+ */
+app.put('/:id', adminAuthMiddleware, async (c) => {
+  try {
+    // Extract and validate ID parameter
+    const idParam = c.req.param('id');
+
+    const idValidation = z.object({
+      id: z.string()
+        .regex(/^\d+$/, 'ID must be a positive integer')
+        .transform((val) => parseInt(val, 10))
+        .refine((val) => val > 0, 'ID must be greater than 0'),
+    }).safeParse({ id: idParam });
+
+    if (!idValidation.success) {
+      const errors = formatValidationErrors(idValidation.error);
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: errors,
+        },
+        400
+      );
+    }
+
+    const id = idValidation.data.id;
+
+    // Parse and validate request body
+    let rawBody;
+    try {
+      rawBody = await c.req.json();
+    } catch (parseError) {
+      return c.json(
+        {
+          error: 'Invalid JSON',
+          details: [{ field: 'body', message: 'Request body contains invalid JSON' }],
+        },
+        400
+      );
+    }
+
+    const validationResult = updateApiKeySchema.safeParse(rawBody);
+
+    if (!validationResult.success) {
+      const errors = formatValidationErrors(validationResult.error);
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: errors,
+        },
+        400
+      );
+    }
+
+    const data = validationResult.data;
+
+    // Update API key using model
+    const result = ApiKeyModel.update(id, data);
+
+    // Return 200 OK with the updated key
+    return c.json(result, 200);
+  } catch (error) {
+    // Handle specific error types
+    if (error instanceof ApiKeyValidationError) {
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: [{ field: 'general', message: error.message }],
+        },
+        400
+      );
+    }
+
+    if (error instanceof ApiKeyNotFoundError) {
+      return c.json(
+        {
+          error: 'Not found',
+          details: error.message,
+        },
+        404
+      );
+    }
+
+    // Handle unexpected errors
+    console.error('Unexpected error updating API key:', error);
+    return c.json(
+      {
+        error: 'Internal server error',
+        details: 'An unexpected error occurred while updating the API key',
       },
       500
     );

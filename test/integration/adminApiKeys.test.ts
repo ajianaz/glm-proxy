@@ -1353,3 +1353,741 @@ describe('GET /admin/api/keys/:id', () => {
     });
   });
 });
+
+describe('PUT /admin/api/keys/:id', () => {
+  beforeEach(async () => {
+    // Reset config and caches
+    resetConfig();
+    resetAdminKeyCache();
+
+    // Set up environment for testing
+    process.env.ADMIN_API_KEY = ADMIN_API_KEY;
+    process.env.ADMIN_API_ENABLED = 'true';
+    process.env.ZAI_API_KEY = 'test-zai-key';
+    process.env.DATABASE_PATH = ':memory:';
+
+    // Close and reset database for clean state
+    closeDatabase();
+    resetDatabase();
+  });
+
+  /**
+   * Helper function to make authenticated requests to the PUT endpoint
+   */
+  async function makePutRequest(id: string, data: any, authToken?: string) {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const url = `http://localhost/${id}`;
+    const request = new Request(new URL(url), {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+
+    return keysRoutes.fetch(request);
+  }
+
+  /**
+   * Helper function to create test API keys
+   */
+  async function createTestKey(data: Partial<{
+    key: string;
+    name: string;
+    description: string | null;
+    scopes: string[];
+    rate_limit: number;
+    is_active: boolean;
+  }> = {}) {
+    const key = data.key || `sk-test-${Math.random().toString(36).substring(2, 15)}-${Math.random().toString(36).substring(2, 15)}`;
+    return ApiKeyModel.create({
+      key,
+      name: data.name || 'Test Key',
+      description: data.description ?? null,
+      scopes: data.scopes ?? [],
+      rate_limit: data.rate_limit ?? 60,
+    });
+  }
+
+  describe('Authentication', () => {
+    it('should update API key with valid admin API key', async () => {
+      const createdKey = await createTestKey({ name: 'Original Name' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { name: 'Updated Name' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('id', createdKey.id);
+      expect(data).toHaveProperty('name', 'Updated Name');
+    });
+
+    it('should update API key with valid admin token', async () => {
+      const token = await generateAdminToken();
+      const createdKey = await createTestKey({ name: 'Original Name' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { name: 'Token Updated Name' },
+        token
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('name', 'Token Updated Name');
+    });
+
+    it('should return 401 when admin API key is missing', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { name: 'Updated Name' }
+      );
+
+      expect(response.status).toBe(401);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error');
+    });
+
+    it('should return 401 when admin API key is invalid', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { name: 'Updated Name' },
+        'invalid-admin-key'
+      );
+
+      expect(response.status).toBe(401);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error');
+    });
+  });
+
+  describe('ID Parameter Validation', () => {
+    it('should return 400 when ID is not a number', async () => {
+      const response = await makePutRequest('abc', { name: 'Updated' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should return 400 when ID contains special characters', async () => {
+      const response = await makePutRequest('1abc', { name: 'Updated' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should return 400 when ID is negative', async () => {
+      const response = await makePutRequest('-1', { name: 'Updated' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+
+    it('should return 400 when ID is zero', async () => {
+      const response = await makePutRequest('0', { name: 'Updated' }, ADMIN_API_KEY);
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.details.some((d: any) => d.field === 'id')).toBe(true);
+    });
+  });
+
+  describe('Request Body Validation', () => {
+    it('should return 400 when name is empty string', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { name: '   ' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Validation failed');
+      expect(data.details.some((d: any) => d.field === 'name')).toBe(true);
+    });
+
+    it('should return 400 when name is too long', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { name: 'a'.repeat(256) },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.details.some((d: any) => d.field === 'name')).toBe(true);
+    });
+
+    it('should return 400 when description is too long', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { description: 'a'.repeat(1001) },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.details.some((d: any) => d.field === 'description')).toBe(true);
+    });
+
+    it('should return 400 when scopes is not an array', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { scopes: 'not-an-array' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.details.some((d: any) => d.field === 'scopes')).toBe(true);
+    });
+
+    it('should return 400 when rate_limit is negative', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { rate_limit: -1 },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.details.some((d: any) => d.field === 'rate_limit')).toBe(true);
+    });
+
+    it('should return 400 when rate_limit exceeds maximum', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { rate_limit: 10001 },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.details.some((d: any) => d.field === 'rate_limit')).toBe(true);
+    });
+
+    it('should return 400 when rate_limit is not an integer', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { rate_limit: 60.5 },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.details.some((d: any) => d.field === 'rate_limit')).toBe(true);
+    });
+
+    it('should return 400 when is_active is not a boolean', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { is_active: 'true' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.details.some((d: any) => d.field === 'is_active')).toBe(true);
+    });
+
+    it('should return 400 for malformed JSON', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${ADMIN_API_KEY}`,
+        'Content-Type': 'application/json',
+      };
+
+      const url = `http://localhost/${createdKey.id}`;
+      const request = new Request(new URL(url), {
+        method: 'PUT',
+        headers,
+        body: 'invalid json',
+      });
+
+      const response = await keysRoutes.fetch(request);
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('Successful Updates', () => {
+    it('should update name field', async () => {
+      const createdKey = await createTestKey({ name: 'Original Name' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { name: 'Updated Name' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.name).toBe('Updated Name');
+      expect(data.id).toBe(createdKey.id);
+    });
+
+    it('should update description field', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key', description: 'Original' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { description: 'Updated description' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.description).toBe('Updated description');
+    });
+
+    it('should update description to null', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key', description: 'Original' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { description: null },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.description).toBeNull();
+    });
+
+    it('should update scopes field', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key', scopes: ['read'] });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { scopes: ['read', 'write', 'delete'] },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.scopes).toEqual(['read', 'write', 'delete']);
+    });
+
+    it('should update rate_limit field', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key', rate_limit: 60 });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { rate_limit: 120 },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.rate_limit).toBe(120);
+    });
+
+    it('should update is_active field to false', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { is_active: false },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.is_active).toBe(false);
+    });
+
+    it('should update is_active field back to true', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+      ApiKeyModel.update(createdKey.id, { is_active: false });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { is_active: true },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.is_active).toBe(true);
+    });
+
+    it('should update multiple fields at once', async () => {
+      const createdKey = await createTestKey({
+        name: 'Original Name',
+        description: 'Original description',
+        scopes: ['read'],
+        rate_limit: 60,
+      });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        {
+          name: 'Updated Name',
+          description: 'Updated description',
+          scopes: ['read', 'write'],
+          rate_limit: 100,
+          is_active: false,
+        },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.name).toBe('Updated Name');
+      expect(data.description).toBe('Updated description');
+      expect(data.scopes).toEqual(['read', 'write']);
+      expect(data.rate_limit).toBe(100);
+      expect(data.is_active).toBe(false);
+    });
+
+    it('should handle empty update body (no changes)', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        {},
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.name).toBe('Test Key');
+    });
+
+    it('should trim whitespace from name', async () => {
+      const createdKey = await createTestKey({ name: 'Original Name' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { name: '  Updated Name  ' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.name).toBe('Updated Name');
+    });
+
+    it('should trim whitespace from description', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key', description: 'Original' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { description: '  Updated description  ' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.description).toBe('Updated description');
+    });
+  });
+
+  describe('Not Found Scenarios', () => {
+    it('should return 404 when API key does not exist', async () => {
+      const response = await makePutRequest(
+        '99999',
+        { name: 'Updated Name' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(404);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('error', 'Not found');
+      expect(data).toHaveProperty('details');
+      expect(data.details).toContain('API key with id 99999 not found');
+    });
+
+    it('should return 404 for non-existent ID with valid format', async () => {
+      await createTestKey({ name: 'Existing Key' });
+
+      const response = await makePutRequest(
+        '99999',
+        { name: 'Updated Name' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe('Response Format', () => {
+    it('should return correctly formatted response with all fields', async () => {
+      const createdKey = await createTestKey({
+        name: 'Original Name',
+        description: 'Original description',
+        scopes: ['read'],
+        rate_limit: 60,
+      });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        {
+          name: 'Updated Name',
+          description: 'Updated description',
+          scopes: ['read', 'write'],
+          rate_limit: 100,
+          is_active: false,
+        },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+
+      // Check all expected fields are present
+      expect(data).toHaveProperty('id');
+      expect(typeof data.id).toBe('number');
+      expect(data.id).toBe(createdKey.id);
+
+      expect(data).toHaveProperty('name');
+      expect(data.name).toBe('Updated Name');
+
+      expect(data).toHaveProperty('description');
+      expect(data.description).toBe('Updated description');
+
+      expect(data).toHaveProperty('scopes');
+      expect(Array.isArray(data.scopes)).toBe(true);
+      expect(data.scopes).toEqual(['read', 'write']);
+
+      expect(data).toHaveProperty('rate_limit');
+      expect(data.rate_limit).toBe(100);
+
+      expect(data).toHaveProperty('is_active');
+      expect(data.is_active).toBe(false);
+
+      expect(data).toHaveProperty('created_at');
+      expect(typeof data.created_at).toBe('string');
+
+      expect(data).toHaveProperty('updated_at');
+      expect(typeof data.updated_at).toBe('string');
+
+      // Check sensitive fields are NOT present
+      expect(data).not.toHaveProperty('key');
+      expect(data).not.toHaveProperty('key_hash');
+      expect(data).not.toHaveProperty('key_preview');
+    });
+
+    it('should return updated_at timestamp in response', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { name: 'Updated Name' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data).toHaveProperty('updated_at');
+      expect(typeof data.updated_at).toBe('string');
+
+      // Verify it's a valid ISO 8601 timestamp (SQLite datetime format)
+      const timestampRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+      expect(data.updated_at).toMatch(timestampRegex);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle very large ID number', async () => {
+      const response = await makePutRequest(
+        '999999999',
+        { name: 'Updated' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(404); // Not found, but valid format
+    });
+
+    it('should handle ID with leading zeros', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        `0${createdKey.id}`,
+        { name: 'Updated Name' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.id).toBe(createdKey.id);
+      expect(data.name).toBe('Updated Name');
+    });
+
+    it('should allow setting all fields to minimal values', async () => {
+      const createdKey = await createTestKey({
+        name: 'Original',
+        description: 'Original description',
+        scopes: ['read', 'write', 'delete'],
+        rate_limit: 1000,
+      });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        {
+          name: 'Min',
+          description: null, // Empty strings are converted to null
+          scopes: [],
+          rate_limit: 0,
+          is_active: false,
+        },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.name).toBe('Min');
+      expect(data.description).toBeNull(); // Empty strings become null
+      expect(data.scopes).toEqual([]);
+      expect(data.rate_limit).toBe(0);
+      expect(data.is_active).toBe(false);
+    });
+
+    it('should allow setting all fields to maximum values', async () => {
+      const createdKey = await createTestKey({ name: 'Original' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        {
+          name: 'a'.repeat(255),
+          description: 'a'.repeat(1000),
+          scopes: ['scope1', 'scope2', 'scope3'],
+          rate_limit: 10000,
+          is_active: true,
+        },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.name.length).toBe(255);
+      expect(data.description.length).toBe(1000);
+      expect(data.scopes).toHaveLength(3);
+      expect(data.rate_limit).toBe(10000);
+      expect(data.is_active).toBe(true);
+    });
+
+    it('should handle special characters in name', async () => {
+      const createdKey = await createTestKey({ name: 'Original' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { name: 'Key with (parentheses) and [brackets]' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.name).toBe('Key with (parentheses) and [brackets]');
+    });
+
+    it('should handle unicode characters in description', async () => {
+      const createdKey = await createTestKey({ name: 'Test Key' });
+
+      const response = await makePutRequest(
+        String(createdKey.id),
+        { description: 'Description with emoji 🚀 and chinese 中文' },
+        ADMIN_API_KEY
+      );
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.description).toContain('emoji');
+      expect(data.description).toContain('中文');
+    });
+
+    it('should handle consecutive updates correctly', async () => {
+      const createdKey = await createTestKey({ name: 'Original' });
+
+      // First update
+      const response1 = await makePutRequest(
+        String(createdKey.id),
+        { name: 'First Update' },
+        ADMIN_API_KEY
+      );
+
+      expect(response1.status).toBe(200);
+      const data1 = await response1.json();
+      expect(data1.name).toBe('First Update');
+
+      // Second update
+      const response2 = await makePutRequest(
+        String(createdKey.id),
+        { name: 'Second Update' },
+        ADMIN_API_KEY
+      );
+
+      expect(response2.status).toBe(200);
+      const data2 = await response2.json();
+      expect(data2.name).toBe('Second Update');
+    });
+  });
+});
