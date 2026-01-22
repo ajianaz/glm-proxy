@@ -1,0 +1,219 @@
+{
+  "documentation_gaps": [
+    {
+      "id": "doc-001",
+      "type": "documentation_gaps",
+      "title": "Add JSDoc documentation to all public API functions",
+      "description": "The codebase exports 20+ public functions across 8 modules (proxy.ts, anthropic.ts, ratelimit.ts, storage.ts, validator.ts, middleware/auth.ts, middleware/rateLimit.ts, handlers/proxyHandler.ts) but none have JSDoc comments. Critical functions like proxyRequest(), proxyAnthropicRequest(), checkRateLimit(), and withLock() lack parameter descriptions, return value documentation, and usage examples.",
+      "rationale": "This is a significant gap for contributors and maintainers. The codebase has complex logic around rate limiting, file locking, and proxy transformation that requires understanding the nuances. Without JSDoc, developers must read source code to understand function behavior, parameters, and return values. IDEs cannot provide intelligent autocomplete or inline help, slowing down development.",
+      "category": "api_docs",
+      "targetAudience": "developers",
+      "affectedAreas": [
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        "src/ratelimit.ts",
+        "src/storage.ts",
+        "src/validator.ts",
+        "src/middleware/auth.ts",
+        "src/middleware/rateLimit.ts",
+        "src/handlers/proxyHandler.ts"
+      ],
+      "currentDocumentation": "Only basic TypeScript type definitions with minimal inline comments",
+      "proposedContent": "Add comprehensive JSDoc comments to all exported functions including:\n- Function description and purpose\n- @param tags with type and description for each parameter\n- @returns tag describing return value and structure\n- @throws tag for errors that may be thrown\n- @example tags showing common usage patterns\n- Notes about side effects (e.g., file I/O, network calls)",
+      "priority": "high",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "doc-002",
+      "type": "documentation_gaps",
+      "title": "Create CONTRIBUTING.md with development workflow guide",
+      "description": "No CONTRIBUTING.md file exists. The README has basic development commands (test, build, lint, typecheck) but lacks guidance on setting up development environment, coding standards, commit message conventions, PR process, or how to add new features. New contributors must infer workflow from existing code and git history.",
+      "rationale": "This project uses modern tooling (Husky, lint-staged, ESLint, Vitest) and has specific patterns (file locking, rate limiting, middleware chain) that contributors should follow. Without contributing guidelines, contributions may be inconsistent, require more review cycles, or inadvertently break patterns. A good CONTRIBUTING.md accelerates onboarding and reduces maintainer burden.",
+      "category": "readme",
+      "targetAudience": "contributors",
+      "affectedAreas": [
+        "CONTRIBUTING.md (new file)",
+        ".husky/",
+        "package.json"
+      ],
+      "currentDocumentation": "Only basic 'Development' section in README with 4 commands",
+      "proposedContent": "Create comprehensive CONTRIBUTING.md covering:\n- Development environment setup (Bun, dependencies)\n- Project structure and architecture overview\n- Coding standards and conventions (TypeScript, error handling, naming)\n- Testing guide (how to write tests, coverage expectations)\n- Commit message conventions (likely Conventional Commits given Husky setup)\n- PR submission process and review checklist\n- Local development workflow with hot reload\n- Common patterns (middleware, proxy handlers, storage operations)",
+      "priority": "high",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "doc-003",
+      "type": "documentation_gaps",
+      "title": "Add inline comments for complex algorithms and non-obvious logic",
+      "description": "Several critical algorithms lack explanatory comments: (1) The rolling 5-hour window rate limiting algorithm in ratelimit.ts calculates active windows but doesn't explain why multiple windows exist or how cleanup works. (2) The file locking mechanism in storage.ts uses atomic mkdir but doesn't document the retry logic or race condition prevention. (3) The proxy header transformation logic forwards some headers but not others without explaining security implications.",
+      "rationale": "The rate limiting and file locking code are core to the system's correctness and performance. The rolling window algorithm is particularly subtle (multiple overlapping windows, cleanup of old entries, retry-after calculation). Future maintainers debugging quota issues or data races will need to understand these intricacies. Inline comments serve as 'guard rails' preventing accidental breaking changes.",
+      "category": "inline_comments",
+      "targetAudience": "developers",
+      "affectedAreas": [
+        "src/ratelimit.ts (checkRateLimit function)",
+        "src/storage.ts (withLock function, updateApiKeyUsage function)",
+        "src/proxy.ts (header forwarding logic, model injection)",
+        "src/anthropic.ts (header transformation)"
+      ],
+      "currentDocumentation": "Minimal comments (e.g., 'Get all active windows')",
+      "proposedContent": "Add detailed inline comments explaining:\n- Why rolling window uses multiple entries (to handle overlapping periods)\n- How cleanup prevents memory leaks while preserving accurate limits\n- Why mkdir is used for file locking (atomic on Unix filesystems)\n- The retry/backoff strategy and EEXIST error handling\n- Why certain headers are forwarded vs. replaced (security considerations)\n- Why model is injected rather than forwarded (quota enforcement per-key model)",
+      "priority": "high",
+      "estimatedEffort": "low"
+    },
+    {
+      "id": "doc-004",
+      "type": "documentation_gaps",
+      "title": "Create comprehensive testing documentation",
+      "description": "The project has 5 test files (anthropic.test.ts, proxy.test.ts, ratelimit.test.ts, storage.test.ts, validator.test.ts) but no testing guide. New contributors don't know test organization patterns, how to mock external dependencies (Z.AI API, file system), or what coverage is expected. The README only shows 'bun test' command without context.",
+      "rationale": "Testing distributed systems (proxies, rate limiting, file I/O) requires specific patterns. The storage tests likely mock fs operations, proxy tests mock fetch, but these patterns aren't documented. Contributors adding features won't know how to test concurrent file access, race conditions in rate limiting, or streaming responses. Documented test patterns ensure consistent quality and make test writing faster.",
+      "category": "examples",
+      "targetAudience": "contributors",
+      "affectedAreas": [
+        "test/",
+        "docs/TESTING.md (new file)",
+        "vitest.config.ts (if exists)"
+      ],
+      "currentDocumentation": "Only 'bun test' mentioned in README Development section",
+      "proposedContent": "Create docs/TESTING.md covering:\n- Test organization (unit vs integration test separation)\n- How to run tests (bun test, vitest watch mode, coverage reports)\n- Mocking patterns for external dependencies (fetch, fs, time)\n- Testing concurrency and race conditions (rate limiting, file locking)\n- Testing streaming responses and SSE\n- Coverage expectations and thresholds\n- Example test templates for common scenarios (proxy handler, middleware, storage)",
+      "priority": "medium",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "doc-005",
+      "type": "documentation_gaps",
+      "title": "Create deployment and production operations guide",
+      "description": "No deployment documentation exists beyond basic docker-compose up. The Dockerfile uses security best practices (non-root user, health checks) but these aren't documented. Production concerns like environment variable security, volume mounting for persistence, scaling strategies, monitoring, log aggregation, and rolling updates are not covered. Operators deploying to production must infer from Dockerfile alone.",
+      "rationale": "The README shows quick local setup but production deployment has different requirements: securing ZAI_API_KEY, persisting apikeys.json across container restarts, handling rolling updates without dropping requests, monitoring rate limit breaches, and log aggregation for debugging. The design doc mentions 'Horizontal Scaling' but doesn't explain how to handle shared state (apikeys.json) across multiple instances. Without deployment docs, production setup will be trial-and-error.",
+      "category": "architecture",
+      "targetAudience": "maintainers",
+      "affectedAreas": [
+        "Dockerfile",
+        "docker-compose.yml",
+        "docker-entrypoint.sh",
+        "docs/DEPLOYMENT.md (new file)"
+      ],
+      "currentDocumentation": "Brief 'Capacity & Scaling' section in README with docker-compose scale example",
+      "proposedContent": "Create docs/DEPLOYMENT.md covering:\n- Production docker-compose configuration (resource limits, restart policies)\n- Environment variable security (secrets management, not committing .env)\n- Volume mounting strategy for apikeys.json persistence\n- Health check configuration and monitoring\n- Scaling considerations (shared state problem with JSON file storage, Redis as alternative)\n- Log aggregation and debugging in production\n- Rolling update deployment strategy\n- Backup/restore procedures for apikeys.json\n- Production environment variables checklist",
+      "priority": "medium",
+      "estimatedEffort": "medium"
+    }
+  ],
+  "additional_gaps_identified": [
+    {
+      "id": "doc-006",
+      "type": "documentation_gaps",
+      "title": "Create examples/ directory with runnable integration samples",
+      "description": "The README has curl examples and Anthropic SDK samples, but no dedicated examples/ directory with complete, runnable code. Users integrating with common frameworks (OpenAI SDK, LangChain, LlamaIndex, Next.js, Cloudflare Workers) must figure it out themselves. No examples showing error handling, retry logic, or streaming implementations in different languages.",
+      "rationale": "Practical examples reduce integration friction dramatically. Users often learn by copying and modifying working code. Having a curated examples/ directory with real-world integrations (OpenAI SDK, LangChain, streaming in Python/TypeScript, Next.js API routes, edge functions) serves as both documentation and marketing. It shows the proxy is production-ready and well-maintained.",
+      "category": "examples",
+      "targetAudience": "users",
+      "affectedAreas": [
+        "examples/ (new directory)",
+        "README.md"
+      ],
+      "currentDocumentation": "README has basic curl examples and one Anthropic SDK TypeScript/Python example. No runnable example projects.",
+      "proposedContent": "Create examples/ directory with: openai-sdk-example.ts (using OpenAI SDK with this proxy), langchain-integration.py, streaming-example.ts, nextjs-api-route/, cloudflare-worker/, error-handling-patterns.ts. Each example should be complete, runnable, with its own README explaining setup and what it demonstrates.",
+      "priority": "high",
+      "estimatedEffort": "large"
+    },
+    {
+      "id": "doc-007",
+      "type": "documentation_gaps",
+      "title": "Add architecture diagrams and visual system documentation",
+      "description": "The docs/plans/2025-01-18-proxy-gateway-design.md has architecture information but only text-based diagrams. No visual sequence diagrams, component interaction diagrams, or data flow charts. Complex flows like streaming SSE responses, concurrent rate limit checking, and rolling window management are hard to visualize from text alone.",
+      "rationale": "Visual diagrams communicate architecture faster than text. New contributors can grasp the system at a glance from a component diagram. Sequence diagrams showing the full request lifecycle (client → auth → rate limit → proxy → Z.AI → token extraction → storage) reveal interception points for middleware. State diagrams for rate limit windows explain the rolling algorithm visually. This is especially important for distributed systems concepts.",
+      "category": "architecture",
+      "targetAudience": "developers",
+      "affectedAreas": [
+        "docs/architecture/ (new directory)",
+        "docs/diagrams/"
+      ],
+      "currentDocumentation": "Text-based architecture diagram in docs/plans/2025-01-18-proxy-gateway-design.md showing basic flow, but no visual diagrams.",
+      "proposedContent": "Create docs/architecture/ with: component-diagram.mermaid (all modules and relationships), sequence-diagram.mermaid (full request flow), rate-limit-state-diagram.mermaid (rolling window states), streaming-flow-diagram.mermaid (SSE handling), error-handling-flow.mermaid. Generate PNG/SVG versions for README embedding. Explain each diagram's purpose and what it reveals about the system.",
+      "priority": "medium",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "doc-008",
+      "type": "documentation_gaps",
+      "title": "Document API key security best practices for users and administrators",
+      "description": "The README shows how to create API keys manually in apikeys.json, but lacks security guidance. No documentation on: key generation entropy, key rotation procedures, auditing key usage, detecting compromised keys, principle of least privilege for limits, secure distribution of keys to users, or revocation procedures. This creates security risk for administrators managing keys.",
+      "rationale": "API keys are credentials. Poor key management leads to security breaches. Administrators need guidance on generating strong keys (format, length, entropy), safely distributing them to users (avoiding email, using secure channels), regularly rotating them, detecting suspicious usage patterns, and revoking compromised keys. The current JSON file storage has no access logging, so usage patterns are the only detection mechanism. Documenting this prevents security incidents.",
+      "category": "troubleshooting",
+      "targetAudience": "maintainers",
+      "affectedAreas": [
+        "docs/security.md (new file)",
+        "README.md (API Key Management section)"
+      ],
+      "currentDocumentation": "README shows apikeys.json structure and jq example for creating keys, but no security best practices.",
+      "proposedContent": "Create docs/SECURITY.md covering: API key generation guidelines (use cryptographic random, minimum 256-bit entropy, pk_ prefix format), secure distribution methods (avoid plaintext email, use password managers or secret sharing tools), key rotation schedule and procedures, monitoring for suspicious usage (sudden token spikes, unusual timing), key revocation process, principle of least privilege for token limits, and backup procedures for apikeys.json.",
+      "priority": "high",
+      "estimatedEffort": "low"
+    },
+    {
+      "id": "doc-009",
+      "type": "documentation_gaps",
+      "title": "Create comprehensive FAQ and common error patterns documentation",
+      "description": "The README has a brief FAQ section (6 questions) but lacks depth. Common issues like CORS errors, streaming timeout handling, rate limit retry-after calculation, model override behavior, concurrent request limits, and file locking contention are not covered. No troubleshooting guide for common error messages beyond HTTP codes table.",
+      "rationale": "A good FAQ reduces support burden significantly. Users encounter predictable issues: CORS when calling from browsers, how to handle 429 retry-after, why their model override isn't working, streaming connection drops, file lock errors under high concurrency, timezone confusion in expiry dates. Documenting these with solutions prevents repetitive questions. The 'Enhanced Error Messages' planned feature will help, but FAQ explains WHY errors happen and HOW to fix them proactively.",
+      "category": "troubleshooting",
+      "targetAudience": "users",
+      "affectedAreas": [
+        "docs/FAQ.md (new file)",
+        "README.md (FAQ section)"
+      ],
+      "currentDocumentation": "README has 6-question FAQ covering basic streaming, Anthropic support, models, quota, data storage, and OpenAI vs Anthropic difference.",
+      "proposedContent": "Expand FAQ significantly with: Why do I get CORS errors and how to fix (proxy headers, browser restrictions), What does retry-after mean and how to implement exponential backoff, Why isn't my model override working (key.model vs DEFAULT_MODEL priority), How do I handle streaming timeouts/aborts, What causes file lock errors (concurrent writes, solutions), Why is my quota incorrect (rolling window explanation with visual), Can I share one API key across multiple applications (yes, but quota shared), How do I migrate from direct Z.AI API (just change baseURL, add proxy key).",
+      "priority": "medium",
+      "estimatedEffort": "low"
+    },
+    {
+      "id": "doc-010",
+      "type": "documentation_gaps",
+      "title": "Document version compatibility and migration guide",
+      "description": "No versioning strategy or migration documentation exists. Users upgrading don't know what changed, whether their configuration will break, or if API key format is stable. The design doc (2025-01-18) suggests this is v1.0.0 but no semver policy is documented. No changelog exists to track breaking changes or new features.",
+      "rationale": "As the proxy evolves, users need predictability. Breaking changes to apikeys.json schema, environment variables, or API behavior would break deployments. Documenting semver policy, maintaining CHANGELOG.md, and providing migration guides for each version enables users to upgrade confidently. This is especially important since the proxy sits between users and Z.AI API - breaking changes disrupt production applications. Currently, no version compatibility guarantees are communicated.",
+      "category": "readme",
+      "targetAudience": "users",
+      "affectedAreas": [
+        "CHANGELOG.md (new file)",
+        "docs/MIGRATION.md (new file)",
+        "package.json (version)",
+        "README.md"
+      ],
+      "currentDocumentation": "No versioning, changelog, or migration documentation exists. Package.json shows version 1.0.0 but no policy.",
+      "proposedContent": "Create CHANGELOG.md following Keep a Changelog format with sections for Added, Changed, Deprecated, Removed, Fixed. Document semver policy in README or docs/S_VERSIONING.md (major.minor.patch meaning). For each version, create migration guide if there are breaking changes (e.g., 'Migrating from 1.0 to 2.0' explaining apikeys.json field changes, environment variable renames). Pin versions in example integrations to prevent surprise breakage.",
+      "priority": "medium",
+      "estimatedEffort": "low"
+    }
+  ],
+  "metadata": {
+    "filesAnalyzed": 22,
+    "sourceFiles": 11,
+    "testFiles": 5,
+    "documentationFiles": 4,
+    "documentedFunctions": 0,
+    "undocumentedFunctions": 24,
+    "readmeLastUpdated": "2025-01-18",
+    "hasContributingGuide": false,
+    "hasTestingGuide": false,
+    "hasDeploymentGuide": false,
+    "hasArchitectureDiagrams": false,
+    "hasExamplesDirectory": false,
+    "hasSecurityGuide": false,
+    "hasVersioningPolicy": false,
+    "generatedAt": "2026-01-22T10:20:41.758Z",
+    "documentationCoverage": {
+      "readme": 85,
+      "api_docs": 10,
+      "inline_comments": 15,
+      "examples": 20,
+      "architecture": 40,
+      "troubleshooting": 50,
+      "deployment": 30,
+      "security": 0,
+      "versioning": 0
+    },
+    "summary": "GLM Proxy has excellent user-facing README covering installation, usage, and basic operations. However, code-level documentation (JSDoc) is absent, contributor guidance (CONTRIBUTING.md, testing docs) is missing, practical examples are limited, architecture lacks visual diagrams, security best practices aren't documented, and no versioning/migration guidance exists. These gaps impact long-term maintainability, contributor onboarding, and production adoption. The 5 original ideas focus on core developer documentation (JSDoc, CONTRIBUTING, inline comments, testing, deployment). The 5 additional ideas expand to user-facing documentation (examples, FAQ, security) and operational concerns (architecture diagrams, versioning)."
+  }
+}

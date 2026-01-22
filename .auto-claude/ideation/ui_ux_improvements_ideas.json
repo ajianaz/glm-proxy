@@ -1,0 +1,97 @@
+{
+  "ui_ux_improvements": [
+    {
+      "id": "uiux-001",
+      "type": "ui_ux_improvements",
+      "title": "API Key Management Dashboard with Inline CRUD Operations",
+      "description": "Create a modern, responsive web dashboard for managing API keys with inline editing, real-time validation, and bulk operations. The dashboard should provide a table view of all API keys (from data/apikeys.json) with the ability to add, edit, delete, and clone keys directly from the interface without needing manual JSON editing.",
+      "rationale": "Currently, API key management requires manually editing JSON files (data/apikeys.json) which is error-prone and not user-friendly. A web dashboard will dramatically improve the admin experience, reduce errors, and provide immediate visual feedback. This aligns with the planned 'Web Dashboard for API Key Management' feature and addresses the developer audience's need for efficient tools.",
+      "category": "usability",
+      "affected_components": [
+        "src/index.ts",
+        "src/storage.ts",
+        "src/types.ts"
+      ],
+      "screenshots": [],
+      "current_state": "API keys are stored in data/apikeys.json and must be managed manually through file editing. There is no UI for key management. Admins must use command-line tools like jq or text editors to add/modify keys. The /stats endpoint returns JSON data but there's no visual representation.",
+      "proposed_change": "Implement a web dashboard at route /dashboard with the following components:\n\n1. **API Keys Table Component**:\n   - Columns: Key (masked), Name, Model, Limit, Usage, Expiry, Status, Actions\n   - Inline editing for name, model, token_limit_per_5h, expiry_date\n   - Status badges (Active, Expiring Soon, Expired)\n   - Progress bar showing token usage (tokens_used/limit)\n\n2. **Create/Edit Modal**:\n   - Form fields: Name, Model (dropdown), Token Limit, Expiry Date\n   - Auto-generate API key (pk_* format)\n   - Real-time validation (limit > 0, valid date format)\n   - Copy-to-clipboard functionality for new keys\n\n3. **Actions**:\n   - Add new key button\n   - Edit key (inline or modal)\n   - Delete key with confirmation\n   - Clone key (copy settings with new key)\n   - Regenerate key (keep settings, new key string)\n   - Bulk export (JSON/CSV)\n\n4. **Backend API Enhancements**:\n   - GET /api/keys - List all keys (admin only)\n   - POST /api/keys - Create new key\n   - PUT /api/keys/:id - Update key\n   - DELETE /api/keys/:id - Delete key\n   - Use existing readApiKeys/writeApiKeys functions from storage.ts",
+      "user_benefit": "- **Time Savings**: Create/modify keys in seconds vs. minutes of manual file editing\n- **Reduced Errors**: Form validation prevents invalid data (malformed JSON, wrong dates)\n- **Better Visibility**: Visual status badges and progress bars show key health at a glance\n- **Improved Collaboration**: Multiple admins can manage keys without file access conflicts\n- **Audit Trail**: UI can show who made changes and when (future enhancement)",
+      "status": "draft",
+      "created_at": "2026-01-22T10:25:00.000Z"
+    },
+    {
+      "id": "uiux-002",
+      "type": "ui_ux_improvements",
+      "title": "Analytics Dashboard with Interactive Usage Visualizations",
+      "description": "Create an advanced analytics dashboard that visualizes API usage patterns, token consumption trends, and rate limit metrics. The dashboard should provide interactive charts, time-series graphs, and key performance indicators (KPIs) to help admins understand usage patterns and optimize quota allocation.",
+      "rationale": "The current /stats endpoint returns raw JSON data which is difficult to interpret and requires manual calculation to understand trends. Visual analytics will help admins:\n1. Identify power users and allocation needs\n2. Detect anomalies or abuse patterns\n3. Make data-driven decisions about quota limits\n4. Plan capacity based on usage trends\n\nThis aligns with the planned 'Advanced Analytics Dashboard' feature.",
+      "category": "visual",
+      "affected_components": [
+        "src/index.ts",
+        "src/ratelimit.ts",
+        "src/storage.ts",
+        "src/types.ts"
+      ],
+      "screenshots": [],
+      "current_state": "The /stats endpoint returns JSON with token usage data, but there's no visualization. Users receive raw numbers like tokens_used_in_current_window, remaining_tokens, etc. but must mentally calculate percentages, trends, and patterns. No historical trend analysis is available beyond the current 5-hour window.",
+      "proposed_change": "Implement an analytics dashboard at /dashboard/analytics with:\n\n1. **Overview Cards (KPIs)**:\n   - Total Active Keys (count)\n   - Total Tokens Used (24h/7d/30d)\n   - Avg Usage per Key\n   - Keys Near Limit (>80% usage)\n   - Expired/Expiring Keys (7 days)\n\n2. **Interactive Charts** (using Chart.js or Recharts):\n   - **Token Usage Over Time**: Line graph showing hourly/daily/weekly usage\n   - **Usage by Key**: Stacked bar chart comparing usage across keys\n   - **Rate Limit Heatmap**: Visual representation of when limits are hit\n   - **Request Volume**: Requests per minute/hour/day\n   - **Model Distribution**: Pie chart of glm-4.7 vs glm-4.5-air usage\n\n3. **Per-Key Detail View**:\n   - Click any key to see detailed analytics\n   - Usage trend graph (historical)\n   - Rolling window visualization (show all active windows)\n   - Predictive alerts (will exceed limit in X hours)\n\n4. **Time Range Selector**:\n   - Last 1 hour, 24 hours, 7 days, 30 days, custom range\n   - Compare periods (week-over-week)\n\n5. **Data Aggregation Backend**:\n   - Add GET /api/analytics/summary - Aggregate stats\n   - Add GET /api/analytics/timeseries - Historical data points\n   - Add GET /api/analytics/by-key - Per-key breakdown\n   - Implement simple time-series storage (extend usage_windows)",
+      "user_benefit": "- **Instant Insights**: See usage patterns at a glance without manual calculations\n- **Proactive Management**: Identify keys that will exceed limits before they happen\n- **Data-Driven Decisions**: Allocate quotas based on actual usage patterns\n- **Trend Analysis**: Spot increasing/decreasing usage over time\n- **Anomaly Detection**: Quickly identify unusual spikes or drops in usage\n- **Capacity Planning**: Predict when to add capacity or adjust limits",
+      "status": "draft",
+      "created_at": "2026-01-22T10:25:01.000Z"
+    },
+    {
+      "id": "uiux-003",
+      "type": "ui_ux_improvements",
+      "title": "Real-Time Usage Monitoring with Live Updates and Alerts",
+      "description": "Implement real-time monitoring of API usage using WebSocket connections to provide live updates of token consumption, active requests, and rate limit status. Add configurable alerts (browser notifications, visual indicators, email) for important events like rate limit thresholds approaching, keys expiring, or unusual activity patterns.",
+      "rationale": "Currently, usage data is only updated when users manually refresh the /stats endpoint. This reactive approach means admins only discover issues after they occur (rate limits hit, keys expired). Real-time monitoring enables proactive management - admins can see usage as it happens and receive warnings before problems occur. This is especially important for a proxy service where rate limits directly impact users.",
+      "category": "performance",
+      "affected_components": [
+        "src/index.ts",
+        "src/ratelimit.ts",
+        "src/storage.ts"
+      ],
+      "screenshots": [],
+      "current_state": "The system tracks usage in real-time and updates data/apikeys.json on each request, but there's no mechanism to push updates to dashboard viewers. Users must poll /stats endpoint to see changes. No alerts exist for important events. Rate limit breaches only return HTTP 429 to the offending request, with no admin notification.",
+      "proposed_change": "Implement real-time monitoring with:\n\n1. **WebSocket Updates**:\n   - Add WebSocket support to Hono (Bun.serve with websocket)\n   - Route: WS /api/realtime/usage\n   - Broadcast usage updates on each API request\n   - Throttle updates (max 1/sec) to prevent overwhelming clients\n\n2. **Live Dashboard Components**:\n   - **Live Usage Ticker**: Scrolling ticker showing recent requests\n   - **Token Counter**: Real-time counter incrementing with each request\n   - **Rate Limit Progress Bar**: Animated progress bar filling toward limit\n   - **Active Connections**: Show concurrent request count\n\n3. **Alert System**:\n   - **Threshold Alerts**: Notify at 50%, 75%, 90%, 100% of rate limit\n   - **Expiry Alerts**: 7 days, 3 days, 1 day before key expires\n   - **Anomaly Alerts**: Sudden spike in requests (e.g., 3x normal rate)\n   - **Browser Notifications**: Request notification permission for alerts\n   - **Visual Indicators**: Badge counter, flashing status, color changes\n   - **Alert History**: Log of past alerts with timestamps\n\n4. **Configuration**:\n   - User preferences for alert thresholds (per-key or global)\n   - Alert channels (browser, email - future)\n   - Quiet hours to disable non-critical alerts\n\n5. **Implementation Details**:\n   - Modify updateApiKeyUsage() to emit WebSocket event\n   - Add alert checking logic after each usage update\n   - Use setInterval for periodic checks (expiry, cleanup)",
+      "user_benefit": "- **Proactive Response**: Fix issues before users are impacted\n- **Peace of Mind**: Know immediately when something needs attention\n- **Better SLA Compliance**: Faster response to rate limit issues\n- **Reduced Downtime**: Catch problems at 75% usage instead of 100%\n- **Situational Awareness**: See live activity without manual refresh\n- **Customizable Control**: Choose what alerts matter to your workflow",
+      "status": "draft",
+      "created_at": "2026-01-22T10:25:02.000Z"
+    },
+    {
+      "id": "uiux-004",
+      "type": "ui_ux_improvements",
+      "title": "Enhanced Error Messages with Developer-Friendly Guidance",
+      "description": "Improve all API error responses to include developer-friendly error messages, suggested solutions, and relevant documentation links. Replace generic error messages with specific, actionable guidance that helps developers quickly understand and fix issues without extensive debugging.",
+      "rationale": "The current error handling returns generic messages like 'Rate limit exceeded' or 'Invalid API key' which don't help developers understand WHY the error occurred or HOW to fix it. Developer-friendly error messages significantly reduce integration time and support burden. Since this is a developer tool, the UX of error messages is critically important.",
+      "category": "usability",
+      "affected_components": [
+        "src/middleware/auth.ts",
+        "src/middleware/rateLimit.ts",
+        "src/handlers/proxyHandler.ts",
+        "src/index.ts"
+      ],
+      "screenshots": [],
+      "current_state": "Current error responses are minimal:\n- 401 Unauthorized: Generic auth failure\n- 403 Forbidden: API key expired (no date shown)\n- 429 Rate Limited: 'Rate limit exceeded' message\n- 400/500 errors: Generic status messages\n\nNo explanation of:\n- What caused the error\n- When the limit will reset\n- What the actual limit is\n- How to resolve the issue\n- Relevant documentation links",
+      "proposed_change": "Implement enhanced error response format:\n\n1. **Error Response Structure**:\n```json\n{\n  \"error\": {\n    \"type\": \"rate_limit_exceeded\",\n    \"message\": \"You have exceeded your token quota.\",\n    \"details\": {\n      \"limit\": 100000,\n      \"used\": 102450,\n      \"window_ends_at\": \"2026-01-22T05:00:00Z\",\n      \"retry_after_seconds\": 3600\n    },\n    \"suggestion\": \"Wait until 05:00 UTC or request an increased quota from your admin.\",\n    \"docs_url\": \"https://docs.example.com/rate-limits\",\n    \"request_id\": \"req_abc123\",\n    \"timestamp\": \"2026-01-22T04:30:00Z\"\n  }\n}\n```\n\n2. **Specific Error Types**:\n   - **auth_invalid**: Include which header was checked, expected format\n   - **key_expired**: Show expiry date, who to contact for renewal\n   - **rate_limit_exceeded**: Show usage, limit, reset time, wait duration\n   - **invalid_request**: Show which field is invalid and why\n   - **upstream_error**: Distinguish proxy errors from Z.AI errors\n\n3. **Error Message Improvements**:\n   - **401**: \"API key not found. Check the Authorization header format: 'Bearer pk_your_key'.\"\n   - **403**: \"API key expired on 2026-01-15. Contact your admin to renew.\"\n   - **429**: \"Used 102,450 / 100,000 tokens. Window resets in 1 hour (at 05:00 UTC).\"\n   - **400**: \"Invalid 'model' value 'glm-4'. Valid models: glm-4.7, glm-4.5-air, glm-4.5-flash\"\n\n4. **Development Tools**:\n   - Include request_id in all errors for log correlation\n   - Add 'troubleshooting' section with common issues\n   - Provide curl command examples for testing\n   - Link to relevant API documentation sections\n\n5. **Localize Error Messages**:\n   - Use English by default\n   - Structure for future i18n support (error codes, not hardcoded text)",
+      "user_benefit": "- **Faster Debugging**: Know exactly what's wrong in seconds, not hours\n- **Reduced Support**: Fewer tickets asking \"why am I getting this error?\"\n- **Better DX**: Developers appreciate clear, helpful error messages\n- **Professionalism**: High-quality error messages reflect well on the service\n- **Self-Service**: Users can fix their own issues without contacting admin\n- **Integration Speed**: New users get up and running faster",
+      "status": "draft",
+      "created_at": "2026-01-22T10:25:03.000Z"
+    },
+    {
+      "id": "uiux-005",
+      "type": "ui_ux_improvements",
+      "title": "Mobile-Responsive Dashboard with Touch-Optimized Interface",
+      "description": "Ensure the web dashboard is fully responsive and optimized for mobile devices with touch-friendly interactions, collapsible navigation, and adaptive layouts. Admins should be able to monitor usage, manage keys, and respond to alerts from their phones while on-the-go.",
+      "rationale": "The target audience (developers and sysadmins) often need to check systems while away from their desks. A dashboard that works poorly on mobile limits their ability to respond quickly to issues. Given that API problems don't follow office hours, mobile access is critical for timely intervention. Current project has no frontend, but implementing responsive design from the start avoids expensive rewrites later.",
+      "category": "usability",
+      "affected_components": [],
+      "screenshots": [],
+      "current_state": "No frontend exists yet. This is a proactive recommendation to ensure mobile responsiveness is built into the planned dashboard from the start, rather than retrofitted later.",
+      "proposed_change": "Implement mobile-responsive dashboard with:\n\n1. **Responsive Layout**:\n   - Breakpoints: Mobile (<640px), Tablet (640-1024px), Desktop (>1024px)\n   - Mobile-first CSS approach\n   - Container queries for component-level responsiveness\n\n2. **Mobile Navigation**:\n   - Collapsible hamburger menu (bottom sheet on mobile)\n   - Tab bar navigation for key views (Keys, Analytics, Settings)\n   - Breadcrumb navigation for deep pages\n\n3. **Touch-Optimized Components**:\n   - **Minimum touch targets**: 44x44px (iOS) / 48x48px (Android)\n   - **Swipe gestures**: Swipe left to delete key, swipe right to edit\n   - **Pull-to-refresh**: Reload data on mobile\n   - **Large buttons**: Stack vertically on mobile\n   - **Sticky headers**: Keep navigation accessible while scrolling\n\n4. **Adaptive Tables**:\n   - Desktop: Full table with all columns\n   - Tablet: Hide less important columns (created_at, key_hash)\n   - Mobile: Card view instead of table (each key as card)\n\n5. **Mobile-Specific Features**:\n   - **Quick Actions**: Home screen shortcuts (PWA install prompt)\n   - **Offline Mode**: Cache data for offline viewing\n   - **Biometric Auth**: Touch ID/Face ID for dashboard access\n   - **Push Notifications**: Alert notifications even when app closed\n\n6. **Performance Optimization**:\n   - Lazy load charts on mobile\n   - Reduce data payload for mobile (less history)\n   - Optimize images/icons (SVG, WebP)\n   - Test on real devices (iOS Safari, Chrome Android)",
+      "user_benefit": "- **Anywhere Access**: Manage keys from anywhere, not just at desk\n- **Faster Response**: React to alerts immediately, even during off-hours\n- **Better Work-Life Balance**: Handle urgent issues without opening laptop\n- **Flexibility**: Quick checks during meetings, commute, or travel\n- **Future-Proof**: Mobile usage growing; be prepared for mobile-first workflows",
+      "status": "draft",
+      "created_at": "2026-01-22T10:25:04.000Z"
+    }
+  ]
+}

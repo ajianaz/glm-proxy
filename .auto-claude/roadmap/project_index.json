@@ -1,0 +1,137 @@
+{
+  "project_root": "/Users/mis-puragroup/development/riset-ai/glm-proxy",
+  "project_type": "single",
+  "services": {
+    "main": {
+      "name": "main",
+      "path": "/Users/mis-puragroup/development/riset-ai/glm-proxy",
+      "language": "JavaScript",
+      "framework": "Hono",
+      "type": "backend",
+      "package_manager": "bun",
+      "default_port": 3000,
+      "dev_command": "npm run dev",
+      "key_directories": {
+        "src": {
+          "path": "src",
+          "purpose": "Source code"
+        },
+        "test": {
+          "path": "test",
+          "purpose": "Tests"
+        }
+      },
+      "entry_point": "src/index.ts",
+      "dependencies": [
+        "hono"
+      ],
+      "dev_dependencies": [
+        "@types/bun",
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/parser",
+        "@vitest/coverage-v8",
+        "eslint",
+        "husky",
+        "lint-staged",
+        "vitest"
+      ],
+      "testing": "Vitest",
+      "test_directory": "test",
+      "dockerfile": "Dockerfile",
+      "environment": {
+        "variables": {
+          "ZAI_API_KEY": {
+            "value": null,
+            "source": ".env.example",
+            "type": "string",
+            "sensitive": true,
+            "required": true
+          },
+          "DEFAULT_MODEL": {
+            "value": null,
+            "source": ".env.example",
+            "type": "string",
+            "sensitive": false,
+            "required": true
+          },
+          "PORT": {
+            "value": null,
+            "source": ".env.example",
+            "type": "string",
+            "sensitive": false,
+            "required": true
+          }
+        },
+        "required_count": 3,
+        "optional_count": 0,
+        "detected_count": 3
+      },
+      "api": {
+        "routes": [
+          {
+            "path": "/stats",
+            "methods": [
+              "GET"
+            ],
+            "file": "src/index.ts",
+            "framework": "Express",
+            "requires_auth": true
+          },
+          {
+            "path": "/v1/messages",
+            "methods": [
+              "POST"
+            ],
+            "file": "src/index.ts",
+            "framework": "Express",
+            "requires_auth": true
+          },
+          {
+            "path": "/health",
+            "methods": [
+              "GET"
+            ],
+            "file": "src/index.ts",
+            "framework": "Express",
+            "requires_auth": false
+          },
+          {
+            "path": "/",
+            "methods": [
+              "GET"
+            ],
+            "file": "src/index.ts",
+            "framework": "Express",
+            "requires_auth": false
+          }
+        ],
+        "total_routes": 4,
+        "methods": [
+          "GET",
+          "POST"
+        ],
+        "protected_routes": [
+          "/stats",
+          "/v1/messages"
+        ]
+      },
+      "monitoring": {
+        "health_checks": [
+          "/health"
+        ]
+      }
+    }
+  },
+  "infrastructure": {
+    "docker_compose": "docker-compose.yml",
+    "docker_services": [
+      "glm-proxy"
+    ],
+    "dockerfile": "Dockerfile"
+  },
+  "conventions": {
+    "js_linting": "ESLint",
+    "typescript": true,
+    "git_hooks": "Husky"
+  }
+}

@@ -1,0 +1,890 @@
+{
+  "id": "roadmap-20250122-120000",
+  "project_name": "GLM Proxy",
+  "version": "1.0",
+  "vision": "An OpenAI/Anthropic-compatible API gateway for Z.AI's GLM models with multi-user token-based rate limiting and quota management",
+  "target_audience": {
+    "primary": "Developers and teams integrating Z.AI's GLM models into their applications",
+    "secondary": [
+      "DevOps engineers deploying AI API gateways",
+      "Organizations requiring multi-user API key management",
+      "AI application developers needing OpenAI/Anthropic compatibility layers"
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Foundation / MVP Enhancement",
+      "description": "Address critical usability gaps and competitor weaknesses with quick wins that improve daily operations",
+      "order": 1,
+      "status": "planned",
+      "features": [
+        "feature-1",
+        "feature-2",
+        "feature-3",
+        "feature-4",
+        "feature-5"
+      ],
+      "milestones": [
+        {
+          "id": "milestone-1-1",
+          "title": "API Key Management Automation",
+          "description": "Users can manage API keys through web UI and API without manual JSON editing",
+          "features": [
+            "feature-1",
+            "feature-2"
+          ],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-1-2",
+          "title": "Enhanced Debugging Experience",
+          "description": "Comprehensive logging and clear error messages for easier troubleshooting",
+          "features": [
+            "feature-3",
+            "feature-4"
+          ],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-1-3",
+          "title": "Test Coverage Foundation",
+          "description": "Integration test suite covering all critical user flows",
+          "features": [
+            "feature-5"
+          ],
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Production Readiness",
+      "description": "Enable horizontal scaling, monitoring, and production deployment with enterprise-grade reliability",
+      "order": 2,
+      "status": "planned",
+      "features": [
+        "feature-6",
+        "feature-7",
+        "feature-8",
+        "feature-9",
+        "feature-10"
+      ],
+      "milestones": [
+        {
+          "id": "milestone-2-1",
+          "title": "Horizontal Scalability",
+          "description": "Multiple instances can run behind load balancer with shared state",
+          "features": [
+            "feature-6",
+            "feature-7"
+          ],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-2-2",
+          "title": "Observability Integration",
+          "description": "Prometheus metrics and structured logging for production monitoring",
+          "features": [
+            "feature-8",
+            "feature-9"
+          ],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-2-3",
+          "title": "Security Hardening",
+          "description": "Enhanced security with key rotation and protection mechanisms",
+          "features": [
+            "feature-10"
+          ],
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Performance & Differentiation",
+      "description": "Optimize performance and differentiate from competitors with superior reliability and features",
+      "order": 3,
+      "status": "planned",
+      "features": [
+        "feature-11",
+        "feature-12",
+        "feature-13",
+        "feature-14",
+        "feature-15"
+      ],
+      "milestones": [
+        {
+          "id": "milestone-3-1",
+          "title": "Low-Latency Architecture",
+          "description": "Minimize overhead to beat competitor latency benchmarks",
+          "features": [
+            "feature-11"
+          ],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-3-2",
+          "title": "Advanced API Management",
+          "description": "Automated key lifecycle and intelligent request handling",
+          "features": [
+            "feature-12",
+            "feature-13",
+            "feature-14"
+          ],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-3-3",
+          "title": "Robust Compatibility",
+          "description": "Ensure seamless integration with all major AI tools and libraries",
+          "features": [
+            "feature-15"
+          ],
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Scale & Ecosystem",
+      "description": "Advanced features for large-scale deployments and community contributions",
+      "order": 4,
+      "status": "planned",
+      "features": [
+        "feature-16",
+        "feature-17",
+        "feature-18",
+        "feature-19",
+        "feature-20"
+      ],
+      "milestones": [
+        {
+          "id": "milestone-4-1",
+          "title": "Developer Experience",
+          "description": "Comprehensive documentation, SDKs, and deployment guides",
+          "features": [
+            "feature-16",
+            "feature-17",
+            "feature-18"
+          ],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-4-2",
+          "title": "Enterprise Features",
+          "description": "Advanced analytics and multi-region deployment support",
+          "features": [
+            "feature-19"
+          ],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-4-3",
+          "title": "Community Contribution",
+          "description": "Plugin system and contribution guidelines for ecosystem growth",
+          "features": [
+            "feature-20"
+          ],
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "features": [
+    {
+      "id": "feature-1",
+      "title": "Web Dashboard for API Key Management",
+      "description": "A simple, responsive web UI for creating, viewing, editing, and deleting API keys without manual JSON editing. Includes real-time usage visualization and quota monitoring.",
+      "rationale": "Current manual JSON editing is error-prone and requires technical expertise. A web UI makes API key management accessible to all team members and addresses competitor pain points about complexity (Portkey, Azure APIM). Reduces operational overhead for administrators.",
+      "priority": "must",
+      "complexity": "medium",
+      "impact": "high",
+      "phase_id": "phase-1",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "planned",
+      "acceptance_criteria": [
+        "Users can create new API keys through web form with validation",
+        "Users can view all API keys in table format with sorting/filtering",
+        "Users can edit existing key properties (name, quota, expiry, model)",
+        "Users can delete API keys with confirmation dialog",
+        "Real-time display of token usage and remaining quota",
+        "Dashboard is responsive and works on mobile devices",
+        "Authentication required to access dashboard (basic auth or token)",
+        "API key changes take effect immediately without service restart"
+      ],
+      "user_stories": [
+        "As a system administrator, I want to create and manage API keys through a web interface so that I don't have to manually edit JSON files",
+        "As a team lead, I want to view real-time usage statistics for all team members so that I can monitor quota consumption",
+        "As a non-technical user, I want to reset my own API key through a simple UI so that I don't need to contact IT staff"
+      ],
+      "linked_spec_id": "002-web-dashboard-for-api-key-management",
+      "competitor_insight_ids": [
+        "pain-2-1",
+        "pain-2-4",
+        "pain-5-1"
+      ]
+    },
+    {
+      "id": "feature-2",
+      "title": "Admin API for CRUD Operations",
+      "description": "RESTful API endpoints for programmatic API key management including create, read, update, delete operations with proper authentication and authorization.",
+      "rationale": "Enables automation, integration with existing tools, and programmatic key management. Critical for DevOps workflows and CI/CD pipelines. Addresses gap where users must manually edit files.",
+      "priority": "must",
+      "complexity": "low",
+      "impact": "high",
+      "phase_id": "phase-1",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "planned",
+      "acceptance_criteria": [
+        "POST /admin/api/keys - Create new API key with validation",
+        "GET /admin/api/keys - List all API keys with pagination",
+        "GET /admin/api/keys/:id - Get specific API key details",
+        "PUT /admin/api/keys/:id - Update API key properties",
+        "DELETE /admin/api/keys/:id - Delete API key",
+        "Admin API requires master API key or separate admin token",
+        "API returns proper HTTP status codes and error messages",
+        "Operations are atomic and prevent race conditions"
+      ],
+      "user_stories": [
+        "As a DevOps engineer, I want to automate API key provisioning through scripts so that I can integrate with our user onboarding system",
+        "As a developer, I want to programmatically manage test API keys so that I can automate test environment setup",
+        "As an integrator, I want to call an API to manage keys so that I can build custom tooling on top of GLM Proxy"
+      ],
+      "linked_spec_id": "001-admin-api-for-crud-operations",
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-3",
+      "title": "Enhanced Error Messages and Documentation",
+      "description": "Comprehensive error messages with specific details, suggested solutions, and links to documentation. Include request ID for tracing and troubleshooting guides.",
+      "rationale": "Current error responses are generic and don't help users troubleshoot. Better error handling addresses Direct Z.AI API Error 400 issues and competitor complaints about unclear documentation (Portkey). Significantly improves developer experience.",
+      "priority": "must",
+      "complexity": "low",
+      "impact": "medium",
+      "phase_id": "phase-1",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Each error type has specific, actionable error message",
+        "Error messages include suggested fixes or next steps",
+        "All errors include unique request ID for tracing",
+        "Rate limit errors show when quota will reset",
+        "Authentication errors specify what was wrong (missing, invalid, expired)",
+        "Validation errors show which fields were invalid and why",
+        "Upstream Z.AI errors are clearly distinguished from proxy errors",
+        "Error documentation available at /docs/errors endpoint"
+      ],
+      "user_stories": [
+        "As a developer, I want clear error messages when I hit rate limits so that I know when I can retry",
+        "As a new user, I want helpful error messages when authentication fails so that I can fix issues quickly",
+        "As a support engineer, I want request IDs in errors so that I can trace issues in logs"
+      ],
+      "competitor_insight_ids": [
+        "pain-6-1",
+        "pain-2-4"
+      ]
+    },
+    {
+      "id": "feature-4",
+      "title": "Structured Request Logging System",
+      "description": "Configurable logging system with structured JSON logs including request metadata, timing information, error details, and configurable log levels (DEBUG, INFO, WARN, ERROR).",
+      "rationale": "Current implementation only has console.log. Structured logging is essential for production debugging, monitoring, and troubleshooting. Addresses technical debt and enables better observability than competitors.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "high",
+      "phase_id": "phase-1",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Logs include: timestamp, request ID, API key, endpoint, status code, latency",
+        "Configurable log levels via environment variable",
+        "Logs output in structured JSON format for parsing",
+        "Sensitive data (API keys, request content) is redacted or omitted",
+        "Log rotation to prevent disk space issues",
+        "Request/response bodies optionally logged for debugging (disabled by default)",
+        "Error stack traces captured in ERROR level logs",
+        "Logs include Z.AI upstream request details for debugging"
+      ],
+      "user_stories": [
+        "As an operator, I want structured JSON logs so that I can parse them with log management tools",
+        "As a developer, I want request timing in logs so that I can identify performance issues",
+        "As a security auditor, I want logs to exclude sensitive data so that we comply with security policies"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-5",
+      "title": "Integration Test Suite",
+      "description": "Comprehensive integration tests covering all API endpoints, rate limiting behavior, streaming responses, error scenarios, and multi-user interactions.",
+      "rationale": "Addresses technical debt of no integration tests. Ensures reliability and prevents regressions. Critical for production confidence and distinguishes from competitors with buggy implementations (Portkey).",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-1",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "planned",
+      "acceptance_criteria": [
+        "Tests cover all API endpoints (/v1/chat/completions, /v1/messages, /stats, /health)",
+        "Tests verify rate limiting enforcement with rolling window",
+        "Tests validate streaming responses for both OpenAI and Anthropic formats",
+        "Tests verify error handling for all error types",
+        "Tests check authentication and authorization",
+        "Tests validate API key expiry handling",
+        "Tests verify concurrent request handling",
+        "Tests can be run in CI/CD pipeline",
+        "Test coverage report available",
+        "Tests complete in under 60 seconds"
+      ],
+      "user_stories": [
+        "As a developer, I want integration tests so that I can confidently make changes without breaking functionality",
+        "As a maintainer, I want automated tests in CI/CD so that pull requests are automatically validated",
+        "As a user, I want reliable software so that I don't encounter unexpected bugs"
+      ],
+      "linked_spec_id": "003-integration-test-suite",
+      "competitor_insight_ids": [
+        "pain-2-2"
+      ]
+    },
+    {
+      "id": "feature-6",
+      "title": "Persistent Database Storage",
+      "description": "Replace file-based storage with SQLite or PostgreSQL for API keys, usage data, and configuration. Includes migration tool and data backup/restore functionality.",
+      "rationale": "Current file-based storage doesn't support high concurrency and prevents horizontal scaling. Database enables multiple instances to share state and is critical for production deployments. Addresses major technical debt.",
+      "priority": "must",
+      "complexity": "high",
+      "impact": "high",
+      "phase_id": "phase-2",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "planned",
+      "acceptance_criteria": [
+        "SQLite support for simple deployments (zero external dependencies)",
+        "PostgreSQL support for production deployments",
+        "Migration tool to convert existing apikeys.json to database",
+        "Database schema supports all current API key fields",
+        "Database operations use transactions for consistency",
+        "Connection pooling for performance",
+        "Backup and restore functionality",
+        "Database health checks and connection error handling",
+        "Backward compatibility with file-based storage during transition period"
+      ],
+      "user_stories": [
+        "As a production engineer, I want database-backed storage so that we can scale horizontally with multiple instances",
+        "As a DevOps engineer, I want automatic backups so that we don't lose API key data",
+        "As a developer, I want easy migration from file-based to database storage so that upgrading is seamless"
+      ],
+      "linked_spec_id": "004-persistent-database-storage",
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-7",
+      "title": "Distributed Rate Limiting",
+      "description": "External rate limit store (Redis or database) to support multi-instance deployments. All instances share rate limit state to enforce quotas consistently across cluster.",
+      "rationale": "Current in-memory rate limiting prevents horizontal scaling. Distributed rate limiting is essential for production deployments requiring high availability. Addresses gap in current architecture.",
+      "priority": "must",
+      "complexity": "high",
+      "impact": "high",
+      "phase_id": "phase-2",
+      "dependencies": [
+        "feature-6"
+      ],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Redis support for distributed rate limiting (recommended for production)",
+        "Database fallback for distributed rate limiting (if Redis unavailable)",
+        "Atomic operations to prevent race conditions",
+        "All instances share rate limit state in real-time",
+        "Graceful degradation if Redis unavailable (fall back to in-memory with warning)",
+        "Configurable Redis connection parameters",
+        "Health checks for Redis connectivity",
+        "Rolling window calculations work correctly in distributed mode",
+        "Performance overhead < 5ms per request"
+      ],
+      "user_stories": [
+        "As a site reliability engineer, I want distributed rate limiting so that we can run multiple instances behind a load balancer",
+        "As a platform engineer, I want high availability so that a single instance failure doesn't affect rate limit enforcement",
+        "As a developer, I want the proxy to work in standalone mode (without Redis) for simple deployments"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-8",
+      "title": "Prometheus Metrics Export",
+      "description": "Prometheus-compatible /metrics endpoint exposing request rate, error rate, latency percentiles, active API keys, rate limit violations, and upstream Z.AI performance.",
+      "rationale": "Industry standard for monitoring. Enables production observability and alerting. Addresses gap of no metrics/monitoring integration. Essential for operations teams.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-2",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "/metrics endpoint returns Prometheus-compatible text format",
+        "Metrics include: request count, error count, latency histogram, active keys",
+        "Rate limit violation counter per API key",
+        "Upstream Z.AI request latency and error rate",
+        "Database/Redis connection health metrics",
+        "Configurable metric labels (endpoint, model, status code)",
+        "Metrics are efficiently computed with minimal performance impact",
+        "Grafana dashboard template provided",
+        "Documentation on metric semantics and usage"
+      ],
+      "user_stories": [
+        "As an SRE, I want Prometheus metrics so that I can set up dashboards and alerts",
+        "As a manager, I want visibility into usage patterns so that I can plan capacity",
+        "As a developer, I want performance metrics so that I can identify bottlenecks"
+      ],
+      "competitor_insight_ids": [
+        "pain-2-3"
+      ]
+    },
+    {
+      "id": "feature-9",
+      "title": "Request Queuing and Smoothing",
+      "description": "Configurable request queue for handling rate limit spikes. Requests exceeding quota are queued and processed when capacity becomes available, with configurable queue depth and timeout.",
+      "rationale": "Instead of hard 429 errors, queue requests to provide better UX. Smooths out traffic patterns and improves user experience. Addresses gap of no request queuing.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-2",
+      "dependencies": [
+        "feature-7"
+      ],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Configurable queue depth (max queued requests)",
+        "Configurable per-key queue timeout",
+        "Queue position communicated to client via HTTP headers",
+        "Priority queue support (optional feature)",
+        "Queue statistics visible in /stats endpoint",
+        "Queue gracefully degrades to immediate 429 if disabled",
+        "Queue state survives restarts (if using distributed storage)",
+        "Fair queueing across multiple API keys",
+        "WebUI shows queue status"
+      ],
+      "user_stories": [
+        "As a user, I want my requests queued instead of rejected so that I don't have to retry manually",
+        "As an admin, I want to configure queue depth so that I can control memory usage",
+        "As a developer, I want visibility into queue position so that I can show progress to users"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-10",
+      "title": "Automatic API Key Rotation",
+      "description": "Scheduled or manual API key rotation with grace period. Old keys remain valid for configurable time after rotation to allow seamless updates in client applications.",
+      "rationale": "Security best practice and compliance requirement. Addresses gap of no automatic key management. Improves security posture for enterprise deployments.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-2",
+      "dependencies": [
+        "feature-6"
+      ],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Admin API endpoint to trigger key rotation",
+        "Configurable rotation schedule (cron-like)",
+        "Grace period support (old key valid for N hours after rotation)",
+        "Old keys automatically expired after grace period",
+        "Rotation audit log (when keys were rotated)",
+        "Notification mechanism (webhook or email) when key rotates",
+        "Bulk rotation for multiple keys",
+        "Rollback capability if rotation causes issues",
+        "WebUI shows key age and rotation status"
+      ],
+      "user_stories": [
+        "As a security officer, I want automatic API key rotation so that we comply with security policies",
+        "As a developer, I want a grace period when keys rotate so that my applications don't break",
+        "As an auditor, I want rotation audit logs so that I can verify key lifecycle management"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-11",
+      "title": "Performance Optimization and Low-Latency Architecture",
+      "description": "Comprehensive performance optimization including connection pooling, request pipelining, efficient JSON parsing, and minimal overhead to achieve < 10ms latency overhead (beating LiteLLM's 15-30ms).",
+      "rationale": "Directly addresses LiteLLM's high latency pain point (pain-1-1). Major competitive differentiator. Critical for user experience in high-throughput applications. Aligns with market trend of moving away from high-latency gateways.",
+      "priority": "must",
+      "complexity": "high",
+      "impact": "high",
+      "phase_id": "phase-3",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "planned",
+      "acceptance_criteria": [
+        "Latency overhead < 10ms measured from proxy request to Z.AI request",
+        "Connection pooling to Z.AI API with configurable pool size",
+        "Efficient streaming implementation with minimal buffering",
+        "Optimized JSON parsing and serialization",
+        "Profiling and benchmarking suite to track performance",
+        "Performance comparison dashboard vs direct Z.AI API",
+        "Load testing results showing sustained performance under load",
+        "Memory usage optimization (< 100MB base memory)",
+        "CPU usage profiling to identify hotspots"
+      ],
+      "user_stories": [
+        "As a developer, I want low latency overhead so that my applications feel responsive",
+        "As a performance engineer, I want benchmarks so that I can compare GLM Proxy to alternatives",
+        "As a user, I want the proxy to be faster than competing solutions so that I choose GLM Proxy"
+      ],
+      "linked_spec_id": "005-performance-optimization-and-low-latency-architect",
+      "competitor_insight_ids": [
+        "pain-1-1",
+        "pain-4-3"
+      ]
+    },
+    {
+      "id": "feature-12",
+      "title": "Advanced Streaming with Timeout Handling",
+      "description": "Robust streaming implementation with configurable timeouts, proper error handling for incomplete streams, automatic reconnection logic, and comprehensive testing of edge cases.",
+      "rationale": "Addresses LiteLLM's streaming behavior problems (pain-1-2). Streaming is critical for chat UX and current implementation needs hardening for production reliability.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-3",
+      "dependencies": [
+        "feature-5"
+      ],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Configurable stream timeout (disconnect if no data for N seconds)",
+        "Proper handling of upstream disconnections",
+        "Graceful error messages for incomplete streams",
+        "SSE (Server-Sent Events) format compliance",
+        "Stream reconnection optional (with context preservation if possible)",
+        "Comprehensive tests for streaming edge cases",
+        "Streaming works correctly for both OpenAI and Anthropic formats",
+        "Connection state visible in logs and metrics",
+        "Backpressure handling to prevent memory issues"
+      ],
+      "user_stories": [
+        "As a frontend developer, I want reliable streaming so that my chat UI doesn't hang",
+        "As a user, I want clear error messages if streaming fails so that I know what happened",
+        "As a tester, I want comprehensive streaming tests so that I can trust the implementation"
+      ],
+      "competitor_insight_ids": [
+        "pain-1-2"
+      ]
+    },
+    {
+      "id": "feature-13",
+      "title": "Structured Output Support",
+      "description": "Full support for structured outputs (JSON mode, function calling) ensuring compatibility with OpenAI's structured output feature and proper validation of response formats.",
+      "rationale": "Addresses LiteLLM's structured output issues (pain-1-3). Essential for modern AI applications requiring structured data. Critical differentiator for reliability.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-3",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Support for OpenAI JSON mode",
+        "Support for function calling (tools/function_call parameters)",
+        "Validation of structured responses against schema",
+        "Proper error messages if response doesn't match schema",
+        "Documentation and examples for structured output usage",
+        "Tests covering structured output scenarios",
+        "Compatible with LangChain and other framework integrations",
+        "Streaming support for structured outputs"
+      ],
+      "user_stories": [
+        "As a developer, I want structured outputs so that I can build applications requiring JSON responses",
+        "As a user, I want reliable function calling so that I can use GLM models in agent workflows",
+        "As an integrator, I want proper schema validation so that I can trust the response format"
+      ],
+      "competitor_insight_ids": [
+        "pain-1-3"
+      ]
+    },
+    {
+      "id": "feature-14",
+      "title": "Robust Context and Message Format Handling",
+      "description": "Intelligent handling of message formats, context length limits, role validation, and parameter translation. Prevents context truncation and ensures proper message formatting.",
+      "rationale": "Addresses OpenRouter's context handling issues (pain-4-1) and Direct Z.AI role formatting problems (pain-6-6). Critical for reliability and preventing silent failures.",
+      "priority": "must",
+      "complexity": "medium",
+      "impact": "high",
+      "phase_id": "phase-3",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Automatic role format translation (user/system/assistant)",
+        "Context length validation before sending to Z.AI",
+        "Clear error if context exceeds model limits",
+        "Message deduplication and validation",
+        "Support for vision/multimodal content if supported by Z.AI",
+        "Parameter validation and sanitization",
+        "Transparent handling of Z.AI-specific parameters",
+        "Tests covering edge cases (empty messages, invalid roles, etc.)",
+        "Documentation of message format differences"
+      ],
+      "user_stories": [
+        "As a developer, I want automatic role translation so that I can use the same messages for different providers",
+        "As a user, I want clear error messages if my context is too long so that I can fix it",
+        "As a developer, I want the proxy to handle message formatting so that I don't get cryptic errors from Z.AI"
+      ],
+      "competitor_insight_ids": [
+        "pain-4-1",
+        "pain-6-1",
+        "pain-6-6"
+      ]
+    },
+    {
+      "id": "feature-15",
+      "title": "Framework Integration Testing and Compatibility",
+      "description": "Comprehensive testing with popular AI frameworks (LangChain, LlamaIndex, OpenAI SDK, Anthropic SDK) ensuring seamless compatibility. Include working examples and integration guides.",
+      "rationale": "Addresses Direct Z.AI integration failures (pain-6-5) and integration issues mentioned in competitor analysis (pain-4-5). Essential for user confidence and adoption.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "high",
+      "phase_id": "phase-3",
+      "dependencies": [
+        "feature-5"
+      ],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Test suite for OpenAI JavaScript SDK",
+        "Test suite for Anthropic JavaScript SDK",
+        "Test suite for OpenAI Python SDK",
+        "Test suite for Anthropic Python SDK",
+        "Test suite for LangChain integration",
+        "Test suite for LlamaIndex integration",
+        "Test suite for popular IDE integrations (Cursor, Continue, etc.)",
+        "Working code examples in repository",
+        "Integration guides for each framework",
+        "Automated tests run in CI/CD pipeline"
+      ],
+      "user_stories": [
+        "As a developer, I want framework examples so that I can quickly integrate GLM Proxy into my stack",
+        "As a user, I want compatibility with my preferred tools so that I don't have to change my workflow",
+        "As a maintainer, I want automated compatibility tests so that framework updates don't break integration"
+      ],
+      "competitor_insight_ids": [
+        "pain-4-5",
+        "pain-6-5"
+      ]
+    },
+    {
+      "id": "feature-16",
+      "title": "Comprehensive Documentation and Guides",
+      "description": "Complete documentation including quick start guide, API reference, deployment guides, troubleshooting section, architecture documentation, and contribution guidelines.",
+      "rationale": "Addresses documentation complaints from Portkey (pain-2-4). Good documentation is critical for adoption and reduces support burden. Essential for open source project success.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "high",
+      "phase_id": "phase-4",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Quick start guide (5 minutes to first request)",
+        "Complete API reference with examples",
+        "Deployment guide for Docker, Kubernetes, bare metal",
+        "Configuration reference (all environment variables)",
+        "Architecture and design documentation",
+        "Troubleshooting guide with common issues",
+        "Performance tuning guide",
+        "Security best practices guide",
+        "Migration guide from direct Z.AI API",
+        "Contributing guidelines for open source developers"
+      ],
+      "user_stories": [
+        "As a new user, I want a quick start guide so that I can get GLM Proxy running in minutes",
+        "As a developer, I want complete API docs so that I can integrate all features",
+        "As a contributor, I want architecture docs so that I can understand how to contribute"
+      ],
+      "competitor_insight_ids": [
+        "pain-2-4"
+      ]
+    },
+    {
+      "id": "feature-17",
+      "title": "Deployment Automation and Helm Charts",
+      "description": "Helm charts for Kubernetes deployment, Terraform modules for infrastructure provisioning, and automated deployment pipelines for production environments.",
+      "rationale": "Simplifies deployment for production users. Addresses deployment complexity issues (pain-5-1, pain-5-2). Essential for enterprise adoption.",
+      "priority": "could",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-4",
+      "dependencies": [
+        "feature-6",
+        "feature-7"
+      ],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Helm chart with configurable values",
+        "Kubernetes manifests for deployment, service, configmap, secret",
+        "Terraform module for cloud deployment",
+        "GitHub Actions workflow example for CI/CD",
+        "Multi-environment support (dev, staging, prod)",
+        "Automatic database migration on deployment",
+        "Health check and readiness probe configuration",
+        "Horizontal Pod Autoscaler configuration",
+        "Documentation for each deployment method"
+      ],
+      "user_stories": [
+        "As a DevOps engineer, I want Helm charts so that I can deploy to Kubernetes with a single command",
+        "As a platform engineer, I want Terraform modules so that I can provision infrastructure as code",
+        "As a developer, I want deployment examples so that I can set up production environments"
+      ],
+      "competitor_insight_ids": [
+        "pain-5-1",
+        "pain-5-2"
+      ]
+    },
+    {
+      "id": "feature-18",
+      "title": "SDK and Client Libraries",
+      "description": "Official TypeScript/JavaScript and Python SDK libraries for GLM Proxy, providing type-safe APIs, convenient methods for key management, and simplified configuration.",
+      "rationale": "Improves developer experience and accelerates adoption. Addresses complexity complaints from competitors by providing simpler alternatives. Common expectation for API products.",
+      "priority": "could",
+      "complexity": "high",
+      "impact": "medium",
+      "phase_id": "phase-4",
+      "dependencies": [
+        "feature-2"
+      ],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "TypeScript SDK with full type definitions",
+        "Python SDK with type hints",
+        "SDK methods for common operations (create key, get stats, etc.)",
+        "Automatic retry logic for rate-limited requests",
+        "Connection pooling and configuration management",
+        "Comprehensive SDK documentation and examples",
+        "SDK packages published to npm and PyPI",
+        "Open source SDK repositories",
+        "Integration tests for SDK functionality"
+      ],
+      "user_stories": [
+        "As a developer, I want an official SDK so that I don't have to write raw HTTP requests",
+        "As a TypeScript developer, I want type-safe APIs so that I catch errors at compile time",
+        "As a Python developer, I want a Python SDK so that I can use GLM Proxy in my Python applications"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-19",
+      "title": "Advanced Analytics Dashboard",
+      "description": "Rich analytics dashboard showing usage trends, cost projections, popular models, user activity heatmaps, anomaly detection, and custom report generation.",
+      "rationale": "Addresses advanced analytics gap mentioned in Portkey pain points (pain-2-3). Valuable for administrators managing multiple users and quotas. Enables data-driven decision making.",
+      "priority": "could",
+      "complexity": "high",
+      "impact": "medium",
+      "phase_id": "phase-4",
+      "dependencies": [
+        "feature-6",
+        "feature-8"
+      ],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Usage trends over time (requests, tokens, errors)",
+        "Cost projection based on token usage",
+        "Per-user and per-model breakdown",
+        "Geographic distribution (if IP logging enabled)",
+        "Anomaly detection for unusual usage patterns",
+        "Customizable date ranges and filters",
+        "Export to CSV/JSON functionality",
+        "Real-time dashboard with auto-refresh",
+        "Comparison views (week-over-week, month-over-month)",
+        "Configurable alerts for usage thresholds"
+      ],
+      "user_stories": [
+        "As an administrator, I want usage trends so that I can plan capacity",
+        "As a manager, I want cost projections so that I can budget for API usage",
+        "As an analyst, I want detailed breakdowns so that I can understand usage patterns"
+      ],
+      "competitor_insight_ids": [
+        "pain-2-3"
+      ]
+    },
+    {
+      "id": "feature-20",
+      "title": "Plugin and Extension System",
+      "description": "Extensible plugin system allowing custom authentication providers, rate limit algorithms, logging destinations, request/response transformers, and custom middleware.",
+      "rationale": "Enables community contributions and custom enterprise integrations. Addresses customization needs without bloating core. Positions GLM Proxy as platform, not just product.",
+      "priority": "could",
+      "complexity": "high",
+      "impact": "medium",
+      "phase_id": "phase-4",
+      "dependencies": [],
+      "reverse_dependencies": [],
+      "dependency_validation": null,
+      "status": "under_review",
+      "acceptance_criteria": [
+        "Well-defined plugin interface and lifecycle hooks",
+        "Plugin discovery and loading mechanism",
+        "Built-in example plugins for common use cases",
+        "Plugin development guide and templates",
+        "Hooks for: authentication, rate limiting, logging, transformation",
+        "Hot-reload of plugins without restart",
+        "Plugin marketplace or registry (optional)",
+        "Plugin sandboxing for security",
+        "Version compatibility system for plugins"
+      ],
+      "user_stories": [
+        "As an enterprise developer, I want custom authentication so that I can integrate with our SSO system",
+        "As a community member, I want to contribute plugins so that I can add features I need",
+        "As a platform engineer, I want custom logging destinations so that I can integrate with our observability stack"
+      ],
+      "competitor_insight_ids": []
+    }
+  ],
+  "metadata": {
+    "created_at": "2025-01-22T12:00:00Z",
+    "updated_at": "2026-01-22T03:31:04.447Z",
+    "generated_by": "roadmap_features agent",
+    "prioritization_framework": "MoSCoW",
+    "competitor_analysis_used": true,
+    "total_features": 20,
+    "priority_breakdown": {
+      "must": 8,
+      "should": 9,
+      "could": 3,
+      "wont": 0
+    },
+    "competitor_insights_coverage": {
+      "total_pain_points_addressed": 18,
+      "features_with_competitor_insights": 11
+    }
+  }
+}

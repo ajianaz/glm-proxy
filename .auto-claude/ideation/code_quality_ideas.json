@@ -1,0 +1,162 @@
+{
+  "code_quality": [
+    {
+      "id": "cq-001",
+      "type": "code_quality",
+      "title": "Eliminate code duplication between proxy.ts and anthropic.ts",
+      "description": "The files src/proxy.ts (142 lines) and src/anthropic.ts (145 lines) contain approximately 80% duplicate code. Both files implement nearly identical logic for environment variable checking, request body processing, fetch error handling, token usage extraction, and response building. The only meaningful differences are the target URLs and the authorization header format.",
+      "rationale": "Code duplication violates the DRY principle and leads to maintenance burden. Bug fixes and improvements must be applied in two places, increasing the risk of inconsistencies. Currently, anthropic.ts properly uses `error: unknown` with type narrowing while proxy.ts still uses `error: any`, demonstrating how divergence occurs over time.",
+      "category": "duplication",
+      "severity": "major",
+      "affectedFiles": [
+        "src/proxy.ts",
+        "src/anthropic.ts"
+      ],
+      "currentState": "Two files with 287 total lines containing nearly identical proxy logic, differing only in base URL (ZAI_API_BASE vs ZAI_ANTHROPIC_BASE) and auth header (Authorization vs x-api-key)",
+      "proposedChange": "Create a shared base proxy module (src/lib/baseProxy.ts) containing common logic, accepting a configuration object for API-specific settings. Both proxy.ts and anthropic.ts would become thin wrappers that configure and call the base proxy.",
+      "codeExample": "// Current (duplicated in both files):\nexport async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> {\n  // 40+ lines of duplicate logic\n  if (!ZAI_API_KEY) { /* duplicate error handling */ }\n  // ... more duplication\n}\n\n// Proposed:\n// lib/baseProxy.ts\ninterface ProxyConfig {\n  baseUrl: string;\n  getAuthHeaders: (apiKey: string) => Record<string, string>;\n  modelInjectionPaths: string[];\n  extractUsage: (response: any) => number;\n}\n\nexport async function proxyRequest(config: ProxyConfig, options: ProxyOptions): Promise<ProxyResult> {\n  // Single implementation\n}\n\n// proxy.ts\nexport const proxyRequest = createProxy({\n  baseUrl: ZAI_API_BASE,\n  getAuthHeaders: (key) => ({ Authorization: `Bearer ${key}` }),\n  // ...\n});",
+      "bestPractice": "DRY (Don't Repeat Yourself) - extract shared logic into reusable modules to reduce duplication and improve maintainability",
+      "metrics": {
+        "lineCount": 287,
+        "complexity": null,
+        "duplicateLines": 230,
+        "testCoverage": null
+      },
+      "estimatedEffort": "medium",
+      "breakingChange": false,
+      "prerequisites": [
+        "Ensure all existing tests pass before refactoring",
+        "Consider adding integration tests for both proxy types"
+      ]
+    },
+    {
+      "id": "cq-002",
+      "type": "code_quality",
+      "title": "Remove unsafe 'any' type usage and improve type safety",
+      "description": "The codebase uses 'any' type and type assertions in critical locations, undermining TypeScript's type safety benefits. This includes error handling with `error: any` (proxy.ts line 128), context type assertions with `as any` (index.ts line 29, handlers/proxyHandler.ts line 53), and other locations that bypass type checking.",
+      "rationale": "Using 'any' bypasses TypeScript's type checking, defeating the purpose of using TypeScript. It can lead to runtime errors that should have been caught at compile time. The inconsistent error handling (proxy.ts uses `any` while anthropic.ts correctly uses `unknown`) shows how type safety erodes over time and across developers.",
+      "category": "types",
+      "severity": "major",
+      "affectedFiles": [
+        "src/index.ts",
+        "src/proxy.ts",
+        "src/handlers/proxyHandler.ts"
+      ],
+      "currentState": "Multiple locations use 'any' or 'as any': error handling (proxy.ts line 128), context casting (index.ts line 29), and status code casting (handlers/proxyHandler.ts line 53)",
+      "proposedChange": "Replace all 'any' types with proper TypeScript types. Use 'unknown' for error values with type narrowing, properly type Hono context variables, and use correct numeric types for status codes.",
+      "codeExample": "// Current:\nconst apiKey = getApiKeyFromContext(c as any);\n} catch (error: any) {\n  return JSON.stringify({ message: error.message });\n}\nreturn c.body(result.body, result.status as any);\n\n// Proposed:\nconst apiKey = getApiKeyFromContext(c);\n} catch (error: unknown) {\n  const message = error instanceof Error ? error.message : 'Unknown error';\n  return JSON.stringify({ message });\n}\nreturn c.body(result.body, result.status);",
+      "bestPractice": "Type Safety - Avoid 'any' types. Use 'unknown' for values of uncertain type, then narrow the type with proper type guards.",
+      "metrics": {
+        "lineCount": null,
+        "complexity": null,
+        "duplicateLines": null,
+        "testCoverage": null
+      },
+      "estimatedEffort": "small",
+      "breakingChange": false,
+      "prerequisites": [
+        "Update ESLint rule to error on '@typescript-eslint/no-explicit-any' instead of warn"
+      ]
+    },
+    {
+      "id": "cq-003",
+      "type": "code_quality",
+      "title": "Add missing test coverage for middleware and handlers",
+      "description": "Critical middleware and handler files have zero test coverage. The src/middleware/auth.ts (33 lines), src/middleware/rateLimit.ts (29 lines), and src/handlers/proxyHandler.ts (56 lines) files are completely untested. Additionally, 3 out of 22 existing tests are currently failing, indicating quality issues in the test suite.",
+      "rationale": "Middleware handles authentication and rate limiting - the core security features of the proxy. Without tests, there's no verification these critical features work correctly. The failing tests in the existing suite (test/storage.test.ts line 36 expects 0 keys but finds 1, test/proxy.test.ts has mock failures) also indicate quality issues that should be resolved.",
+      "category": "testing",
+      "severity": "major",
+      "affectedFiles": [
+        "src/middleware/auth.ts",
+        "src/middleware/rateLimit.ts",
+        "src/handlers/proxyHandler.ts",
+        "test/storage.test.ts",
+        "test/proxy.test.ts"
+      ],
+      "currentState": "Zero tests for 3 critical files totaling 118 lines. 3 existing tests failing (storage.test.ts line 36, proxy.test.ts lines 60 and 83)",
+      "proposedChange": "1. Fix the 3 failing tests in test/storage.test.ts and test/proxy.test.ts\n2. Create test/middleware/auth.test.ts with coverage for API key extraction, Bearer token parsing, and validation flow\n3. Create test/middleware/rateLimit.test.ts with coverage for rate limit checking, window calculation, and retry-after logic\n4. Create test/handlers/proxyHandler.test.ts with coverage for request forwarding and response handling",
+      "codeExample": "// Missing - should add:\n// test/middleware/auth.test.ts\nimport { describe, it, expect } from 'vitest';\nimport { extractApiKey } from '../src/middleware/auth.js';\n\ndescribe('authMiddleware', () => {\n  it('should extract API key from Authorization header', () => {\n    const headers = new Headers({ 'authorization': 'Bearer test-key' });\n    expect(extractApiKey(headers)).toBe('test-key');\n  });\n  \n  it('should extract API key from x-api-key header', () => {\n    const headers = new Headers({ 'x-api-key': 'test-key' });\n    expect(extractApiKey(headers)).toBe('test-key');\n  });\n  \n  it('should prioritize Authorization over x-api-key', () => {\n    const headers = new Headers({\n      'authorization': 'Bearer auth-key',\n      'x-api-key': 'header-key'\n    });\n    expect(extractApiKey(headers)).toBe('auth-key');\n  });\n});",
+      "bestPractice": "Test Coverage - Critical security and routing logic should have comprehensive unit tests. Aim for >80% coverage overall.",
+      "metrics": {
+        "lineCount": 118,
+        "complexity": null,
+        "duplicateLines": null,
+        "testCoverage": 0
+      },
+      "estimatedEffort": "medium",
+      "breakingChange": false,
+      "prerequisites": [
+        "Fix the 3 failing tests first to establish a working test baseline",
+        "Consider setting up coverage reporting with vitest"
+      ]
+    },
+    {
+      "id": "cq-004",
+      "type": "code_quality",
+      "title": "Extract hardcoded magic numbers into named constants",
+      "description": "The rate limiting window duration (5 hours) is hardcoded as a millisecond calculation `5 * 60 * 60 * 1000` in 3 different locations across 2 files (src/storage.ts line 77, src/ratelimit.ts lines 18 and 39). This magic number appears repeatedly without explanation or central definition. Additionally, ZAI_API_KEY is accessed via process.env in 5 locations without centralization.",
+      "rationale": "Hardcoded magic numbers make code harder to understand and maintain. If the rate limit window needs to change from 5 hours to another duration, developers would need to find and update all occurrences. Scattered environment variable access makes configuration validation difficult and prevents fail-fast startup behavior.",
+      "category": "code_smells",
+      "severity": "minor",
+      "affectedFiles": [
+        "src/storage.ts",
+        "src/ratelimit.ts",
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        "src/index.ts"
+      ],
+      "currentState": "The value `5 * 60 * 60 * 1000` (18000000ms) appears 3 times across 2 files. ZAI_API_KEY accessed via process.env in 5 files with runtime checks instead of centralized validation.",
+      "proposedChange": "Create a src/config.ts file with: 1) Named constants like RATE_LIMIT_WINDOW_MS = 5 * 60 * 60 * 1000, 2) Centralized environment variable access with validation, 3) Fail-fast configuration checks at startup. Import and use these constants throughout the codebase.",
+      "codeExample": "// Current (repeated in multiple files):\nconst fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();\nif (!process.env.ZAI_API_KEY) { ... }\n\n// Proposed:\n// src/config.ts\nconst validateEnvVar = (key: string, fallback?: string): string => {\n  const value = process.env[key];\n  if (!value && !fallback) {\n    throw new Error(`Missing required environment variable: ${key}`);\n  }\n  return value || fallback!;\n};\n\nexport const config = {\n  rateLimitWindowMs: 5 * 60 * 60 * 1000,\n  rateLimitWindowHours: 5,\n  zaiApiKey: validateEnvVar('ZAI_API_KEY'),\n  defaultModel: validateEnvVar('DEFAULT_MODEL', 'glm-4.7'),\n} as const;\n\n// Usage in other files:\nimport { config } from './config.js';\nconst windowStart = new Date(Date.now() - config.rateLimitWindowMs).toISOString();",
+      "bestPractice": "Avoid Magic Numbers - Extract repeated numeric literals into well-named constants with clear units and purpose. Centralized Configuration - provide single source of truth for all configuration.",
+      "metrics": {
+        "lineCount": null,
+        "complexity": null,
+        "duplicateLines": 25,
+        "testCoverage": null
+      },
+      "estimatedEffort": "small",
+      "breakingChange": false,
+      "prerequisites": null
+    },
+    {
+      "id": "cq-005",
+      "type": "code_quality",
+      "title": "Replace silent error catching with proper error handling and logging",
+      "description": "Both src/proxy.ts (line 109) and src/anthropic.ts (line 106) use a 'fire and forget' pattern for updating API key usage: `updateApiKeyUsage(apiKey.key, tokensUsed, model).catch(console.error)`. This silently swallows errors and provides no monitoring or retry mechanism. The codebase also uses console.log/error directly instead of a proper logging library.",
+      "rationale": "Silent error handling with `.catch(console.error)` hides failures from monitoring systems and makes debugging difficult. If updateApiKeyUsage fails consistently, token usage tracking becomes inaccurate without anyone knowing, leading to incorrect billing or quota enforcement. Using console statements directly prevents structured logging and log aggregation.",
+      "category": "code_smells",
+      "severity": "minor",
+      "affectedFiles": [
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        "src/index.ts",
+        "src/storage.ts"
+      ],
+      "currentState": "Two locations use `.catch(console.error)` to suppress errors from async operations. Console statements used directly throughout the codebase instead of a proper logging system.",
+      "proposedChange": "Implement a proper error handling and logging strategy: 1) Create a structured logging utility (src/lib/logger.ts) using pino or similar, 2) Replace all console.log/error with logger methods, 3) Create an error tracking utility for async operations, 4) Consider implementing a retry mechanism with exponential backoff for transient failures.",
+      "codeExample": "// Current:\nupdateApiKeyUsage(apiKey.key, tokensUsed, model).catch(console.error);\nconsole.log(`Proxy Gateway starting on port ${port}`);\n\n// Proposed:\n// src/lib/logger.ts\nimport pino from 'pino';\nexport const logger = pino({\n  level: process.env.LOG_LEVEL || 'info',\n});\n\n// src/lib/asyncLogger.ts\nexport async function logAsyncError<T>(\n  promise: Promise<T>,\n  context: string\n): Promise<void> {\n  try {\n    await promise;\n  } catch (error) {\n    const errorMessage = error instanceof Error ? error.message : 'Unknown error';\n    logger.error({ error: errorMessage, context }, 'Async operation failed');\n    // Could also send to monitoring system (Sentry, DataDog, etc.)\n  }\n}\n\n// Usage:\nawait logAsyncError(\n  updateApiKeyUsage(apiKey.key, tokensUsed, model),\n  'updateApiKeyUsage'\n);\nlogger.info({ port }, 'Proxy Gateway starting');",
+      "bestPractice": "Error Handling - Don't silently suppress errors. Log them properly and ensure they're visible in monitoring systems. Structured Logging - use a proper logging library with log levels and structured output.",
+      "metrics": {
+        "lineCount": null,
+        "complexity": null,
+        "duplicateLines": null,
+        "testCoverage": null
+      },
+      "estimatedEffort": "small",
+      "breakingChange": false,
+      "prerequisites": [
+        "Decide on logging library (pino recommended for Bun)",
+        "Consider if updateApiKeyUsage should be made synchronous or queued"
+      ]
+    }
+  ],
+  "metadata": {
+    "filesAnalyzed": 10,
+    "largeFilesFound": 0,
+    "duplicateBlocksFound": 2,
+    "lintingConfigured": true,
+    "testsPresent": true,
+    "generatedAt": "2026-01-22T10:25:00.000Z"
+  }
+}

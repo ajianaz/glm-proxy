@@ -1,0 +1,759 @@
+{
+  "id": "ideation-20260122-102458",
+  "project_id": "/Users/mis-puragroup/development/riset-ai/glm-proxy",
+  "config": {
+    "enabled_types": [
+      "code_improvements",
+      "ui_ux_improvements",
+      "security_hardening",
+      "performance_optimizations",
+      "code_quality",
+      "documentation_gaps"
+    ],
+    "include_roadmap_context": true,
+    "include_kanban_context": true,
+    "max_ideas_per_type": 5
+  },
+  "ideas": [
+    {
+      "id": "ci-001",
+      "type": "code_improvements",
+      "title": "Add Batch Stats Endpoint",
+      "description": "Create a new endpoint /stats/batch that accepts multiple API keys and returns aggregated statistics for all of them in a single request, reducing the need for multiple individual stats requests.",
+      "rationale": "The codebase already has a complete stats endpoint pattern in src/index.ts (lines 28-56) that retrieves stats for a single API key using getKeyStats. The storage layer already supports findApiKey which can be called multiple times. This pattern can be extended to accept an array of keys and return aggregated results.",
+      "builds_upon": [
+        "Single /stats endpoint",
+        "getKeyStats function",
+        "ApiKey type and StatsResponse interface"
+      ],
+      "estimated_effort": "trivial",
+      "affected_files": [
+        "src/index.ts",
+        "src/types.ts"
+      ],
+      "existing_patterns": [
+        "Stats endpoint with authMiddleware",
+        "Rate limit checking pattern",
+        "StatsResponse interface structure"
+      ],
+      "implementation_approach": "Add new route app.get('/stats/batch', authMiddleware, ...) in src/index.ts that accepts request body with { keys: string[] }, calls findApiKey for each key, aggregates results using same StatsResponse structure wrapped in an array, and returns batch response. Reuse existing rate limit checking and stats formatting logic from the /stats endpoint.",
+      "status": "draft",
+      "created_at": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "ci-002",
+      "type": "code_improvements",
+      "title": "Add Request ID Tracking Middleware",
+      "description": "Implement a middleware that generates a unique request ID (UUID) for each incoming request, attaches it to the Hono context, and includes it in all error responses and logs for better traceability.",
+      "rationale": "The codebase already has a well-established middleware pattern with authMiddleware (src/middleware/auth.ts) and rateLimitMiddleware (src/middleware/rateLimit.ts). Both use Hono's Context with Variables to attach data (c.set/c.get). The error response pattern { error: { message, type } } is consistent across all endpoints. This infrastructure enables adding request tracking without architectural changes.",
+      "builds_upon": [
+        "Middleware pattern (auth, rateLimit)",
+        "Hono Context Variables usage",
+        "Consistent error response format"
+      ],
+      "estimated_effort": "small",
+      "affected_files": [
+        "src/index.ts",
+        "src/middleware/requestId.ts",
+        "src/proxy.ts",
+        "src/anthropic.ts"
+      ],
+      "existing_patterns": [
+        "Hono middleware with async function signature",
+        "Context variable attachment (c.set, c.get)",
+        "Error response structure with headers"
+      ],
+      "implementation_approach": "Create new src/middleware/requestId.ts following the exact pattern of authMiddleware. Use crypto.randomUUID() to generate ID, attach to context with c.set('requestId', id). Add middleware to app.use('/*') chain before auth. Update all error responses in proxy.ts and anthropic.ts to include request_id field. No changes needed to happy path responses as they're proxied directly.",
+      "status": "draft",
+      "created_at": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "ci-003",
+      "type": "code_improvements",
+      "title": "OpenAI Completions Endpoint Explicit Support",
+      "description": "Add explicit route handling for /v1/completions endpoint (not just /chat/completions) to ensure proper model injection and token extraction for legacy OpenAI completions API format.",
+      "rationale": "The current implementation in src/index.ts uses app.all('/v1/*') catch-all which works but doesn't explicitly handle the completions endpoint. The proxy.ts file (line 75) already checks for path.includes('/completions') for model injection. The token extraction logic (lines 102-104) handles usage.total_tokens. Adding explicit route would provide better error handling and ensure completions-specific formatting.",
+      "builds_upon": [
+        "Proxy handler pattern (createProxyHandler)",
+        "Model injection in proxy.ts",
+        "Token usage extraction from response"
+      ],
+      "estimated_effort": "small",
+      "affected_files": [
+        "src/index.ts"
+      ],
+      "existing_patterns": [
+        "Route-specific handlers like /v1/messages",
+        "createProxyHandler factory function",
+        "Path-based model injection in proxy.ts"
+      ],
+      "implementation_approach": "Add explicit route app.post('/v1/completions', authMiddleware, rateLimitMiddleware, openaiProxyHandler) in src/index.ts before the catch-all /v1/* route. This ensures completions requests are handled explicitly. The existing proxy.ts logic already handles model injection for '/completions' path, so no changes needed there. Test with OpenAI completions API format to verify token extraction.",
+      "status": "draft",
+      "created_at": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "ci-004",
+      "type": "code_improvements",
+      "title": "Configurable Header Forwarding",
+      "description": "Make the list of forwarded headers from client to upstream API configurable via environment variable, instead of being hardcoded as ['content-type', 'accept', 'user-agent'] in both proxy.ts and anthropic.ts.",
+      "rationale": "Both proxy.ts (lines 58-64) and anthropic.ts (lines 55-61) have identical hardcoded forwardHeaders arrays. The codebase already uses environment variables extensively (ZAI_API_KEY, DEFAULT_MODEL, PORT as shown in .env.example). The pattern of reading from process.env is well-established. Making this configurable allows users to forward custom headers (like 'x-custom-header') without code changes.",
+      "builds_upon": [
+        "Environment variable pattern (ZAI_API_KEY, DEFAULT_MODEL)",
+        "Header forwarding logic in proxy.ts and anthropic.ts",
+        "Case-insensitive header matching pattern"
+      ],
+      "estimated_effort": "medium",
+      "affected_files": [
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        ".env.example"
+      ],
+      "existing_patterns": [
+        "process.env usage for configuration",
+        "Case-insensitive header key matching",
+        "Proxy headers construction pattern"
+      ],
+      "implementation_approach": "Add FORWARD_HEADERS to .env.example with default 'content-type,accept,user-agent'. In both proxy.ts and anthropic.ts, replace hardcoded array with process.env.FORWARD_HEADERS?.split(',').map(h => h.trim()) || ['content-type', 'accept', 'user-agent']. Maintain existing case-insensitive matching logic. This allows runtime configuration without changing the proxy logic structure.",
+      "status": "draft",
+      "created_at": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "ci-005",
+      "type": "code_improvements",
+      "title": "Generic Provider Adapter System",
+      "description": "Extract the common proxy logic from proxy.ts and anthropic.ts into a reusable provider adapter interface, enabling easier addition of new API providers (like Gemini, Claude native API, etc.) without duplicating code.",
+      "rationale": "The codebase has two nearly identical proxy implementations: proxy.ts (OpenAI-compatible) and anthropic.ts (Anthropic Messages API). Both share the same structure: options/result interfaces, model injection, header forwarding, token extraction, usage tracking (fire-and-forget), and error handling. The createProxyHandler factory (src/handlers/proxyHandler.ts) already accepts a ProxyFunction, showing the architecture supports this abstraction. Creating a ProviderAdapter interface would consolidate the ~200 lines of duplicated logic.",
+      "builds_upon": [
+        "Dual proxy implementations (proxy.ts, anthropic.ts)",
+        "createProxyHandler factory pattern",
+        "ProxyFunction type signature",
+        "Usage tracking pattern (updateApiKeyUsage)"
+      ],
+      "estimated_effort": "large",
+      "affected_files": [
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        "src/handlers/providerAdapter.ts",
+        "src/index.ts"
+      ],
+      "existing_patterns": [
+        "ProxyOptions/ProxyResult interfaces",
+        "Model injection in request body",
+        "Token usage extraction from response",
+        "Fire-and-forget usage tracking",
+        "Consistent error response structure"
+      ],
+      "implementation_approach": "Create src/handlers/providerAdapter.ts with ProviderAdapter interface containing: getBaseUrl(), prepareHeaders(), injectModel(), extractTokens(). Create two adapters (OpenAIAdapter, AnthropicAdapter) implementing this interface. Create generic proxyRequest(adapter, options) function containing shared logic (fetch, error handling, usage tracking). Refactor proxy.ts and anthropic.ts to use their respective adapters. Update index.ts to use generic proxyRequest. Tests already exist for both proxies, ensuring refactoring safety.",
+      "status": "draft",
+      "created_at": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "uiux-001",
+      "type": "ui_ux_improvements",
+      "title": "Add Interactive API Documentation UI (Swagger/OpenAPI)",
+      "description": "Add a web-based API documentation interface using Swagger/OpenAPI that allows developers to explore and test API endpoints interactively",
+      "rationale": "Currently, the API has no visual documentation. Developers must read source code or make blind API calls to understand available endpoints, request formats, and response structures. An interactive documentation UI significantly improves developer experience and reduces integration time.",
+      "category": "usability",
+      "affected_components": [
+        "src/index.ts"
+      ],
+      "screenshots": [],
+      "current_state": "The root endpoint (/) returns minimal JSON with endpoint list. No visual interface exists for exploring the API. Developers cannot test endpoints through a browser.",
+      "proposed_change": "1. Install @hono/swagger-ui and @hono/zod-openapi packages\n2. Add OpenAPI schema definitions for all endpoints\n3. Serve Swagger UI at /docs endpoint\n4. Include request/response examples, authentication details, and error codes\n\nExample implementation:\n```typescript\nimport { swaggerUI } from '@hono/swagger-ui'\n\napp.get('/docs', swaggerUI({ url: '/doc' }))\n```",
+      "user_benefit": "- Developers can visually explore all available endpoints\n- Test API calls directly from the browser without curl/Postman\n- Clear understanding of required headers, request bodies, and response formats\n- Reduced integration time and support burden",
+      "status": "draft",
+      "created_at": "2026-01-22T10:15:00.000Z"
+    },
+    {
+      "id": "uiux-002",
+      "type": "ui_ux_improvements",
+      "title": "Add Web Dashboard for API Key Monitoring",
+      "description": "Create a web dashboard that displays real-time API usage statistics, rate limit status, and token consumption for authenticated users",
+      "rationale": "The /stats endpoint exists but requires making API calls and parsing JSON. A visual dashboard would provide immediate insights into API usage, remaining quota, and token consumption patterns without requiring programmatic access.",
+      "category": "usability",
+      "affected_components": [
+        "src/index.ts",
+        "src/middleware/auth.ts"
+      ],
+      "screenshots": [],
+      "current_state": "The /stats endpoint returns raw JSON with usage data. Users must make authenticated API calls and manually parse the JSON response to see their usage stats. No visual representation of data exists.",
+      "proposed_change": "1. Create a new /dashboard route serving an HTML page\n2. Add JavaScript to fetch data from /stats endpoint (using browser's stored API key)\n3. Visualize data with:\n   - Circular progress bar for token usage percentage\n   - Countdown timer for rate limit window reset\n   - Line chart for historical usage (if data available)\n   - Color-coded status indicators (green=healthy, yellow=low quota, red=exceeded)\n4. Allow users to save API key in localStorage for convenience\n\nFiles to create:\n- src/dashboard/index.html\n- src/dashboard/app.ts (frontend logic)\n- src/dashboard/styles.css",
+      "user_benefit": "- Instant visual feedback on API usage status\n- No need to make separate API calls to check quota\n- Easy monitoring without writing code\n- Better understanding of rate limit windows and remaining tokens\n- Improved ability to plan API usage within quota limits",
+      "status": "draft",
+      "created_at": "2026-01-22T10:15:01.000Z"
+    },
+    {
+      "id": "uiux-003",
+      "type": "ui_ux_improvements",
+      "title": "Add Rate Limit Headers to All Successful Responses",
+      "description": "Include rate limit information in HTTP response headers for every API request, allowing clients to track their quota usage proactively",
+      "rationale": "Currently, clients only discover they've exceeded their rate limit when they receive a 429 error. By including rate limit information in every response (similar to GitHub and Twitter APIs), clients can display usage warnings and throttle requests before hitting limits.",
+      "category": "usability",
+      "affected_components": [
+        "src/handlers/proxyHandler.ts",
+        "src/index.ts"
+      ],
+      "screenshots": [],
+      "current_state": "Rate limit information is only returned in error responses (429 status). Successful responses contain no quota information, forcing clients to make separate API calls to /stats or wait until they hit the limit.",
+      "proposed_change": "Modify the proxy handler to add rate limit headers after successful requests:\n\n```typescript\n// In proxyHandler.ts, after successful proxy\nconst rateLimit = checkRateLimit(apiKey);\n\nc.header('X-RateLimit-Limit', rateLimit.tokensLimit.toString());\nc.header('X-RateLimit-Remaining', Math.max(0, rateLimit.tokensLimit - rateLimit.tokensUsed).toString());\nc.header('X-RateLimit-Reset', new Date(rateLimit.windowEnd).toISOString());\nc.header('X-RateLimit-Window-Start', new Date(rateLimit.windowStart).toISOString());\n```\n\nAlso add to /stats endpoint response headers for consistency.",
+      "user_benefit": "- Clients can proactively display usage warnings (e.g., \"80% of quota used\")\n- Better user experience in applications consuming this API\n- Reduced failed requests due to rate limiting\n- Industry-standard pattern that developers expect\n- Enables clients to implement graceful degradation",
+      "status": "draft",
+      "created_at": "2026-01-22T10:15:02.000Z"
+    },
+    {
+      "id": "uiux-004",
+      "type": "ui_ux_improvements",
+      "title": "Add Request ID Tracking for Better Debugging Experience",
+      "description": "Generate unique request IDs for every incoming request and include them in responses and logs, enabling easier troubleshooting and support",
+      "rationale": "When API consumers encounter errors, they have no way to reference specific requests. Adding request IDs allows users to report issues with traceable identifiers, making debugging and support much easier.",
+      "category": "usability",
+      "affected_components": [
+        "src/index.ts",
+        "src/middleware/auth.ts",
+        "src/handlers/proxyHandler.ts"
+      ],
+      "screenshots": [],
+      "current_state": "No request tracking exists. When errors occur, there's no correlation between client requests and server logs. Support teams cannot easily trace issues reported by users.",
+      "proposed_change": "1. Create middleware to generate and attach request ID:\n\n```typescript\n// src/middleware/requestId.ts\nimport { Context, Next } from 'hono';\nimport { randomUUID } from 'crypto';\n\nexport async function requestIdMiddleware(c: Context, next: Next) {\n  const requestId = c.req.header('X-Request-ID') || randomUUID();\n  c.set('requestId', requestId);\n  c.header('X-Request-ID', requestId);\n  await next();\n}\n```\n\n2. Add to all routes: `app.use('/*', requestIdMiddleware)`\n3. Include request ID in error responses:\n```json\n{\n  \"error\": {\n    \"message\": \"Rate limit exceeded\",\n    \"type\": \"rate_limit_exceeded\",\n    \"request_id\": \"550e8400-e29b-41d4-a716-446655440000\"\n  }\n}\n```\n4. Log request IDs in server logs for correlation",
+      "user_benefit": "- Users can report specific request IDs when encountering issues\n- Support team can quickly locate relevant logs\n- Better debugging experience for complex API issues\n- Industry-standard practice (follows Stripe, AWS, etc.)\n- Enables distributed tracing if architecture expands",
+      "status": "draft",
+      "created_at": "2026-01-22T10:15:03.000Z"
+    },
+    {
+      "id": "uiux-005",
+      "type": "ui_ux_improvements",
+      "title": "Enhance Root Endpoint with Quick Start Guide",
+      "description": "Transform the root endpoint from a basic API list into a comprehensive quick start guide with code examples in multiple languages",
+      "rationale": "The current root endpoint returns minimal JSON that lists endpoints but provides no guidance on how to use them. A helpful landing page serves as onboarding documentation and improves first impressions for new API consumers.",
+      "category": "usability",
+      "affected_components": [
+        "src/index.ts"
+      ],
+      "screenshots": [],
+      "current_state": "Root endpoint returns simple JSON:\n{\n  \"name\": \"Proxy Gateway\",\n  \"version\": \"1.0.0\",\n  \"endpoints\": {...}\n}\n\nNo examples, no authentication instructions, no error handling guidance.",
+      "proposed_change": "Replace JSON response with HTML page containing:\n1. **Hero section** - Service name and description\n2. **Quick Start** - 3-step getting started guide\n3. **Authentication examples** - Code samples in curl, JavaScript, Python:\n   ```bash\n   curl -H \"Authorization: Bearer YOUR_KEY\" \\\n        -H \"Content-Type: application/json\" \\\n        -d '{\"model\":\"gpt-4\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}' \\\n        http://localhost:3000/v1/chat/completions\n   ```\n4. **Response examples** - Sample successful and error responses\n5. **Rate limit info** - Explanation of quotas and how they work\n6. **Links** - /docs, /dashboard, /health\n\nServe HTML with embedded CSS for nice styling.",
+      "user_benefit": "- New users can immediately understand how to use the API\n- Reduced learning curve with copy-paste examples\n- Self-service onboarding reduces support requests\n- Professional first impression\n- Clear explanation of rate limits prevents confusion\n- One central place for all essential information",
+      "status": "draft",
+      "created_at": "2026-01-22T10:15:04.000Z"
+    },
+    {
+      "id": "sec-001",
+      "type": "security_hardening",
+      "title": "Restrict overly permissive CORS configuration to prevent CSRF attacks",
+      "description": "The CORS configuration in src/index.ts sets `origin: '*'` which allows any origin to make requests to the API. This enables Cross-Site Request Forgery (CSRF) attacks where malicious websites can make unauthorized requests on behalf of authenticated users.",
+      "rationale": "A wildcard CORS origin means any website can interact with this API proxy. Since the API uses Bearer token authentication, malicious sites can trigger requests to /stats, /v1/messages, or /v1/* endpoints that consume user quotas or expose sensitive information. This violates the principle of least privilege and is a critical security misconfiguration.",
+      "category": "configuration",
+      "severity": "critical",
+      "affectedFiles": [
+        "src/index.ts"
+      ],
+      "vulnerability": "CWE-942: Permissive Cross-domain Policy with Untrusted Domains",
+      "currentRisk": "Any website can make authenticated requests to the API, enabling CSRF attacks that can consume quotas, expose user statistics, and make unauthorized API calls.",
+      "remediation": "1. Replace `origin: '*'` with a whitelist of allowed origins\n2. Use environment variable to configure allowed origins: `CORS_ORIGINS=https://yourdomain.com,https://app.yourdomain.com`\n3. Add origin validation middleware that checks against the whitelist\n4. For development, use specific localhost origins, not wildcards\n5. Consider adding CSRF token protection for state-changing operations",
+      "references": [
+        "https://owasp.org/www-community/attacks/csrf",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS",
+        "https://cwe.mitre.org/data/definitions/942.html"
+      ],
+      "compliance": [
+        "SOC2",
+        "PCI-DSS",
+        "OWASP-ASVS v5"
+      ]
+    },
+    {
+      "id": "sec-002",
+      "type": "security_hardening",
+      "title": "Mask or truncate API keys in /stats response to prevent credential leakage",
+      "description": "The /stats endpoint in src/index.ts returns the full API key in the response (`key: apiKey.key`). This exposes the complete credential in plaintext, which can be logged, cached, or exposed through browser developer tools, referral headers, or analytics tools.",
+      "rationale": "Returning full API keys in API responses creates multiple security risks: (1) Browser developer tools expose the key to anyone with access, (2) Logs and monitoring systems may store the full key, (3) Analytics or error tracking tools could inadvertently capture credentials, (4) Referral headers might leak the key to external sites. Following security best practices, sensitive credentials should never be returned in API responses except during initial creation.",
+      "category": "data_protection",
+      "severity": "high",
+      "affectedFiles": [
+        "src/index.ts",
+        "src/types.ts"
+      ],
+      "vulnerability": "CWE-532: Insertion of Sensitive Information into Log File",
+      "currentRisk": "Full API keys are exposed through stats endpoint responses, browser storage, logs, and potentially third-party services. Credentials can be harvested by attackers with access to any of these systems.",
+      "remediation": "1. Modify the StatsResponse type to use a masked key format: `key: string` → `key_masked: string`\n2. Replace key display with partial masking: show first 8 and last 4 characters (e.g., `pk_test_...1234`)\n3. Update src/index.ts stats endpoint: `key_masked: '${apiKey.key.slice(0, 8)}...${apiKey.key.slice(-4)}'`\n4. Ensure no logs contain full API keys\n5. Add audit logging for stats access to monitor for suspicious access patterns",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/532.html",
+        "https://owasp.org/www-project-top-ten/A01_2021-Broken_Access_Control/"
+      ],
+      "compliance": [
+        "SOC2",
+        "PCI-DSS",
+        "GDPR",
+        "OWASP-ASVS v2.5"
+      ]
+    },
+    {
+      "id": "sec-003",
+      "type": "security_hardening",
+      "title": "Implement comprehensive security headers to mitigate XSS and clickjacking attacks",
+      "description": "The application lacks security HTTP headers including Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security, and others. This increases vulnerability to cross-site scripting (XSS), clickjacking, MIME sniffing, and man-in-the-middle attacks.",
+      "rationale": "Security headers provide defense-in-depth protection against common attacks. Without Content-Security-Policy, the application is vulnerable to XSS attacks that can steal API keys from localStorage or cookies. Missing X-Frame-Options allows clickjacking attacks. Absence of HSTS leaves the application vulnerable to SSL stripping. These headers are standard security requirements for production web services.",
+      "category": "configuration",
+      "severity": "high",
+      "affectedFiles": [
+        "src/index.ts"
+      ],
+      "vulnerability": "CWE-693: Protection Mechanism Failure, CWE-1021: Improper Restriction of Rendered UI Layers or Frames",
+      "currentRisk": "Application is vulnerable to XSS, clickjacking, MIME-type sniffing, and SSL stripping attacks. Attackers can inject malicious scripts, frame the site in invisible iframes, and downgrade HTTPS connections.",
+      "remediation": "1. Install helmet middleware or configure Hono's built-in security headers\n2. Add Content-Security-Policy: `default-src 'self'; script-src 'self' 'unsafe-inline';`\n3. Add X-Frame-Options: `DENY` or `SAMEORIGIN`\n4. Add X-Content-Type-Options: `nosniff`\n5. Add Strict-Transport-Security: `max-age=31536000; includeSubDomains`\n6. Add Permissions-Policy: `geolocation=(), microphone=(), camera=()`\n7. Add Referrer-Policy: `strict-origin-when-cross-origin`\n8. Configure security headers as middleware in src/index.ts",
+      "references": [
+        "https://owasp.org/www-project-secure-headers/",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy",
+        "https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html"
+      ],
+      "compliance": [
+        "SOC2",
+        "PCI-DSS",
+        "OWASP-ASVS v5.2"
+      ]
+    },
+    {
+      "id": "sec-004",
+      "type": "security_hardening",
+      "title": "Encrypt API keys at rest in storage to protect against data breach exposure",
+      "description": "API keys are stored in plaintext in data/apikeys.json file (see src/storage.ts). If the server is compromised or the storage file is accessed, all client API keys and the master ZAI_API_KEY are immediately exposed, allowing attackers to impersonate any user and abuse the upstream API.",
+      "rationale": "The current storage implementation writes API keys in plain JSON format without encryption. This violates defense-in-depth principles. While file permissions provide some protection, they don't protect against: (1) Server compromise giving file read access, (2) Backup exposure, (3) Accidental commits to version control, (4) Insider threats. Encryption at rest ensures that even if storage is compromised, credentials remain protected.",
+      "category": "data_protection",
+      "severity": "high",
+      "affectedFiles": [
+        "src/storage.ts",
+        "data/apikeys.json",
+        ".env.example"
+      ],
+      "vulnerability": "CWE-312: Cleartext Storage of Sensitive Information",
+      "currentRisk": "If the server filesystem is compromised or backups are exposed, all API keys (both client keys and the master ZAI key) are immediately readable. This could lead to massive abuse of the API and financial loss.",
+      "remediation": "1. Add encryption key to environment: `STORAGE_ENCRYPTION_KEY` (32 bytes hex)\n2. Use crypto.encrypt() with AES-256-GCM for encryption\n3. Encrypt individual API key fields before writing to JSON\n4. Decrypt API keys after reading from JSON\n5. Ensure the master ZAI_API_KEY is not stored in apikeys.json\n6. Use Web Crypto API or Node crypto for AES-256-GCM\n7. Implement key rotation support\n8. Add integrity checks (HMAC) to detect tampering",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Encrypting_Data_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/312.html",
+        "https://owasp.org/www-project-top-ten/A02_2021-Cryptographic_Failures/"
+      ],
+      "compliance": [
+        "SOC2",
+        "PCI-DSS",
+        "GDPR",
+        "HIPAA",
+        "OWASP-ASVS v2.6"
+      ]
+    },
+    {
+      "id": "sec-005",
+      "type": "security_hardening",
+      "title": "Add request body size limits and input validation to prevent DoS attacks",
+      "description": "The application has no limits on request body size for POST endpoints (/v1/messages, /v1/chat/completions). Attackers can send extremely large payloads to consume server memory, cause denial of service, or potentially exploit buffer overflow vulnerabilities in parsing libraries.",
+      "rationale": "Without body size limits, the server is vulnerable to denial-of-service attacks where a single large request can exhaust memory. Large JSON payloads can also cause excessive CPU usage during parsing. Additionally, unbounded headers or query parameters could be exploited. Rate limiting exists for tokens but not for request size, creating an attack vector.",
+      "category": "input_validation",
+      "severity": "medium",
+      "affectedFiles": [
+        "src/index.ts",
+        "src/handlers/proxyHandler.ts"
+      ],
+      "vulnerability": "CWE-770: Allocation of Resources Without Limits or Throttling",
+      "currentRisk": "Attackers can send large payloads (e.g., 1GB JSON) to exhaust server memory, cause service crashes, or degrade performance for legitimate users. This affects all proxy endpoints.",
+      "remediation": "1. Add Hono body size limit middleware: `app.use('/*', bodyParser({ maxSize: '10MB' }))`\n2. Implement request size validation before JSON parsing\n3. Add header size limits (max 8KB)\n5. Return 413 Payload Too Large for oversized requests\n6. Log rejected oversized requests for monitoring\n7. Consider per-IP rate limiting for DoS prevention\n8. Add timeouts for upstream requests to prevent slow-loris attacks",
+      "references": [
+        "https://owasp.org/www-community/attacks/Denial_of_Service",
+        "https://cwe.mitre.org/data/definitions/770.html",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html"
+      ],
+      "compliance": [
+        "SOC2",
+        "PCI-DSS",
+        "OWASP-ASVS v5.3"
+      ]
+    },
+    {
+      "id": "perf-001",
+      "type": "performance_optimizations",
+      "title": "Implement in-memory API key cache with TTL to eliminate file I/O on every request",
+      "description": "The current implementation reads from the JSON file on every API request for authentication (findApiKey in storage.ts). This creates significant I/O overhead and scales poorly. Implementing an in-memory LRU cache with a 5-minute TTL would eliminate most disk reads while maintaining data freshness.",
+      "rationale": "Every authenticated request (POST /v1/*, POST /v1/messages) currently triggers a file read operation via findApiKey(). With concurrent requests, this creates I/O contention. The file locking mechanism (withLock) adds retry delays up to 500ms. Caching validated keys reduces I/O by ~95% while only invalidating every 5 minutes.",
+      "category": "runtime",
+      "impact": "high",
+      "affectedAreas": [
+        "src/storage.ts",
+        "src/validator.ts",
+        "src/middleware/auth.ts"
+      ],
+      "currentMetric": "1-2 file I/O operations per request, ~500ms worst-case delay under concurrency",
+      "expectedImprovement": "~95% reduction in file I/O, 10-50x faster authentication, support for 100x more concurrent requests",
+      "implementation": "1. Create an LRUCache class with TTL support\n2. Cache validated ApiKey objects with 5-minute expiry\n3. Modify validateApiKey() to check cache before file\n4. Add cache invalidation on API key updates\n5. Implement cache stats endpoint for monitoring\n6. Add cache warming on startup for frequently used keys",
+      "tradeoffs": "Cache staleness: keys may remain valid for up to 5 minutes after expiry or revocation. This is acceptable for most use cases but requires consideration for security-critical applications.",
+      "estimatedEffort": "medium",
+      "status": "archived",
+      "linked_task_id": "006-implement-in-memory-api-key-cache-with-ttl-to-elim"
+    },
+    {
+      "id": "perf-002",
+      "type": "performance_optimizations",
+      "title": "Implement proper streaming response handling for LLM APIs",
+      "description": "Both proxy.ts and anthropic.ts currently buffer entire responses in memory using response.text() before sending to clients. This breaks streaming for LLM responses, increases memory usage, and adds latency. Implementing true streaming with TransformStream would enable real-time token delivery.",
+      "rationale": "LLM responses can be large (100KB+ for long generations). Buffering entire responses in memory before sending adds latency equal to the full generation time, increases memory footprint per request, and prevents clients from processing tokens incrementally. For a 10-second generation, clients wait 10 seconds before seeing any output.",
+      "category": "runtime",
+      "impact": "high",
+      "affectedAreas": [
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        "src/handlers/proxyHandler.ts"
+      ],
+      "currentMetric": "Full response buffered in memory, no streaming support, high memory usage for long generations",
+      "expectedImprovement": "~50-90% reduction in time-to-first-token, 80-95% reduction in memory usage per request, proper streaming support for LLM clients",
+      "implementation": "1. Modify proxy handlers to return Response directly instead of ProxyResult\n2. Use Response.body from upstream fetch() directly\n3. Implement TransformStream for token counting on-the-fly\n4. Handle both streaming and non-streaming responses\n5. Update ProxyResult interface to support streaming bodies\n6. Add error handling for stream interruptions\n7. Write unit tests for streaming scenarios",
+      "tradeoffs": "More complex error handling for partial responses. Token counting must be done during streaming, requiring JSON parsing of SSE events. Slightly increased code complexity.",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "perf-003",
+      "type": "performance_optimizations",
+      "title": "Batch usage updates with write-behind queue to reduce file write contention",
+      "description": "The current implementation calls updateApiKeyUsage() as fire-and-forget after each request, but multiple concurrent requests still contend for file locks. Implementing a write-behind queue that batches updates every 5 seconds or 100 requests would reduce write operations by ~99%.",
+      "rationale": "Each LLM request triggers updateApiKeyUsage(), which reads the entire JSON file, modifies it, and writes it back. Under load with 100 concurrent requests, this creates massive file lock contention. The current code uses fire-and-forget but doesn't prevent concurrent writes. Batching reduces 100 writes to 1-2 writes per 5-second interval.",
+      "category": "database",
+      "impact": "medium",
+      "affectedAreas": [
+        "src/storage.ts",
+        "src/proxy.ts",
+        "src/anthropic.ts"
+      ],
+      "currentMetric": "1 file write per request, high contention under load, potential data loss on process termination",
+      "expectedImprovement": "~99% reduction in file writes, elimination of lock contention, improved scalability, persistent usage tracking",
+      "implementation": "1. Create an in-memory usage tracking map (apiKey -> tokens)\n2. Implement a batch processor that runs every 5 seconds\n3. Batch processor flushes accumulated updates to storage\n4. Add graceful shutdown handler to flush pending updates\n5. Update updateApiKeyUsage() to add to queue instead of writing\n6. Add metrics for queue depth and flush frequency\n7. Implement overflow flush if queue exceeds threshold",
+      "tradeoffs": "Usage data delayed by up to 5 seconds in storage. Risk of losing last 5 seconds of data if process crashes unexpectedly (mitigated by graceful shutdown handler). Maximum potential loss: batch size × avg tokens.",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "perf-004",
+      "type": "performance_optimizations",
+      "title": "Implement HTTP connection pooling and keep-alive for upstream API calls",
+      "description": "Each proxy request creates a new HTTP connection to upstream APIs (api.z.ai, open.bigmodel.cn) without connection reuse. Implementing connection pooling with HTTP keep-alive would reduce TLS handshake overhead and latency.",
+      "rationale": "Current fetch() calls don't specify keep-alive settings, so each request may establish a new TCP+TLS connection (~100-300ms overhead). For high-frequency APIs, this adds significant latency. Node.js/Bun's fetch implementation can reuse connections when configured properly.",
+      "category": "network",
+      "impact": "medium",
+      "affectedAreas": [
+        "src/proxy.ts",
+        "src/anthropic.ts"
+      ],
+      "currentMetric": "New TCP+TLS connection per request, ~100-300ms overhead for handshake",
+      "expectedImprovement": "~20-40% reduction in upstream API latency, reduced CPU usage for TLS handshakes, better throughput",
+      "implementation": "1. Create a custom fetch agent with connection pooling options\n2. Configure HTTP agent with keepAlive: true, maxSockets: 100\n3. Set appropriate keepAliveTimeout (e.g., 60s)\n4. Reuse agent instance across all proxy requests\n5. Add connection pool metrics (active, idle, queued)\n6. Test with concurrent requests to verify reuse\n7. Fallback to default fetch if agent configuration fails",
+      "tradeoffs": "Increased complexity in fetch configuration. Need to manage connection pool lifecycle. Potential for connection exhaustion if pool not sized correctly. Requires testing to determine optimal pool size.",
+      "estimatedEffort": "small"
+    },
+    {
+      "id": "perf-005",
+      "type": "performance_optimizations",
+      "title": "Optimize rate limiting with O(1) rolling window algorithm",
+      "description": "The current rateLimit.ts filters the entire usage_windows array on every check (O(n) complexity). For keys with many usage windows, this becomes inefficient. Implementing a rolling window with pre-calculated running totals would reduce complexity to O(1).",
+      "rationale": "The checkRateLimit() function filters usage_windows array to find active windows within 5 hours, then sums their tokens. For keys with hundreds of windows (e.g., high-volume usage over weeks), this creates unnecessary CPU overhead. The window cleanup only happens during updates, not reads.",
+      "category": "runtime",
+      "impact": "low",
+      "affectedAreas": [
+        "src/ratelimit.ts",
+        "src/storage.ts"
+      ],
+      "currentMetric": "O(n) filtering on every rate limit check, scales linearly with usage history",
+      "expectedImprovement": "O(1) rate limit checks, ~10-20% CPU reduction for high-volume keys, predictable performance",
+      "implementation": "1. Add a 'rolling_5h_tokens' field to ApiKey schema\n2. Update storage to maintain this field incrementally\n3. Modify checkRateLimit() to use pre-calculated value\n4. Implement a cleanup job that runs hourly to remove old windows\n5. Add migration script to backfill rolling_5h_tokens for existing keys\n6. Update window cleanup logic to maintain rolling total\n7. Add tests for edge cases (window boundaries, rollovers)",
+      "tradeoffs": "Schema change requires data migration. Slightly more complex update logic to maintain rolling total accurately. Must handle edge cases where cleanup hasn't run recently.",
+      "estimatedEffort": "small",
+      "status": "dismissed",
+      "linked_task_id": "007-optimize-rate-limiting-with-o-1-rolling-window-alg"
+    },
+    {
+      "id": "cq-001",
+      "type": "code_quality",
+      "title": "Eliminate code duplication between proxy.ts and anthropic.ts",
+      "description": "The files src/proxy.ts (142 lines) and src/anthropic.ts (145 lines) contain approximately 80% duplicate code. Both files implement nearly identical logic for environment variable checking, request body processing, fetch error handling, token usage extraction, and response building. The only meaningful differences are the target URLs and the authorization header format.",
+      "rationale": "Code duplication violates the DRY principle and leads to maintenance burden. Bug fixes and improvements must be applied in two places, increasing the risk of inconsistencies. Currently, anthropic.ts properly uses `error: unknown` with type narrowing while proxy.ts still uses `error: any`, demonstrating how divergence occurs over time.",
+      "category": "duplication",
+      "severity": "major",
+      "affectedFiles": [
+        "src/proxy.ts",
+        "src/anthropic.ts"
+      ],
+      "currentState": "Two files with 287 total lines containing nearly identical proxy logic, differing only in base URL (ZAI_API_BASE vs ZAI_ANTHROPIC_BASE) and auth header (Authorization vs x-api-key)",
+      "proposedChange": "Create a shared base proxy module (src/lib/baseProxy.ts) containing common logic, accepting a configuration object for API-specific settings. Both proxy.ts and anthropic.ts would become thin wrappers that configure and call the base proxy.",
+      "codeExample": "// Current (duplicated in both files):\nexport async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> {\n  // 40+ lines of duplicate logic\n  if (!ZAI_API_KEY) { /* duplicate error handling */ }\n  // ... more duplication\n}\n\n// Proposed:\n// lib/baseProxy.ts\ninterface ProxyConfig {\n  baseUrl: string;\n  getAuthHeaders: (apiKey: string) => Record<string, string>;\n  modelInjectionPaths: string[];\n  extractUsage: (response: any) => number;\n}\n\nexport async function proxyRequest(config: ProxyConfig, options: ProxyOptions): Promise<ProxyResult> {\n  // Single implementation\n}\n\n// proxy.ts\nexport const proxyRequest = createProxy({\n  baseUrl: ZAI_API_BASE,\n  getAuthHeaders: (key) => ({ Authorization: `Bearer ${key}` }),\n  // ...\n});",
+      "bestPractice": "DRY (Don't Repeat Yourself) - extract shared logic into reusable modules to reduce duplication and improve maintainability",
+      "metrics": {
+        "lineCount": 287,
+        "complexity": null,
+        "duplicateLines": 230,
+        "testCoverage": null
+      },
+      "estimatedEffort": "medium",
+      "breakingChange": false,
+      "prerequisites": [
+        "Ensure all existing tests pass before refactoring",
+        "Consider adding integration tests for both proxy types"
+      ]
+    },
+    {
+      "id": "cq-002",
+      "type": "code_quality",
+      "title": "Remove unsafe 'any' type usage and improve type safety",
+      "description": "The codebase uses 'any' type and type assertions in critical locations, undermining TypeScript's type safety benefits. This includes error handling with `error: any` (proxy.ts line 128), context type assertions with `as any` (index.ts line 29, handlers/proxyHandler.ts line 53), and other locations that bypass type checking.",
+      "rationale": "Using 'any' bypasses TypeScript's type checking, defeating the purpose of using TypeScript. It can lead to runtime errors that should have been caught at compile time. The inconsistent error handling (proxy.ts uses `any` while anthropic.ts correctly uses `unknown`) shows how type safety erodes over time and across developers.",
+      "category": "types",
+      "severity": "major",
+      "affectedFiles": [
+        "src/index.ts",
+        "src/proxy.ts",
+        "src/handlers/proxyHandler.ts"
+      ],
+      "currentState": "Multiple locations use 'any' or 'as any': error handling (proxy.ts line 128), context casting (index.ts line 29), and status code casting (handlers/proxyHandler.ts line 53)",
+      "proposedChange": "Replace all 'any' types with proper TypeScript types. Use 'unknown' for error values with type narrowing, properly type Hono context variables, and use correct numeric types for status codes.",
+      "codeExample": "// Current:\nconst apiKey = getApiKeyFromContext(c as any);\n} catch (error: any) {\n  return JSON.stringify({ message: error.message });\n}\nreturn c.body(result.body, result.status as any);\n\n// Proposed:\nconst apiKey = getApiKeyFromContext(c);\n} catch (error: unknown) {\n  const message = error instanceof Error ? error.message : 'Unknown error';\n  return JSON.stringify({ message });\n}\nreturn c.body(result.body, result.status);",
+      "bestPractice": "Type Safety - Avoid 'any' types. Use 'unknown' for values of uncertain type, then narrow the type with proper type guards.",
+      "metrics": {
+        "lineCount": null,
+        "complexity": null,
+        "duplicateLines": null,
+        "testCoverage": null
+      },
+      "estimatedEffort": "small",
+      "breakingChange": false,
+      "prerequisites": [
+        "Update ESLint rule to error on '@typescript-eslint/no-explicit-any' instead of warn"
+      ]
+    },
+    {
+      "id": "cq-003",
+      "type": "code_quality",
+      "title": "Add missing test coverage for middleware and handlers",
+      "description": "Critical middleware and handler files have zero test coverage. The src/middleware/auth.ts (33 lines), src/middleware/rateLimit.ts (29 lines), and src/handlers/proxyHandler.ts (56 lines) files are completely untested. Additionally, 3 out of 22 existing tests are currently failing, indicating quality issues in the test suite.",
+      "rationale": "Middleware handles authentication and rate limiting - the core security features of the proxy. Without tests, there's no verification these critical features work correctly. The failing tests in the existing suite (test/storage.test.ts line 36 expects 0 keys but finds 1, test/proxy.test.ts has mock failures) also indicate quality issues that should be resolved.",
+      "category": "testing",
+      "severity": "major",
+      "affectedFiles": [
+        "src/middleware/auth.ts",
+        "src/middleware/rateLimit.ts",
+        "src/handlers/proxyHandler.ts",
+        "test/storage.test.ts",
+        "test/proxy.test.ts"
+      ],
+      "currentState": "Zero tests for 3 critical files totaling 118 lines. 3 existing tests failing (storage.test.ts line 36, proxy.test.ts lines 60 and 83)",
+      "proposedChange": "1. Fix the 3 failing tests in test/storage.test.ts and test/proxy.test.ts\n2. Create test/middleware/auth.test.ts with coverage for API key extraction, Bearer token parsing, and validation flow\n3. Create test/middleware/rateLimit.test.ts with coverage for rate limit checking, window calculation, and retry-after logic\n4. Create test/handlers/proxyHandler.test.ts with coverage for request forwarding and response handling",
+      "codeExample": "// Missing - should add:\n// test/middleware/auth.test.ts\nimport { describe, it, expect } from 'vitest';\nimport { extractApiKey } from '../src/middleware/auth.js';\n\ndescribe('authMiddleware', () => {\n  it('should extract API key from Authorization header', () => {\n    const headers = new Headers({ 'authorization': 'Bearer test-key' });\n    expect(extractApiKey(headers)).toBe('test-key');\n  });\n  \n  it('should extract API key from x-api-key header', () => {\n    const headers = new Headers({ 'x-api-key': 'test-key' });\n    expect(extractApiKey(headers)).toBe('test-key');\n  });\n  \n  it('should prioritize Authorization over x-api-key', () => {\n    const headers = new Headers({\n      'authorization': 'Bearer auth-key',\n      'x-api-key': 'header-key'\n    });\n    expect(extractApiKey(headers)).toBe('auth-key');\n  });\n});",
+      "bestPractice": "Test Coverage - Critical security and routing logic should have comprehensive unit tests. Aim for >80% coverage overall.",
+      "metrics": {
+        "lineCount": 118,
+        "complexity": null,
+        "duplicateLines": null,
+        "testCoverage": 0
+      },
+      "estimatedEffort": "medium",
+      "breakingChange": false,
+      "prerequisites": [
+        "Fix the 3 failing tests first to establish a working test baseline",
+        "Consider setting up coverage reporting with vitest"
+      ]
+    },
+    {
+      "id": "cq-004",
+      "type": "code_quality",
+      "title": "Extract hardcoded magic numbers into named constants",
+      "description": "The rate limiting window duration (5 hours) is hardcoded as a millisecond calculation `5 * 60 * 60 * 1000` in 3 different locations across 2 files (src/storage.ts line 77, src/ratelimit.ts lines 18 and 39). This magic number appears repeatedly without explanation or central definition. Additionally, ZAI_API_KEY is accessed via process.env in 5 locations without centralization.",
+      "rationale": "Hardcoded magic numbers make code harder to understand and maintain. If the rate limit window needs to change from 5 hours to another duration, developers would need to find and update all occurrences. Scattered environment variable access makes configuration validation difficult and prevents fail-fast startup behavior.",
+      "category": "code_smells",
+      "severity": "minor",
+      "affectedFiles": [
+        "src/storage.ts",
+        "src/ratelimit.ts",
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        "src/index.ts"
+      ],
+      "currentState": "The value `5 * 60 * 60 * 1000` (18000000ms) appears 3 times across 2 files. ZAI_API_KEY accessed via process.env in 5 files with runtime checks instead of centralized validation.",
+      "proposedChange": "Create a src/config.ts file with: 1) Named constants like RATE_LIMIT_WINDOW_MS = 5 * 60 * 60 * 1000, 2) Centralized environment variable access with validation, 3) Fail-fast configuration checks at startup. Import and use these constants throughout the codebase.",
+      "codeExample": "// Current (repeated in multiple files):\nconst fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();\nif (!process.env.ZAI_API_KEY) { ... }\n\n// Proposed:\n// src/config.ts\nconst validateEnvVar = (key: string, fallback?: string): string => {\n  const value = process.env[key];\n  if (!value && !fallback) {\n    throw new Error(`Missing required environment variable: ${key}`);\n  }\n  return value || fallback!;\n};\n\nexport const config = {\n  rateLimitWindowMs: 5 * 60 * 60 * 1000,\n  rateLimitWindowHours: 5,\n  zaiApiKey: validateEnvVar('ZAI_API_KEY'),\n  defaultModel: validateEnvVar('DEFAULT_MODEL', 'glm-4.7'),\n} as const;\n\n// Usage in other files:\nimport { config } from './config.js';\nconst windowStart = new Date(Date.now() - config.rateLimitWindowMs).toISOString();",
+      "bestPractice": "Avoid Magic Numbers - Extract repeated numeric literals into well-named constants with clear units and purpose. Centralized Configuration - provide single source of truth for all configuration.",
+      "metrics": {
+        "lineCount": null,
+        "complexity": null,
+        "duplicateLines": 25,
+        "testCoverage": null
+      },
+      "estimatedEffort": "small",
+      "breakingChange": false,
+      "prerequisites": null
+    },
+    {
+      "id": "cq-005",
+      "type": "code_quality",
+      "title": "Replace silent error catching with proper error handling and logging",
+      "description": "Both src/proxy.ts (line 109) and src/anthropic.ts (line 106) use a 'fire and forget' pattern for updating API key usage: `updateApiKeyUsage(apiKey.key, tokensUsed, model).catch(console.error)`. This silently swallows errors and provides no monitoring or retry mechanism. The codebase also uses console.log/error directly instead of a proper logging library.",
+      "rationale": "Silent error handling with `.catch(console.error)` hides failures from monitoring systems and makes debugging difficult. If updateApiKeyUsage fails consistently, token usage tracking becomes inaccurate without anyone knowing, leading to incorrect billing or quota enforcement. Using console statements directly prevents structured logging and log aggregation.",
+      "category": "code_smells",
+      "severity": "minor",
+      "affectedFiles": [
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        "src/index.ts",
+        "src/storage.ts"
+      ],
+      "currentState": "Two locations use `.catch(console.error)` to suppress errors from async operations. Console statements used directly throughout the codebase instead of a proper logging system.",
+      "proposedChange": "Implement a proper error handling and logging strategy: 1) Create a structured logging utility (src/lib/logger.ts) using pino or similar, 2) Replace all console.log/error with logger methods, 3) Create an error tracking utility for async operations, 4) Consider implementing a retry mechanism with exponential backoff for transient failures.",
+      "codeExample": "// Current:\nupdateApiKeyUsage(apiKey.key, tokensUsed, model).catch(console.error);\nconsole.log(`Proxy Gateway starting on port ${port}`);\n\n// Proposed:\n// src/lib/logger.ts\nimport pino from 'pino';\nexport const logger = pino({\n  level: process.env.LOG_LEVEL || 'info',\n});\n\n// src/lib/asyncLogger.ts\nexport async function logAsyncError<T>(\n  promise: Promise<T>,\n  context: string\n): Promise<void> {\n  try {\n    await promise;\n  } catch (error) {\n    const errorMessage = error instanceof Error ? error.message : 'Unknown error';\n    logger.error({ error: errorMessage, context }, 'Async operation failed');\n    // Could also send to monitoring system (Sentry, DataDog, etc.)\n  }\n}\n\n// Usage:\nawait logAsyncError(\n  updateApiKeyUsage(apiKey.key, tokensUsed, model),\n  'updateApiKeyUsage'\n);\nlogger.info({ port }, 'Proxy Gateway starting');",
+      "bestPractice": "Error Handling - Don't silently suppress errors. Log them properly and ensure they're visible in monitoring systems. Structured Logging - use a proper logging library with log levels and structured output.",
+      "metrics": {
+        "lineCount": null,
+        "complexity": null,
+        "duplicateLines": null,
+        "testCoverage": null
+      },
+      "estimatedEffort": "small",
+      "breakingChange": false,
+      "prerequisites": [
+        "Decide on logging library (pino recommended for Bun)",
+        "Consider if updateApiKeyUsage should be made synchronous or queued"
+      ]
+    },
+    {
+      "id": "doc-001",
+      "type": "documentation_gaps",
+      "title": "Add JSDoc documentation to all public API functions",
+      "description": "The codebase exports 20+ public functions across 8 modules (proxy.ts, anthropic.ts, ratelimit.ts, storage.ts, validator.ts, middleware/auth.ts, middleware/rateLimit.ts, handlers/proxyHandler.ts) but none have JSDoc comments. Critical functions like proxyRequest(), proxyAnthropicRequest(), checkRateLimit(), and withLock() lack parameter descriptions, return value documentation, and usage examples.",
+      "rationale": "This is a significant gap for contributors and maintainers. The codebase has complex logic around rate limiting, file locking, and proxy transformation that requires understanding the nuances. Without JSDoc, developers must read source code to understand function behavior, parameters, and return values. IDEs cannot provide intelligent autocomplete or inline help, slowing down development.",
+      "category": "api_docs",
+      "targetAudience": "developers",
+      "affectedAreas": [
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        "src/ratelimit.ts",
+        "src/storage.ts",
+        "src/validator.ts",
+        "src/middleware/auth.ts",
+        "src/middleware/rateLimit.ts",
+        "src/handlers/proxyHandler.ts"
+      ],
+      "currentDocumentation": "Only basic TypeScript type definitions with minimal inline comments",
+      "proposedContent": "Add comprehensive JSDoc comments to all exported functions including:\n- Function description and purpose\n- @param tags with type and description for each parameter\n- @returns tag describing return value and structure\n- @throws tag for errors that may be thrown\n- @example tags showing common usage patterns\n- Notes about side effects (e.g., file I/O, network calls)",
+      "priority": "high",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "doc-002",
+      "type": "documentation_gaps",
+      "title": "Create CONTRIBUTING.md with development workflow guide",
+      "description": "No CONTRIBUTING.md file exists. The README has basic development commands (test, build, lint, typecheck) but lacks guidance on setting up development environment, coding standards, commit message conventions, PR process, or how to add new features. New contributors must infer workflow from existing code and git history.",
+      "rationale": "This project uses modern tooling (Husky, lint-staged, ESLint, Vitest) and has specific patterns (file locking, rate limiting, middleware chain) that contributors should follow. Without contributing guidelines, contributions may be inconsistent, require more review cycles, or inadvertently break patterns. A good CONTRIBUTING.md accelerates onboarding and reduces maintainer burden.",
+      "category": "readme",
+      "targetAudience": "contributors",
+      "affectedAreas": [
+        "CONTRIBUTING.md (new file)",
+        ".husky/",
+        "package.json"
+      ],
+      "currentDocumentation": "Only basic 'Development' section in README with 4 commands",
+      "proposedContent": "Create comprehensive CONTRIBUTING.md covering:\n- Development environment setup (Bun, dependencies)\n- Project structure and architecture overview\n- Coding standards and conventions (TypeScript, error handling, naming)\n- Testing guide (how to write tests, coverage expectations)\n- Commit message conventions (likely Conventional Commits given Husky setup)\n- PR submission process and review checklist\n- Local development workflow with hot reload\n- Common patterns (middleware, proxy handlers, storage operations)",
+      "priority": "high",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "doc-003",
+      "type": "documentation_gaps",
+      "title": "Add inline comments for complex algorithms and non-obvious logic",
+      "description": "Several critical algorithms lack explanatory comments: (1) The rolling 5-hour window rate limiting algorithm in ratelimit.ts calculates active windows but doesn't explain why multiple windows exist or how cleanup works. (2) The file locking mechanism in storage.ts uses atomic mkdir but doesn't document the retry logic or race condition prevention. (3) The proxy header transformation logic forwards some headers but not others without explaining security implications.",
+      "rationale": "The rate limiting and file locking code are core to the system's correctness and performance. The rolling window algorithm is particularly subtle (multiple overlapping windows, cleanup of old entries, retry-after calculation). Future maintainers debugging quota issues or data races will need to understand these intricacies. Inline comments serve as 'guard rails' preventing accidental breaking changes.",
+      "category": "inline_comments",
+      "targetAudience": "developers",
+      "affectedAreas": [
+        "src/ratelimit.ts (checkRateLimit function)",
+        "src/storage.ts (withLock function, updateApiKeyUsage function)",
+        "src/proxy.ts (header forwarding logic, model injection)",
+        "src/anthropic.ts (header transformation)"
+      ],
+      "currentDocumentation": "Minimal comments (e.g., 'Get all active windows')",
+      "proposedContent": "Add detailed inline comments explaining:\n- Why rolling window uses multiple entries (to handle overlapping periods)\n- How cleanup prevents memory leaks while preserving accurate limits\n- Why mkdir is used for file locking (atomic on Unix filesystems)\n- The retry/backoff strategy and EEXIST error handling\n- Why certain headers are forwarded vs. replaced (security considerations)\n- Why model is injected rather than forwarded (quota enforcement per-key model)",
+      "priority": "high",
+      "estimatedEffort": "low"
+    },
+    {
+      "id": "doc-004",
+      "type": "documentation_gaps",
+      "title": "Create comprehensive testing documentation",
+      "description": "The project has 5 test files (anthropic.test.ts, proxy.test.ts, ratelimit.test.ts, storage.test.ts, validator.test.ts) but no testing guide. New contributors don't know test organization patterns, how to mock external dependencies (Z.AI API, file system), or what coverage is expected. The README only shows 'bun test' command without context.",
+      "rationale": "Testing distributed systems (proxies, rate limiting, file I/O) requires specific patterns. The storage tests likely mock fs operations, proxy tests mock fetch, but these patterns aren't documented. Contributors adding features won't know how to test concurrent file access, race conditions in rate limiting, or streaming responses. Documented test patterns ensure consistent quality and make test writing faster.",
+      "category": "examples",
+      "targetAudience": "contributors",
+      "affectedAreas": [
+        "test/",
+        "docs/TESTING.md (new file)",
+        "vitest.config.ts (if exists)"
+      ],
+      "currentDocumentation": "Only 'bun test' mentioned in README Development section",
+      "proposedContent": "Create docs/TESTING.md covering:\n- Test organization (unit vs integration test separation)\n- How to run tests (bun test, vitest watch mode, coverage reports)\n- Mocking patterns for external dependencies (fetch, fs, time)\n- Testing concurrency and race conditions (rate limiting, file locking)\n- Testing streaming responses and SSE\n- Coverage expectations and thresholds\n- Example test templates for common scenarios (proxy handler, middleware, storage)",
+      "priority": "medium",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "doc-005",
+      "type": "documentation_gaps",
+      "title": "Create deployment and production operations guide",
+      "description": "No deployment documentation exists beyond basic docker-compose up. The Dockerfile uses security best practices (non-root user, health checks) but these aren't documented. Production concerns like environment variable security, volume mounting for persistence, scaling strategies, monitoring, log aggregation, and rolling updates are not covered. Operators deploying to production must infer from Dockerfile alone.",
+      "rationale": "The README shows quick local setup but production deployment has different requirements: securing ZAI_API_KEY, persisting apikeys.json across container restarts, handling rolling updates without dropping requests, monitoring rate limit breaches, and log aggregation for debugging. The design doc mentions 'Horizontal Scaling' but doesn't explain how to handle shared state (apikeys.json) across multiple instances. Without deployment docs, production setup will be trial-and-error.",
+      "category": "architecture",
+      "targetAudience": "maintainers",
+      "affectedAreas": [
+        "Dockerfile",
+        "docker-compose.yml",
+        "docker-entrypoint.sh",
+        "docs/DEPLOYMENT.md (new file)"
+      ],
+      "currentDocumentation": "Brief 'Capacity & Scaling' section in README with docker-compose scale example",
+      "proposedContent": "Create docs/DEPLOYMENT.md covering:\n- Production docker-compose configuration (resource limits, restart policies)\n- Environment variable security (secrets management, not committing .env)\n- Volume mounting strategy for apikeys.json persistence\n- Health check configuration and monitoring\n- Scaling considerations (shared state problem with JSON file storage, Redis as alternative)\n- Log aggregation and debugging in production\n- Rolling update deployment strategy\n- Backup/restore procedures for apikeys.json\n- Production environment variables checklist",
+      "priority": "medium",
+      "estimatedEffort": "medium"
+    }
+  ],
+  "project_context": {
+    "existing_features": [],
+    "tech_stack": [],
+    "target_audience": "Developers and teams integrating Z.AI's GLM models into their applications",
+    "planned_features": [
+      "Performance Optimization and Low-Latency Architecture",
+      "Web Dashboard for API Key Management",
+      "Robust Context and Message Format Handling",
+      "Admin API for CRUD Operations",
+      "Plugin and Extension System",
+      "Distributed Rate Limiting",
+      "Integration Test Suite",
+      "Automatic API Key Rotation",
+      "Advanced Analytics Dashboard",
+      "Advanced Streaming with Timeout Handling",
+      "Prometheus Metrics Export",
+      "Request Queuing and Smoothing",
+      "Structured Request Logging System",
+      "Enhanced Error Messages and Documentation",
+      "Deployment Automation and Helm Charts",
+      "Framework Integration Testing and Compatibility",
+      "Structured Output Support",
+      "Persistent Database Storage",
+      "Comprehensive Documentation and Guides",
+      "SDK and Client Libraries"
+    ]
+  },
+  "summary": {
+    "total_ideas": 30,
+    "by_type": {
+      "code_improvements": 5,
+      "ui_ux_improvements": 5,
+      "security_hardening": 5,
+      "performance_optimizations": 5,
+      "code_quality": 5,
+      "documentation_gaps": 5
+    },
+    "by_status": {
+      "draft": 30
+    }
+  },
+  "generated_at": "2026-01-22T10:24:58.938705",
+  "updated_at": "2026-01-22T03:34:23.488Z"
+}

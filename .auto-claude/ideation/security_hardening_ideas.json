@@ -1,0 +1,110 @@
+{
+  "security_hardening": [
+    {
+      "id": "sec-001",
+      "type": "security_hardening",
+      "title": "Restrict overly permissive CORS configuration to prevent CSRF attacks",
+      "description": "The CORS configuration in src/index.ts sets `origin: '*'` which allows any origin to make requests to the API. This enables Cross-Site Request Forgery (CSRF) attacks where malicious websites can make unauthorized requests on behalf of authenticated users.",
+      "rationale": "A wildcard CORS origin means any website can interact with this API proxy. Since the API uses Bearer token authentication, malicious sites can trigger requests to /stats, /v1/messages, or /v1/* endpoints that consume user quotas or expose sensitive information. This violates the principle of least privilege and is a critical security misconfiguration.",
+      "category": "configuration",
+      "severity": "critical",
+      "affectedFiles": ["src/index.ts"],
+      "vulnerability": "CWE-942: Permissive Cross-domain Policy with Untrusted Domains",
+      "currentRisk": "Any website can make authenticated requests to the API, enabling CSRF attacks that can consume quotas, expose user statistics, and make unauthorized API calls.",
+      "remediation": "1. Replace `origin: '*'` with a whitelist of allowed origins\n2. Use environment variable to configure allowed origins: `CORS_ORIGINS=https://yourdomain.com,https://app.yourdomain.com`\n3. Add origin validation middleware that checks against the whitelist\n4. For development, use specific localhost origins, not wildcards\n5. Consider adding CSRF token protection for state-changing operations",
+      "references": [
+        "https://owasp.org/www-community/attacks/csrf",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS",
+        "https://cwe.mitre.org/data/definitions/942.html"
+      ],
+      "compliance": ["SOC2", "PCI-DSS", "OWASP-ASVS v5"]
+    },
+    {
+      "id": "sec-002",
+      "type": "security_hardening",
+      "title": "Mask or truncate API keys in /stats response to prevent credential leakage",
+      "description": "The /stats endpoint in src/index.ts returns the full API key in the response (`key: apiKey.key`). This exposes the complete credential in plaintext, which can be logged, cached, or exposed through browser developer tools, referral headers, or analytics tools.",
+      "rationale": "Returning full API keys in API responses creates multiple security risks: (1) Browser developer tools expose the key to anyone with access, (2) Logs and monitoring systems may store the full key, (3) Analytics or error tracking tools could inadvertently capture credentials, (4) Referral headers might leak the key to external sites. Following security best practices, sensitive credentials should never be returned in API responses except during initial creation.",
+      "category": "data_protection",
+      "severity": "high",
+      "affectedFiles": ["src/index.ts", "src/types.ts"],
+      "vulnerability": "CWE-532: Insertion of Sensitive Information into Log File",
+      "currentRisk": "Full API keys are exposed through stats endpoint responses, browser storage, logs, and potentially third-party services. Credentials can be harvested by attackers with access to any of these systems.",
+      "remediation": "1. Modify the StatsResponse type to use a masked key format: `key: string` → `key_masked: string`\n2. Replace key display with partial masking: show first 8 and last 4 characters (e.g., `pk_test_...1234`)\n3. Update src/index.ts stats endpoint: `key_masked: '${apiKey.key.slice(0, 8)}...${apiKey.key.slice(-4)}'`\n4. Ensure no logs contain full API keys\n5. Add audit logging for stats access to monitor for suspicious access patterns",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/532.html",
+        "https://owasp.org/www-project-top-ten/A01_2021-Broken_Access_Control/"
+      ],
+      "compliance": ["SOC2", "PCI-DSS", "GDPR", "OWASP-ASVS v2.5"]
+    },
+    {
+      "id": "sec-003",
+      "type": "security_hardening",
+      "title": "Implement comprehensive security headers to mitigate XSS and clickjacking attacks",
+      "description": "The application lacks security HTTP headers including Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security, and others. This increases vulnerability to cross-site scripting (XSS), clickjacking, MIME sniffing, and man-in-the-middle attacks.",
+      "rationale": "Security headers provide defense-in-depth protection against common attacks. Without Content-Security-Policy, the application is vulnerable to XSS attacks that can steal API keys from localStorage or cookies. Missing X-Frame-Options allows clickjacking attacks. Absence of HSTS leaves the application vulnerable to SSL stripping. These headers are standard security requirements for production web services.",
+      "category": "configuration",
+      "severity": "high",
+      "affectedFiles": ["src/index.ts"],
+      "vulnerability": "CWE-693: Protection Mechanism Failure, CWE-1021: Improper Restriction of Rendered UI Layers or Frames",
+      "currentRisk": "Application is vulnerable to XSS, clickjacking, MIME-type sniffing, and SSL stripping attacks. Attackers can inject malicious scripts, frame the site in invisible iframes, and downgrade HTTPS connections.",
+      "remediation": "1. Install helmet middleware or configure Hono's built-in security headers\n2. Add Content-Security-Policy: `default-src 'self'; script-src 'self' 'unsafe-inline';`\n3. Add X-Frame-Options: `DENY` or `SAMEORIGIN`\n4. Add X-Content-Type-Options: `nosniff`\n5. Add Strict-Transport-Security: `max-age=31536000; includeSubDomains`\n6. Add Permissions-Policy: `geolocation=(), microphone=(), camera=()`\n7. Add Referrer-Policy: `strict-origin-when-cross-origin`\n8. Configure security headers as middleware in src/index.ts",
+      "references": [
+        "https://owasp.org/www-project-secure-headers/",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy",
+        "https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html"
+      ],
+      "compliance": ["SOC2", "PCI-DSS", "OWASP-ASVS v5.2"]
+    },
+    {
+      "id": "sec-004",
+      "type": "security_hardening",
+      "title": "Encrypt API keys at rest in storage to protect against data breach exposure",
+      "description": "API keys are stored in plaintext in data/apikeys.json file (see src/storage.ts). If the server is compromised or the storage file is accessed, all client API keys and the master ZAI_API_KEY are immediately exposed, allowing attackers to impersonate any user and abuse the upstream API.",
+      "rationale": "The current storage implementation writes API keys in plain JSON format without encryption. This violates defense-in-depth principles. While file permissions provide some protection, they don't protect against: (1) Server compromise giving file read access, (2) Backup exposure, (3) Accidental commits to version control, (4) Insider threats. Encryption at rest ensures that even if storage is compromised, credentials remain protected.",
+      "category": "data_protection",
+      "severity": "high",
+      "affectedFiles": ["src/storage.ts", "data/apikeys.json", ".env.example"],
+      "vulnerability": "CWE-312: Cleartext Storage of Sensitive Information",
+      "currentRisk": "If the server filesystem is compromised or backups are exposed, all API keys (both client keys and the master ZAI key) are immediately readable. This could lead to massive abuse of the API and financial loss.",
+      "remediation": "1. Add encryption key to environment: `STORAGE_ENCRYPTION_KEY` (32 bytes hex)\n2. Use crypto.encrypt() with AES-256-GCM for encryption\n3. Encrypt individual API key fields before writing to JSON\n4. Decrypt API keys after reading from JSON\n5. Ensure the master ZAI_API_KEY is not stored in apikeys.json\n6. Use Web Crypto API or Node crypto for AES-256-GCM\n7. Implement key rotation support\n8. Add integrity checks (HMAC) to detect tampering",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Encrypting_Data_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/312.html",
+        "https://owasp.org/www-project-top-ten/A02_2021-Cryptographic_Failures/"
+      ],
+      "compliance": ["SOC2", "PCI-DSS", "GDPR", "HIPAA", "OWASP-ASVS v2.6"]
+    },
+    {
+      "id": "sec-005",
+      "type": "security_hardening",
+      "title": "Add request body size limits and input validation to prevent DoS attacks",
+      "description": "The application has no limits on request body size for POST endpoints (/v1/messages, /v1/chat/completions). Attackers can send extremely large payloads to consume server memory, cause denial of service, or potentially exploit buffer overflow vulnerabilities in parsing libraries.",
+      "rationale": "Without body size limits, the server is vulnerable to denial-of-service attacks where a single large request can exhaust memory. Large JSON payloads can also cause excessive CPU usage during parsing. Additionally, unbounded headers or query parameters could be exploited. Rate limiting exists for tokens but not for request size, creating an attack vector.",
+      "category": "input_validation",
+      "severity": "medium",
+      "affectedFiles": ["src/index.ts", "src/handlers/proxyHandler.ts"],
+      "vulnerability": "CWE-770: Allocation of Resources Without Limits or Throttling",
+      "currentRisk": "Attackers can send large payloads (e.g., 1GB JSON) to exhaust server memory, cause service crashes, or degrade performance for legitimate users. This affects all proxy endpoints.",
+      "remediation": "1. Add Hono body size limit middleware: `app.use('/*', bodyParser({ maxSize: '10MB' }))`\n2. Implement request size validation before JSON parsing\n3. Add header size limits (max 8KB)\n5. Return 413 Payload Too Large for oversized requests\n6. Log rejected oversized requests for monitoring\n7. Consider per-IP rate limiting for DoS prevention\n8. Add timeouts for upstream requests to prevent slow-loris attacks",
+      "references": [
+        "https://owasp.org/www-community/attacks/Denial_of_Service",
+        "https://cwe.mitre.org/data/definitions/770.html",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html"
+      ],
+      "compliance": ["SOC2", "PCI-DSS", "OWASP-ASVS v5.3"]
+    }
+  ],
+  "metadata": {
+    "dependenciesScanned": 1,
+    "knownVulnerabilities": 0,
+    "filesAnalyzed": 15,
+    "criticalIssues": 1,
+    "highIssues": 3,
+    "mediumIssues": 1,
+    "lowIssues": 0,
+    "generatedAt": "2026-01-22T03:21:42.000Z",
+    "summary": "Key findings: Critical CORS misconfiguration allows any origin; API keys exposed in stats response; missing security headers; plaintext credential storage; no request size limits. All issues have actionable remediation steps."
+  }
+}

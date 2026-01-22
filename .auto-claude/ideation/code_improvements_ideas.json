@@ -1,0 +1,136 @@
+{
+  "code_improvements": [
+    {
+      "id": "ci-001",
+      "type": "code_improvements",
+      "title": "Add Batch Stats Endpoint",
+      "description": "Create a new endpoint /stats/batch that accepts multiple API keys and returns aggregated statistics for all of them in a single request, reducing the need for multiple individual stats requests.",
+      "rationale": "The codebase already has a complete stats endpoint pattern in src/index.ts (lines 28-56) that retrieves stats for a single API key using getKeyStats. The storage layer already supports findApiKey which can be called multiple times. This pattern can be extended to accept an array of keys and return aggregated results.",
+      "builds_upon": [
+        "Single /stats endpoint",
+        "getKeyStats function",
+        "ApiKey type and StatsResponse interface"
+      ],
+      "estimated_effort": "trivial",
+      "affected_files": [
+        "src/index.ts",
+        "src/types.ts"
+      ],
+      "existing_patterns": [
+        "Stats endpoint with authMiddleware",
+        "Rate limit checking pattern",
+        "StatsResponse interface structure"
+      ],
+      "implementation_approach": "Add new route app.get('/stats/batch', authMiddleware, ...) in src/index.ts that accepts request body with { keys: string[] }, calls findApiKey for each key, aggregates results using same StatsResponse structure wrapped in an array, and returns batch response. Reuse existing rate limit checking and stats formatting logic from the /stats endpoint.",
+      "status": "draft",
+      "created_at": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "ci-002",
+      "type": "code_improvements",
+      "title": "Add Request ID Tracking Middleware",
+      "description": "Implement a middleware that generates a unique request ID (UUID) for each incoming request, attaches it to the Hono context, and includes it in all error responses and logs for better traceability.",
+      "rationale": "The codebase already has a well-established middleware pattern with authMiddleware (src/middleware/auth.ts) and rateLimitMiddleware (src/middleware/rateLimit.ts). Both use Hono's Context with Variables to attach data (c.set/c.get). The error response pattern { error: { message, type } } is consistent across all endpoints. This infrastructure enables adding request tracking without architectural changes.",
+      "builds_upon": [
+        "Middleware pattern (auth, rateLimit)",
+        "Hono Context Variables usage",
+        "Consistent error response format"
+      ],
+      "estimated_effort": "small",
+      "affected_files": [
+        "src/index.ts",
+        "src/middleware/requestId.ts",
+        "src/proxy.ts",
+        "src/anthropic.ts"
+      ],
+      "existing_patterns": [
+        "Hono middleware with async function signature",
+        "Context variable attachment (c.set, c.get)",
+        "Error response structure with headers"
+      ],
+      "implementation_approach": "Create new src/middleware/requestId.ts following the exact pattern of authMiddleware. Use crypto.randomUUID() to generate ID, attach to context with c.set('requestId', id). Add middleware to app.use('/*') chain before auth. Update all error responses in proxy.ts and anthropic.ts to include request_id field. No changes needed to happy path responses as they're proxied directly.",
+      "status": "draft",
+      "created_at": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "ci-003",
+      "type": "code_improvements",
+      "title": "OpenAI Completions Endpoint Explicit Support",
+      "description": "Add explicit route handling for /v1/completions endpoint (not just /chat/completions) to ensure proper model injection and token extraction for legacy OpenAI completions API format.",
+      "rationale": "The current implementation in src/index.ts uses app.all('/v1/*') catch-all which works but doesn't explicitly handle the completions endpoint. The proxy.ts file (line 75) already checks for path.includes('/completions') for model injection. The token extraction logic (lines 102-104) handles usage.total_tokens. Adding explicit route would provide better error handling and ensure completions-specific formatting.",
+      "builds_upon": [
+        "Proxy handler pattern (createProxyHandler)",
+        "Model injection in proxy.ts",
+        "Token usage extraction from response"
+      ],
+      "estimated_effort": "small",
+      "affected_files": [
+        "src/index.ts"
+      ],
+      "existing_patterns": [
+        "Route-specific handlers like /v1/messages",
+        "createProxyHandler factory function",
+        "Path-based model injection in proxy.ts"
+      ],
+      "implementation_approach": "Add explicit route app.post('/v1/completions', authMiddleware, rateLimitMiddleware, openaiProxyHandler) in src/index.ts before the catch-all /v1/* route. This ensures completions requests are handled explicitly. The existing proxy.ts logic already handles model injection for '/completions' path, so no changes needed there. Test with OpenAI completions API format to verify token extraction.",
+      "status": "draft",
+      "created_at": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "ci-004",
+      "type": "code_improvements",
+      "title": "Configurable Header Forwarding",
+      "description": "Make the list of forwarded headers from client to upstream API configurable via environment variable, instead of being hardcoded as ['content-type', 'accept', 'user-agent'] in both proxy.ts and anthropic.ts.",
+      "rationale": "Both proxy.ts (lines 58-64) and anthropic.ts (lines 55-61) have identical hardcoded forwardHeaders arrays. The codebase already uses environment variables extensively (ZAI_API_KEY, DEFAULT_MODEL, PORT as shown in .env.example). The pattern of reading from process.env is well-established. Making this configurable allows users to forward custom headers (like 'x-custom-header') without code changes.",
+      "builds_upon": [
+        "Environment variable pattern (ZAI_API_KEY, DEFAULT_MODEL)",
+        "Header forwarding logic in proxy.ts and anthropic.ts",
+        "Case-insensitive header matching pattern"
+      ],
+      "estimated_effort": "medium",
+      "affected_files": [
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        ".env.example"
+      ],
+      "existing_patterns": [
+        "process.env usage for configuration",
+        "Case-insensitive header key matching",
+        "Proxy headers construction pattern"
+      ],
+      "implementation_approach": "Add FORWARD_HEADERS to .env.example with default 'content-type,accept,user-agent'. In both proxy.ts and anthropic.ts, replace hardcoded array with process.env.FORWARD_HEADERS?.split(',').map(h => h.trim()) || ['content-type', 'accept', 'user-agent']. Maintain existing case-insensitive matching logic. This allows runtime configuration without changing the proxy logic structure.",
+      "status": "draft",
+      "created_at": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "ci-005",
+      "type": "code_improvements",
+      "title": "Generic Provider Adapter System",
+      "description": "Extract the common proxy logic from proxy.ts and anthropic.ts into a reusable provider adapter interface, enabling easier addition of new API providers (like Gemini, Claude native API, etc.) without duplicating code.",
+      "rationale": "The codebase has two nearly identical proxy implementations: proxy.ts (OpenAI-compatible) and anthropic.ts (Anthropic Messages API). Both share the same structure: options/result interfaces, model injection, header forwarding, token extraction, usage tracking (fire-and-forget), and error handling. The createProxyHandler factory (src/handlers/proxyHandler.ts) already accepts a ProxyFunction, showing the architecture supports this abstraction. Creating a ProviderAdapter interface would consolidate the ~200 lines of duplicated logic.",
+      "builds_upon": [
+        "Dual proxy implementations (proxy.ts, anthropic.ts)",
+        "createProxyHandler factory pattern",
+        "ProxyFunction type signature",
+        "Usage tracking pattern (updateApiKeyUsage)"
+      ],
+      "estimated_effort": "large",
+      "affected_files": [
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        "src/handlers/providerAdapter.ts",
+        "src/index.ts"
+      ],
+      "existing_patterns": [
+        "ProxyOptions/ProxyResult interfaces",
+        "Model injection in request body",
+        "Token usage extraction from response",
+        "Fire-and-forget usage tracking",
+        "Consistent error response structure"
+      ],
+      "implementation_approach": "Create src/handlers/providerAdapter.ts with ProviderAdapter interface containing: getBaseUrl(), prepareHeaders(), injectModel(), extractTokens(). Create two adapters (OpenAIAdapter, AnthropicAdapter) implementing this interface. Create generic proxyRequest(adapter, options) function containing shared logic (fetch, error handling, usage tracking). Refactor proxy.ts and anthropic.ts to use their respective adapters. Update index.ts to use generic proxyRequest. Tests already exist for both proxies, ensuring refactoring safety.",
+      "status": "draft",
+      "created_at": "2026-01-22T10:30:00.000Z"
+    }
+  ]
+}

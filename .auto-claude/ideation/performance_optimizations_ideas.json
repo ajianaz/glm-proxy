@@ -1,0 +1,120 @@
+{
+  "performance_optimizations": [
+    {
+      "id": "perf-001",
+      "type": "performance_optimizations",
+      "title": "Implement In-Memory API Key Caching with TTL",
+      "description": "Every API request currently triggers a file read operation to validate the API key. With high request volumes, this creates significant I/O bottleneck. Implement an in-memory cache with configurable TTL (e.g., 60 seconds) to eliminate redundant file reads.",
+      "rationale": "The current implementation calls `findApiKey()` which uses `withLock()` and `readApiKeys()` for every single request. Under load (100+ RPS), this means 100+ file reads per second. The `withLock()` mechanism uses synchronous `mkdirSync()`/`rmdirSync()` which blocks the event loop. API keys rarely change during runtime, making them perfect candidates for caching. A simple Map-based cache with TTL would reduce I/O operations by ~95%.",
+      "category": "runtime",
+      "impact": "high",
+      "affectedAreas": [
+        "src/storage.ts",
+        "src/validator.ts",
+        "src/middleware/auth.ts"
+      ],
+      "currentMetric": "~5-10ms latency added per request for file I/O with synchronous locks blocking event loop, up to 500ms worst-case with 10 retries × 50ms delay",
+      "expectedImprovement": "~95% reduction in file I/O operations, 4-8ms faster average response time, support for 10x higher RPS, non-blocking authentication",
+      "implementation": "1. Create a `ApiKeyCache` class with Map<string, {key: ApiKey, expires: number}>\n2. Add `get(key)` and `set(key, value)` methods with TTL support\n3. Modify `findApiKey()` to check cache before file read\n4. Add cache invalidation method for API key updates\n5. Add CACHE_TTL environment variable (default 60s, configurable)\n6. Implement periodic cleanup of expired entries (every 5 minutes)\n7. Add cache metrics (hit rate, size, avg latency) to /stats endpoint\n8. Make cache optional via ENABLE_CACHE env var for backward compatibility",
+      "tradeoffs": "Slight memory increase (~1KB per cached key), potential for stale data if TTL is too long (mitigated by making TTL configurable and invalidating on updates). Cache warming may be needed for cold starts.",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "perf-002",
+      "type": "performance_optimizations",
+      "title": "Implement True Streaming Response Handling",
+      "description": "Both proxy.ts and anthropic.ts buffer entire upstream responses in memory using `response.text()` before sending to clients. This breaks streaming for LLM responses, increases memory usage, and adds latency. Implementing true streaming with TransformStream would enable real-time token delivery.",
+      "rationale": "LLM responses can be large (100KB+ for long generations). Buffering entire responses before sending adds latency equal to the full generation time, increases memory footprint per request by 100KB-1MB, and prevents clients from processing tokens incrementally. For a 10-second generation, clients wait 10 seconds before seeing any output. Anthropic's SSE responses are already detected but not streamed - the `text/event-stream` content-type is set but body is still buffered.",
+      "category": "runtime",
+      "impact": "high",
+      "affectedAreas": [
+        "src/proxy.ts",
+        "src/anthropic.ts",
+        "src/handlers/proxyHandler.ts"
+      ],
+      "currentMetric": "Full response buffered in memory (100KB-1MB per request), no streaming support, TTFB = full generation time, high memory usage under concurrent load",
+      "expectedImprovement": "~50-90% reduction in time-to-first-token, 80-95% reduction in per-request memory usage, proper streaming support for LLM clients, ability to handle unlimited response sizes",
+      "implementation": "1. Detect streaming responses (content-type: text/event-stream or transfer-encoding: chunked)\n2. Use `response.body` (ReadableStream) instead of `response.text()`\n3. Pipe stream directly to client: `return new Response(upstreamResponse.body, {...})`\n4. For token counting in streaming: implement TransformStream that parses SSE events and extracts usage\n5. Update `createProxyHandler` to handle both stream and string bodies\n6. Handle stream interruption errors gracefully\n7. Add tests for streaming scenarios with mock SSE streams\n8. Document streaming behavior for API consumers",
+      "tradeoffs": "Token counting becomes harder for streaming responses (must parse SSE events on-the-fly or count client-side). More complex error handling for partial responses and stream interruptions. Requires careful testing of error propagation.",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "perf-003",
+      "type": "performance_optimizations",
+      "title": "Batch Usage Updates with Write-Behind Buffering",
+      "description": "Currently, every proxied API response triggers an immediate file write to update token usage via `updateApiKeyUsage()`. Implement a write-behind buffer that batches multiple usage updates and writes them to disk periodically (e.g., every 5 seconds or when buffer reaches 100 updates).",
+      "rationale": "The `updateApiKeyUsage()` function is called as 'fire and forget' after every successful API request, but multiple concurrent requests still contend for file locks. Each call reads the entire JSON file, modifies it, and writes it back (~2-5ms per operation). Under load with 100 concurrent requests, this creates massive file lock contention even with async fire-and-forget. The current implementation also risks data loss if the process crashes before writes complete. Batching reduces write frequency from N to N/batch_size, eliminating ~99% of file writes.",
+      "category": "runtime",
+      "impact": "high",
+      "affectedAreas": [
+        "src/storage.ts",
+        "src/proxy.ts",
+        "src/anthropic.ts"
+      ],
+      "currentMetric": "One file write per API request (~2-5ms), high contention under load with the `withLock()` mechanism, potential race conditions with fire-and-forget pattern",
+      "expectedImprovement": "~99% reduction in file writes (from N writes to N/100 writes), elimination of write contention, improved write durability with buffering, support for burst traffic without I/O spikes",
+      "implementation": "1. Create a `UsageUpdateBuffer` class with an internal queue Map<string, {tokens: number, model: string, last_used: string}>\n2. Modify `updateApiKeyUsage()` to push to buffer instead of writing: `buffer.add(key, tokens, model)`\n3. Implement flush mechanism: trigger every 5 seconds OR when queue reaches 100 entries\n4. On flush: aggregate updates by API key (sum tokens, take most recent last_used), batch write to storage\n5. Add graceful shutdown handler (`process.on('SIGTERM')`) to flush buffer on exit\n6. Make buffer size and flush interval configurable via env vars (USAGE_BATCH_SIZE=100, USAGE_FLUSH_INTERVAL=5000)\n7. Add metrics: queue depth, flush count, tokens pending",
+      "tradeoffs": "Usage data becomes slightly delayed (max flush interval). Risk of losing last N seconds of data if process crashes (mitigated by graceful shutdown handler and periodic flushing). Maximum potential data loss: batch_size × avg_tokens_per_request.",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "perf-004",
+      "type": "performance_optimizations",
+      "title": "Replace Synchronous File Locks with Async Operations",
+      "description": "The current `withLock()` function uses `mkdirSync()` and `rmdirSync()` which are blocking operations that prevent the event loop from processing other requests. Replace with async file locking using `proper-lockfile` or implement async retry logic to prevent blocking.",
+      "rationale": "File locking is used to prevent concurrent writes to apikeys.json. The current implementation uses synchronous mkdir/rmdir which blocks the entire event loop for the duration of the lock operation. Under concurrent requests, all requests wait for the lock to be released, creating a bottleneck. With the retry mechanism (10 retries × 50ms delay), this can block for up to 500ms. Async locks would allow other requests to be processed while waiting for the lock, dramatically reducing tail latency.",
+      "category": "runtime",
+      "impact": "medium",
+      "affectedAreas": [
+        "src/storage.ts"
+      ],
+      "currentMetric": "Synchronous mkdirSync/rmdirSync block event loop, all requests wait during lock acquisition (up to 500ms with 10 retries × 50ms delay), severe bottleneck under concurrency",
+      "expectedImprovement": "Non-blocking lock acquisition allows other requests to be processed, 50-200ms reduction in tail latency under concurrent load, better CPU utilization",
+      "implementation": "Option 1 (Recommended): Use `proper-lockfile` package (async, cross-platform, well-maintained)\n1. Install proper-lockfile: `bun add proper-lockfile`\n2. Replace `withLock()` implementation with `lock(DATA_FILE, { retries: 10 })`\n3. Ensure all file operations within lock remain async\n4. Add stale lock detection (locks older than 5 minutes)\n5. Implement timeout to prevent deadlocks\n\nOption 2: Implement custom async lock with exponential backoff\n1. Replace mkdirSync with fs.promises.mkdir (but mkdir doesn't work well for locks)\n2. Use file-based locking with fs.promises.open with 'wx' flag\n3. Implement exponential backoff: 50ms, 100ms, 200ms, etc.\n4. Add max wait time to prevent indefinite blocking",
+      "tradeoffs": "Option 1 adds a small dependency (~5KB). Option 2 increases code complexity and maintenance burden. Both require careful error handling for edge cases.",
+      "estimatedEffort": "small"
+    },
+    {
+      "id": "perf-005",
+      "type": "performance_optimizations",
+      "title": "Migrate from JSON File Storage to SQLite with WAL Mode",
+      "description": "The current JSON file-based storage has scalability limitations due to file locking contention and full-file reads/writes. Migrating to SQLite with WAL (Write-Ahead Logging) mode would provide proper concurrency, atomic transactions, and O(1) lookups by key.",
+      "rationale": "The JSON storage approach requires reading/writing the entire file for any operation. With 1000 API keys, the file can reach 100KB+, and every operation reads/writes all of it. SQLite with WAL mode allows concurrent reads and writes without blocking, provides indexed lookups (O(log n) vs O(n)), handles transactions atomically, and is built into Bun. This is a more scalable solution than adding layers of caching and batching to the JSON approach.",
+      "category": "database",
+      "impact": "medium",
+      "affectedAreas": [
+        "src/storage.ts",
+        "src/validator.ts",
+        "src/ratelimit.ts",
+        "new file: src/database.ts"
+      ],
+      "currentMetric": "O(n) file reads, O(n) searches with array.find(), full-file writes for updates, file lock contention, no transaction support",
+      "expectedImprovement": "O(log n) indexed lookups, concurrent reads without blocking, atomic transactions, built-in query optimization, 10-100x better performance at scale",
+      "implementation": "1. Create database schema with `api_keys` table (key PK, name, model, token_limit, expiry, etc.)\n2. Create `usage_windows` table with foreign key to api_keys\n3. Add indexes on key, expiry_date for fast lookups\n4. Implement migration script to convert existing JSON to SQLite\n5. Replace storage.ts functions with SQL queries:\n   - `findApiKey()` → `SELECT * FROM api_keys WHERE key = ?`\n   - `updateApiKeyUsage()` → `INSERT INTO usage_windows ...`\n   - `checkRateLimit()` → `SELECT SUM(tokens) FROM usage_windows WHERE window_start > ?`\n6. Enable WAL mode: `PRAGMA journal_mode=WAL`\n7. Add connection pooling (Bun's sqlite handles this)\n8. Make database path configurable via DATABASE_PATH env var\n9. Keep JSON export/import for backup compatibility",
+      "tradeoffs": "More complex than JSON storage (but still simpler than external databases). Requires database migrations. Slightly higher disk usage (but negligible for this scale). Need to handle database schema versioning.",
+      "estimatedEffort": "large"
+    }
+  ],
+  "metadata": {
+    "totalBundleSize": "minimal (backend-only with hono ~100KB)",
+    "largestDependencies": ["hono"],
+    "filesAnalyzed": 11,
+    "potentialSavings": "70-95% reduction in I/O operations, 20-100ms faster response times, 10-100x higher throughput capacity, 80-95% reduction in per-request memory usage",
+    "generatedAt": "2026-01-22T10:30:00Z",
+    "keyFindings": [
+      "Primary bottleneck is synchronous file I/O on every request (API key lookup and usage updates)",
+      "No caching layer exists despite read-heavy workload pattern (reads >> writes)",
+      "Synchronous file locks (mkdirSync/rmdirSync) block event loop causing severe contention",
+      "Fire-and-forget usage updates cause write contention and risk data loss",
+      "Streaming responses are buffered instead of truly streamed, breaking real-time LLM responses",
+      "JSON storage doesn't scale well with many keys due to O(n) operations"
+    ],
+    "priorityOrder": [
+      "1. In-memory caching (perf-001) - Highest impact, medium effort, quick win",
+      "2. Streaming responses (perf-002) - High impact on UX, medium effort",
+      "3. Batched updates (perf-003) - High impact on scalability, medium effort",
+      "4. Async locks (perf-004) - Medium impact, small effort, quick implementation",
+      "5. SQLite migration (perf-005) - Long-term solution, large effort, highest scalability"
+    ]
+  }
+}

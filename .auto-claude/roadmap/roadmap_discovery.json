@@ -1,0 +1,41 @@
+{
+  "project_name": "GLM Proxy",
+  "project_type": "api",
+  "tech_stack": {
+    "primary_language": "TypeScript",
+    "frameworks": ["Hono", "Vitest"],
+    "key_dependencies": ["hono", "bun"]
+  },
+  "target_audience": {
+    "primary_persona": "Developers and teams integrating Z.AI's GLM models into their applications",
+    "secondary_personas": ["DevOps engineers deploying AI API gateways", "Organizations requiring multi-user API key management", "AI application developers needing OpenAI/Anthropic compatibility layers"],
+    "pain_points": ["Z.AI API lacks OpenAI/Anthropic compatibility", "Need for per-user rate limiting and quota management", "No built-in multi-user support in direct Z.AI API", "Difficulty tracking token usage across multiple users", "Need for proxy/gateway to abstract AI provider specifics"],
+    "goals": ["Integrate GLM models using familiar OpenAI/Anthropic API formats", "Manage multiple users with individual API keys and quotas", "Monitor and control token usage to prevent cost overruns", "Deploy a reliable gateway with rate limiting and health checks", "Maintain compatibility with existing AI/LLM application code"],
+    "usage_context": "Deployed as a Docker container or standalone service, typically in production environments where multiple developers or applications need controlled access to Z.AI's GLM models through standard OpenAI/Anthropic-compatible endpoints"
+  },
+  "product_vision": {
+    "one_liner": "An OpenAI/Anthropic-compatible API gateway for Z.AI's GLM models with multi-user token-based rate limiting and quota management",
+    "problem_statement": "Z.AI's GLM models (like glm-4.7) require custom API integration, making it difficult for developers to use them with existing AI/LLM tools and libraries that expect OpenAI or Anthropic API formats. Additionally, there's no built-in way to manage multiple users, track usage, or enforce rate limiting.",
+    "value_proposition": "GLM Proxy provides a drop-in replacement for OpenAI/Anthropic APIs that routes requests to Z.AI's GLM models, enabling developers to use their existing code and tools while gaining enterprise-grade features like per-user API keys, token-based rate limiting with rolling 5-hour windows, usage tracking, and multi-tenancy support.",
+    "success_metrics": ["Number of active API keys and users", "Total request volume and throughput", "Uptime and reliability (target: 99.9%+)", "Successful rate limit enforcement (preventing overages)", "Adoption by developers switching from direct Z.AI API integration"]
+  },
+  "current_state": {
+    "maturity": "mvp",
+    "existing_features": ["OpenAI-compatible /v1/chat/completions endpoint", "Anthropic-compatible /v1/messages endpoint", "Streaming support (Server-Sent Events)", "Multi-user API key management", "Token-based rate limiting with 5-hour rolling window", "Usage tracking and statistics endpoint (/stats)", "Health check endpoint (/health)", "Model override per API key", "Docker containerization with health checks", "Unit tests for core functionality", "CORS support", "Authentication middleware", "Environment-based configuration"],
+    "known_gaps": ["No web UI for API key management (requires manual JSON editing)", "No persistent database (file-based storage)", "No distributed rate limiting for horizontal scaling", "No request/response logging for debugging", "No metrics/monitoring integration (Prometheus, etc.)", "No automatic key rotation or management features", "No admin API for CRUD operations on keys", "No request queuing during rate limit spikes", "Limited error messages and documentation"],
+    "technical_debt": ["File-based storage (apikeys.json) doesn't scale for high concurrency", "In-memory rate limiting doesn't support distributed deployments", "No structured logging (only console.log)", "Manual API key management prone to errors", "Limited test coverage for edge cases", "No integration tests", "No API versioning strategy"]
+  },
+  "competitive_context": {
+    "alternatives": ["Direct Z.AI API integration", "LiteLLM (multi-LLM gateway)", "LangSmith (LangSmith gateway)", "OneRouter (open source LLM router)", "Portkey (AI gateway)", "Custom API gateway implementations"],
+    "differentiators": ["Specialized focus on Z.AI GLM models (not generic multi-LLM)", "Simple, lightweight deployment (single Docker container)", "Dual OpenAI/Anthropic compatibility in one service", "Rolling 5-hour window rate limiting (more flexible than fixed windows)", "Token-based quotas (not just request counting)", "Zero external dependencies (no Redis, PostgreSQL required)", "Open source and self-hosted", "Designed for small to medium teams"],
+    "market_position": "A lightweight, specialized gateway for teams specifically using Z.AI's GLM models who need enterprise features like rate limiting and multi-tenancy without the complexity of full-featured LLM gateways",
+    "competitor_pain_points": [],
+    "competitor_analysis_available": false
+  },
+  "constraints": {
+    "technical": ["File-based storage limits horizontal scaling", "In-memory rate limiting requires sticky sessions or external store for multi-instance deployments", "Z.AI API rate limits apply to master key", "Requires Z.AI API key to function", "No support for other LLM providers (Z.AI only)", "Bun runtime required (not Node.js compatible without modifications)"],
+    "resources": ["Solo developer project (ajianaz)", "Small codebase (~1372 lines across 17 files)", "No dedicated DevOps or QA team", "Community-driven development model"],
+    "dependencies": ["Z.AI API service availability and rate limits", "Bun runtime ecosystem", "Docker for containerized deployment", "External AI provider uptime (Z.AI)"]
+  },
+  "created_at": "2026-01-22T10:30:00Z"
+}
