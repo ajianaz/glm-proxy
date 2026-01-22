@@ -29,7 +29,7 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 
 ### Phase 4: Migration Tool [IN PROGRESS]
 - ✅ CLI migration script (COMPLETED: 4.1)
-- Backup before migration
+- ✅ Backup before migration (COMPLETED: 4.2)
 - Validation
 - Rollback capability
 - npm scripts
@@ -94,6 +94,19 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
   - Follows existing code patterns and documentation style
   - Executable script with shebang for Bun
   - All acceptance criteria met: reads from DATA_FILE or provided path, validates JSON structure, inserts data using database adapter, shows progress indicators
+- **4.2** Create automatic backup of existing apikeys.json before migration starts (COMPLETED)
+  - Added createBackup() function that creates timestamped backups in <source-dir>/backups/
+  - Backup filename format: apikeys-YYYY-MM-DDTHH-mm-ss.json (ISO 8601 timestamp)
+  - Automatic backups directory creation with proper error handling
+  - Backup verification: checks file existence and content after creation
+  - Integrated backup creation into migration workflow (before migration starts)
+  - Updated help message with backup information and location
+  - Shows backup path to user after creation
+  - Preserves backup on migration cancellation for safety
+  - Follows existing code patterns (path operations, error handling)
+  - No console.log statements (only user-facing CLI output)
+  - Comprehensive JSDoc documentation added
+  - All acceptance criteria met: creates timestamped backup, verifies backup creation, stores backup in safe location
 - **1.1** Install Drizzle ORM and drivers
   - Installed drizzle-orm@0.45.1
   - Installed postgres@3.4.8
