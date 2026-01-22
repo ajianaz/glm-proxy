@@ -51,8 +51,8 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 ### Phase 7: Testing [IN PROGRESS]
 - ✅ Schema tests (COMPLETED: 7.1)
 - ✅ CRUD tests (COMPLETED: 7.2)
-- Usage tracking tests
-- Migration tests
+- ✅ Usage tracking tests (COMPLETED: 7.3)
+- ✅ Migration integration tests (COMPLETED: 7.4)
 - Backup/restore tests
 - Storage abstraction tests
 - Health check tests
@@ -847,3 +847,55 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
     ✅ Returns database status (using checkHealth() from src/db/health.ts)
     ✅ Includes connection info (type, connected, responseTimeMs, status, error details)
     ✅ Returns 503 if unhealthy (when no fallback available)
+- **7.4** Test migration tool (COMPLETED)
+  - Created comprehensive integration test suite in test/migration.test.ts with 17 passing tests
+  - Test Organization:
+    * Successful Migration Tests (5 tests):
+      - Single API key migration
+      - Multiple API keys migration (3 keys)
+      - Keys with usage windows (2 windows)
+      - Keys with null/empty model field
+      - Keys with empty usage windows
+    * Data Integrity Validation Tests (4 tests):
+      - Record count mismatch detection
+      - Field value mismatch detection (name corruption)
+      - Usage window mismatch detection (deleted window)
+      - Missing key detection in database
+    * Rollback Functionality Tests (3 tests):
+      - Rollback on validation failure with usage windows
+      - Partial rollback of multiple keys
+      - Cascade delete of usage windows during rollback
+    * Error Handling Tests (3 tests):
+      - Duplicate key handling during migration
+      - Empty API keys list handling
+      - Keys with many usage windows (50 windows)
+    * Full Workflow Integration Tests (2 tests):
+      - Complete migration workflow (migrate → validate → rollback)
+      - Incremental migrations across multiple batches
+  - All 17 tests passing with 82 expect() calls
+  - Total: 28 migration tests passing (17 new + 11 existing from migration-validation.test.ts and migration-rollback.test.ts)
+  - Test Coverage:
+    * End-to-end migration workflow testing
+    * Data integrity validation with field-by-field comparison
+    * Rollback functionality on validation failures
+    * Error scenarios (duplicate keys, empty lists, large datasets)
+    * Edge cases (null models, empty usage windows, many windows)
+    * Integration with existing migration scripts
+  - Code Quality:
+    * Follows existing test patterns from migration-validation.test.ts and migration-rollback.test.ts
+    * No console.log statements (only user-facing migration progress output)
+    * Proper test isolation with beforeEach cleanup
+    * Database setup and teardown for each test
+    * Comprehensive test data with unique keys to avoid conflicts
+    * ESLint validation passed (removed unused imports)
+  - Test Infrastructure:
+    * SQLite test database with schema initialization
+    * Raw SQL execution for data corruption testing
+    * Proper use of Database client for test data manipulation
+    * Cleanup of test databases and backup directories in afterAll
+  - All acceptance criteria met:
+    ✅ Successful migration (5 tests covering various migration scenarios)
+    ✅ Data integrity preserved (4 tests detecting various data mismatches)
+    ✅ Rollback functionality (3 tests covering rollback scenarios)
+    ✅ Validation catches errors (detection of count, field, and usage window mismatches)
+
