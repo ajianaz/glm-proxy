@@ -498,11 +498,13 @@
           "id": "8.1",
           "title": "Metrics Collection",
           "description": "Implement comprehensive metrics collection",
-          "status": "pending",
+          "status": "completed",
           "files": [
             "src/metrics/Collector.ts",
             "src/metrics/Registry.ts",
-            "src/metrics/types.ts"
+            "src/metrics/types.ts",
+            "src/metrics/index.ts",
+            "test/metrics.test.ts"
           ],
           "acceptance_criteria": [
             "Request latency metrics (p50, p95, p99)",
@@ -511,7 +513,8 @@
             "Cache metrics",
             "Error rate metrics",
             "Resource usage metrics (CPU, memory)"
-          ]
+          ],
+          "notes": "Successfully implemented comprehensive metrics collection system with all acceptance criteria met. Created MetricsCollector class with configurable aggregation (default: 1s intervals), automatic cleanup based on retention period (default: 1min), and efficient percentile calculation. Implemented MetricsRegistry singleton for managing multiple collectors with support for JSON and Prometheus export formats. Comprehensive metrics tracking: request latency (p50/p95/p99/avg/min/max), throughput (RPS, bytes/sec, sizes), connection pool metrics (active/idle connections, utilization, wait times), cache metrics (hit rate, lookup time, evictions), error metrics (by type/status, top errors), and resource usage (memory, CPU, event loop). Created 37 comprehensive tests covering all functionality including collector operations, registry management, export formats, and edge cases. All tests passing. Zero dependencies on existing modules, ready for integration with proxy handlers."
         },
         {
           "id": "8.2",

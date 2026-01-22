@@ -559,6 +559,52 @@
   - DEGRADATION_FAILURE_RATE_THRESHOLD: 10%
 - All acceptance criteria met ✅
 
+**Subtask 8.1: Metrics Collection** ✅ COMPLETED
+- Created comprehensive metrics collection system with 5 files (types, Collector, Registry, index, tests)
+- Implemented MetricsCollector class with:
+  - Request latency tracking with percentile calculation (p50, p95, p99)
+  - Throughput measurement (requests/sec, bytes/sec, avg sizes)
+  - Connection pool metrics aggregation (from all pools)
+  - Cache metrics aggregation (response cache, API key cache)
+  - Error tracking and categorization (by type, by status code)
+  - Resource usage monitoring (memory, CPU, event loop, handles)
+  - Configurable retention period (default: 60 seconds)
+  - Configurable aggregation interval (default: 1 second)
+  - Automatic cleanup of old samples
+  - Max latency samples limit (default: 10000)
+- Implemented MetricsRegistry class with:
+  - Singleton pattern for global access
+  - Multiple named collector management
+  - Default system collector
+  - JSON export format
+  - Prometheus export format (with HELP and TYPE metadata)
+  - Graceful shutdown and cleanup
+- Comprehensive metrics types:
+  - Request metrics (total, successful, failed, rate, error rate, percentiles)
+  - Throughput metrics (RPS, bytes/sec, avg sizes, peak RPS)
+  - Connection pool metrics (active/idle connections, utilization, wait times)
+  - Cache metrics (size, hit rate, lookup time, evictions)
+  - Error metrics (total errors, by type, by status, top errors, error rate)
+  - Resource metrics (memory usage, peak, growth rate, trend, CPU, event loop)
+- Export formats:
+  - JSON: Full metrics export with all collectors
+  - Prometheus: Standard Prometheus format with metric types and help text
+- Created comprehensive test suite with 37 passing tests:
+  - Request recording tests (successful, failed, percentiles, empty, trimming)
+  - Throughput recording tests (data recording, peak tracking, RPS calculation)
+  - Error recording tests (by status, by type, top errors, error rate)
+  - Resource metrics tests (memory usage, trend tracking, CPU metrics)
+  - Metrics reset tests (reset all metrics to zero)
+  - Collector state tests (enabled status, disabled behavior)
+  - Registry singleton tests (instance management, reset)
+  - Collector management tests (system collector, named collectors, removal)
+  - Metrics collection tests (all collectors, system collector)
+  - Export format tests (JSON export, Prometheus export, latency metrics)
+  - Registry operations tests (reset all, shutdown, enabled status)
+  - Percentile tests (enabled vs disabled)
+  - Cleanup tests (retention-based cleanup)
+- All acceptance criteria met ✅
+
 ### Configuration Targets
 - Target latency overhead: < 10ms
 - Target base memory: < 100MB
@@ -578,8 +624,8 @@
    - ✅ Subtask 7.1: Load Testing Framework (COMPLETED)
    - ✅ Subtask 7.2: Latency Target Validation (COMPLETED)
    - ✅ Subtask 7.3: Memory & CPU Validation (COMPLETED)
-7. **Phase 8 Pending**: Performance Dashboard & Monitoring (3 subtasks)
-   - Subtask 8.1: Metrics Collection
+7. **Phase 8 In Progress**: Performance Dashboard & Monitoring (3 subtasks)
+   - ✅ Subtask 8.1: Metrics Collection (COMPLETED)
    - Subtask 8.2: Performance Dashboard
    - Subtask 8.3: Comparison vs Direct API
 8. Integrate PipeliningManager into ConnectionPool for true HTTP/2 multiplexing
