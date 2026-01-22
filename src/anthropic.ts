@@ -1,6 +1,7 @@
 import type { ApiKey } from './types.js';
 import { getModelForKey } from './validator.js';
 import { updateApiKeyUsage } from './storage.js';
+import { getAnthropicPool } from './pool/PoolManager.js';
 
 const ZAI_ANTHROPIC_BASE = 'https://open.bigmodel.cn/api/anthropic';
 
@@ -81,17 +82,66 @@ export async function proxyAnthropicRequest(options: AnthropicProxyOptions): Pro
 
   // Make request to Z.AI
   try {
-    const response = await fetch(targetUrl, {
-      method,
-      headers: proxyHeaders,
-      body: processedBody,
-    });
+    let responseBody: string;
+    let statusCode: number;
+    let responseHeaders: Record<string, string>;
+    let contentType: string | null;
 
-    // Get response body
-    const responseBody = await response.text();
+    // Try connection pool first, fall back to regular fetch
+    if (process.env.DISABLE_CONNECTION_POOL !== 'true') {
+      try {
+        const pool = getAnthropicPool();
+
+        const pooledResponse = await pool.request({
+          method,
+          path,
+          headers: proxyHeaders,
+          body: processedBody,
+          timeout: 30000,
+        });
+
+        responseBody = pooledResponse.body;
+        statusCode = pooledResponse.status;
+        responseHeaders = pooledResponse.headers;
+        contentType = responseHeaders['content-type'] || null;
+      } catch (poolError) {
+        // Pool failed, fall back to regular fetch
+        const response = await fetch(targetUrl, {
+          method,
+          headers: proxyHeaders,
+          body: processedBody,
+        });
+
+        responseBody = await response.text();
+        statusCode = response.status;
+        contentType = response.headers.get('content-type');
+        responseHeaders = {
+          'content-type': contentType || 'application/json',
+        };
+      }
+    } else {
+      // Connection pool disabled via env var, use regular fetch
+      const response = await fetch(targetUrl, {
+        method,
+        headers: proxyHeaders,
+        body: processedBody,
+      });
+
+      responseBody = await response.text();
+      statusCode = response.status;
+      contentType = response.headers.get('content-type');
+      responseHeaders = {
+        'content-type': contentType || 'application/json',
+      };
+    }
+
+    // Handle streaming response
+    if (contentType?.includes('text/event-stream')) {
+      responseHeaders['content-type'] = 'text/event-stream';
+    }
 
     // Extract token usage from response
-    if (response.ok) {
+    if (statusCode >= 200 && statusCode < 300) {
       try {
         const responseJson = JSON.parse(responseBody);
 
@@ -110,19 +160,9 @@ export async function proxyAnthropicRequest(options: AnthropicProxyOptions): Pro
       }
     }
 
-    // Build response headers
-    const responseHeaders: Record<string, string> = {
-      'content-type': response.headers.get('content-type') || 'application/json',
-    };
-
-    // Handle streaming response
-    if (response.headers.get('content-type')?.includes('text/event-stream')) {
-      responseHeaders['content-type'] = 'text/event-stream';
-    }
-
     return {
-      success: response.ok,
-      status: response.status,
+      success: statusCode >= 200 && statusCode < 300,
+      status: statusCode,
       headers: responseHeaders,
       body: responseBody,
       tokensUsed,

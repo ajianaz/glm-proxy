@@ -1,9 +1,9 @@
 import type { ApiKey } from './types.js';
 import { getModelForKey } from './validator.js';
 import { updateApiKeyUsage } from './storage.js';
+import { getZaiPool } from './pool/PoolManager.js';
 
 const ZAI_API_BASE = process.env.ZAI_API_BASE || 'https://api.z.ai/api/coding/paas/v4';
-const ZAI_API_KEY = process.env.ZAI_API_KEY || 'mock-api-key';
 
 export interface ProxyOptions {
   apiKey: ApiKey;
@@ -25,6 +25,7 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
   const { apiKey, path, method, headers, body } = options;
 
   // Runtime check for ZAI_API_KEY
+  const ZAI_API_KEY = process.env.ZAI_API_KEY;
   if (!ZAI_API_KEY) {
     return {
       success: false,
@@ -51,7 +52,7 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
 
   // Prepare headers for Z.AI - always forward Authorization with master key
   const proxyHeaders: Record<string, string> = {
-    'Authorization': `Bearer ${ZAI_API_KEY}`,
+    'Authorization': `Bearer ${process.env.ZAI_API_KEY}`,
   };
 
   // Forward relevant headers from client (but not Authorization)
@@ -84,17 +85,61 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
 
   // Make request to Z.AI
   try {
-    const response = await fetch(targetUrl, {
-      method,
-      headers: proxyHeaders,
-      body: processedBody,
-    });
+    let responseBody: string;
+    let statusCode: number;
+    let responseHeaders: Record<string, string>;
 
-    // Get response body
-    const responseBody = await response.text();
+    // Try connection pool first, fall back to regular fetch
+    if (process.env.DISABLE_CONNECTION_POOL !== 'true') {
+      try {
+        const pool = getZaiPool();
+
+        // Build the path for the pool (relative to base URL)
+        const cleanPath = path.startsWith('/v1/') ? path.substring(4) : path;
+        const poolPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
+
+        const pooledResponse = await pool.request({
+          method,
+          path: poolPath,
+          headers: proxyHeaders,
+          body: processedBody,
+          timeout: 30000,
+        });
+
+        responseBody = pooledResponse.body;
+        statusCode = pooledResponse.status;
+        responseHeaders = pooledResponse.headers;
+      } catch (poolError) {
+        // Pool failed, fall back to regular fetch
+        const response = await fetch(targetUrl, {
+          method,
+          headers: proxyHeaders,
+          body: processedBody,
+        });
+
+        responseBody = await response.text();
+        statusCode = response.status;
+        responseHeaders = {
+          'content-type': response.headers.get('content-type') || 'application/json',
+        };
+      }
+    } else {
+      // Connection pool disabled, use regular fetch
+      const response = await fetch(targetUrl, {
+        method,
+        headers: proxyHeaders,
+        body: processedBody,
+      });
+
+      responseBody = await response.text();
+      statusCode = response.status;
+      responseHeaders = {
+        'content-type': response.headers.get('content-type') || 'application/json',
+      };
+    }
 
     // Extract token usage from response
-    if (response.ok) {
+    if (statusCode >= 200 && statusCode < 300) {
       try {
         const responseJson = JSON.parse(responseBody);
 
@@ -113,14 +158,9 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
       }
     }
 
-    // Build response headers
-    const responseHeaders: Record<string, string> = {
-      'content-type': response.headers.get('content-type') || 'application/json',
-    };
-
     return {
-      success: response.ok,
-      status: response.status,
+      success: statusCode >= 200 && statusCode < 300,
+      status: statusCode,
       headers: responseHeaders,
       body: responseBody,
       tokensUsed,
