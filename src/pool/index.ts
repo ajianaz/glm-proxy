@@ -7,6 +7,7 @@
 
 export { ConnectionPool } from './ConnectionPool.js';
 export { PoolManager, getPoolManager, getZaiPool, getAnthropicPool } from './PoolManager.js';
+export { PipeliningManager, RequestPriority } from './PipeliningManager.js';
 export type {
   ConnectionPoolOptions,
   PooledConnection,
@@ -15,3 +16,4 @@ export type {
   PoolMetrics,
   HealthCheckResult,
 } from './types.js';
+export type { PipeliningOptions, PipeliningMetrics } from './PipeliningManager.js';
