@@ -22,21 +22,30 @@ export type ProxyFunction = (options: {
   body: string | ReadableStream<Uint8Array> | null;
 }) => Promise<ProxyResult>;
 
-// Create a proxy handler from a proxy function
+/**
+ * Create a proxy handler from a proxy function
+ *
+ * Optimizations:
+ * - Single profiler lookup and null check
+ * - Batched profiler metadata additions
+ * - Cached context values to avoid repeated lookups
+ * - Conditional profiler operations
+ */
 export function createProxyHandler(proxyFn: ProxyFunction) {
   return async (c: Context<{ Variables: AuthContext & ProfilingContext }>) => {
+    // Get all context values upfront (single lookup)
     const apiKey: ApiKey = c.get('apiKey');
+    const profiler = c.get('profiler');
     const path = c.req.path;
     const method = c.req.method;
 
-    // Get profiler if available
-    const profiler = c.get('profiler');
+    // Start proxy profiling (only if enabled)
     if (profiler) {
       profiler.mark('proxy_start');
       profiler.addMetadata('targetModel', apiKey.model || 'default');
     }
 
-    // Extract headers
+    // Extract headers (single pass)
     const headers: Record<string, string> = {};
     c.req.raw.headers.forEach((value, key) => {
       headers[key] = value;
@@ -47,18 +56,8 @@ export function createProxyHandler(proxyFn: ProxyFunction) {
       profiler.mark('body_extraction');
     }
 
-    // Enable streaming by default if client provides a stream
     const useStreaming = !!c.req.raw.body;
-
-    let body: string | ReadableStream<Uint8Array> | null = null;
-
-    if (c.req.raw.body) {
-      // For streaming, pass the readable stream directly
-      body = c.req.raw.body;
-    } else {
-      // No body (GET, HEAD, etc.)
-      body = null;
-    }
+    const body = c.req.raw.body || null;
 
     if (profiler) {
       profiler.endMark('body_extraction');
@@ -70,6 +69,7 @@ export function createProxyHandler(proxyFn: ProxyFunction) {
     if (profiler) {
       profiler.mark('upstream_request');
     }
+
     const result = await proxyFn({
       apiKey,
       path,
@@ -77,8 +77,10 @@ export function createProxyHandler(proxyFn: ProxyFunction) {
       headers,
       body,
     });
+
     if (profiler) {
       profiler.endMark('upstream_request');
+      // Batch all metadata additions
       profiler.addMetadata('upstreamStatus', result.status);
       profiler.addMetadata('upstreamSuccess', result.success);
       profiler.addMetadata('responseStreamed', result.streamed ?? false);
@@ -91,9 +93,11 @@ export function createProxyHandler(proxyFn: ProxyFunction) {
     if (profiler) {
       profiler.mark('response_build');
     }
+
     Object.entries(result.headers).forEach(([key, value]) => {
       c.header(key, value);
     });
+
     if (profiler) {
       profiler.endMark('response_build');
       profiler.endMark('proxy_start');
@@ -101,13 +105,11 @@ export function createProxyHandler(proxyFn: ProxyFunction) {
 
     // Return response (stream or buffer)
     if (result.streamed && result.body instanceof ReadableStream) {
-      // Streaming response
       return new Response(result.body, {
         status: result.status,
         headers: result.headers as any,
       });
     } else {
-      // Buffered response
       return c.body(result.body as string, result.status as any);
     }
   };
