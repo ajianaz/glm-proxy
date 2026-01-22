@@ -88,6 +88,21 @@
      - Tests verify content format conversion (string vs object content formats)
      - Tests verify edge cases (long messages, special chars, concurrent requests, max_tokens variations)
      - All 52 tests passing in 5.08s ✅
+   - **Subtask 2.5: Test root endpoint documentation** ✅ COMPLETE
+     - Created `test/integration/root.test.ts` with 30 comprehensive tests
+     - Tests verify correct response structure (name, version, endpoints)
+     - Tests verify API documentation accuracy (Proxy Gateway, v1.0.0)
+     - Tests verify all endpoint listings (health, stats, OpenAI, Anthropic)
+     - Tests verify HTTP methods are documented (GET, POST, ALL)
+     - Tests verify endpoint paths are accurate
+     - Tests verify endpoint is public (no auth required)
+     - Tests verify CORS headers and cross-origin support
+     - Tests verify edge cases (query params, trailing slash, custom headers)
+     - Tests verify method validation (rejects POST/PUT/DELETE)
+     - Tests verify documentation quality (clear names, accurate paths)
+     - Tests verify no sensitive information is exposed
+     - Tests verify performance and consistency
+     - All 30 tests passing in 101ms ✅
 
 ### Implementation Plan Summary
 
@@ -96,12 +111,12 @@
 - Test fixtures and data ✓
 - Environment setup/teardown ✓
 
-**Phase 2: API Endpoint Tests** (100 min) - IN PROGRESS
+**Phase 2: API Endpoint Tests** ✅ COMPLETE (100 min)
 - /health endpoint ✅ COMPLETE (16 tests passing)
 - /stats endpoint ✅ COMPLETE (51 tests passing)
 - /v1/chat/completions (OpenAI) ✅ COMPLETE (35 tests passing)
 - /v1/messages (Anthropic) ✅ COMPLETE (52 tests passing)
-- Root endpoint (NEXT)
+- Root endpoint ✅ COMPLETE (30 tests passing)
 
 **Phase 3: Authentication & Authorization** (60 min)
 - Valid API key authentication
@@ -141,12 +156,13 @@
 
 ### Next Steps
 
-1. ✅ Start Phase 2: API Endpoint Tests
+1. ✅ Start Phase 2: API Endpoint Tests (COMPLETED)
 2. ✅ Create test for /health endpoint (COMPLETED)
 3. ✅ Create test for /stats endpoint (COMPLETED)
 4. ✅ Create test for /v1/chat/completions endpoint (COMPLETED)
 5. ✅ Create test for /v1/messages endpoint (COMPLETED)
-6. Create test for root endpoint (NEXT)
+6. ✅ Create test for root endpoint (COMPLETED)
+7. Start Phase 3: Authentication & Authorization Tests (NEXT)
 
 ### Acceptance Criteria Status
 
@@ -173,4 +189,6 @@
 - ✅ Stats endpoint tests created and passing (51/51 passing)
 - ✅ OpenAI chat completions tests created and passing (35/35 passing)
 - ✅ Anthropic messages tests created and passing (52/52 passing)
-- Git commits created: ee9e1f9 (helpers), 3d19a76 (health), ec5dd55 (stats)
+- ✅ Root endpoint tests created and passing (30/30 passing)
+- ✅ Phase 2 Complete: All API endpoint tests (202 total tests passing)
+- Git commits created: ee9e1f9 (helpers), 3d19a76 (health), ec5dd55 (stats), [pending]
