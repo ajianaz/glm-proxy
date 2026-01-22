@@ -469,3 +469,46 @@ Ready to begin implementation starting with Phase 1: Project Setup & Environment
 - Code follows existing patterns from POST and GET list endpoints
 - Comprehensive test coverage includes all edge cases and error scenarios
 
+- ✅ **api-4: Create PUT /admin/api/keys/:id endpoint**
+  - Implemented PUT /admin/api/keys/:id endpoint in src/routes/admin/keys.ts
+  - Request validation using Zod schema with fields: name, description, scopes, rate_limit, is_active
+  - All fields are optional - supports partial updates
+  - ID parameter validation (must be positive integer)
+  - Admin authentication middleware integration (supports both API key and JWT token)
+  - Proper error handling:
+    - 400 Bad Request for validation errors and malformed JSON
+    - 401 Unauthorized for missing/invalid credentials
+    - 404 Not Found when API key doesn't exist
+    - 500 Internal Server Error for unexpected errors
+  - Returns 200 OK with ApiKeyResponse structure (all fields except sensitive data)
+  - Safe response format (never returns key, key_hash, or key_preview)
+  - Integration with ApiKeyModel.update() method for database operations
+  - Automatic updated_at timestamp management via database trigger
+  - Trims whitespace from name and description fields automatically
+  - Supports null description values
+  - Created comprehensive integration test suite (47 new tests):
+    - Authentication tests (API key and token) - 4 tests
+    - ID parameter validation tests - 4 tests
+    - Request body validation tests (all fields and edge cases) - 9 tests
+    - Successful update scenarios (single field, multiple fields, partial updates) - 11 tests
+    - Not found scenario tests - 2 tests
+    - Response format tests - 2 tests
+    - Edge case tests (special chars, unicode, consecutive updates, min/max values) - 15 tests
+  - All 114 admin API integration tests passing
+  - TypeScript compilation successful with no errors
+  - Updated api-4 subtask status to completed
+
+### Implementation Notes
+- Follows existing patterns from POST, GET list, and GET by ID endpoints
+- Request body validation ensures all optional fields are properly validated
+- Partial updates supported - only provided fields are updated
+- Empty strings in description are converted to null (consistent with create endpoint)
+- Rate limit validation: must be integer between 0 and 10000
+- Scopes must be an array if provided
+- is_active must be a boolean if provided
+- Malformed JSON returns 400 instead of 500
+- All existing unit tests still passing (281 tests total)
+- Code follows existing patterns and conventions
+- No console.log statements (only console.error for unexpected errors)
+- Comprehensive test coverage includes all edge cases and error scenarios
+
