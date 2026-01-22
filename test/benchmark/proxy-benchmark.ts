@@ -16,7 +16,7 @@ const DEFAULT_API_KEY = 'pk_test_benchmark_key';
 /**
  * Calculate statistics from an array of numbers
  */
-function calculateStats(values: number[]) {
+export function calculateStats(values: number[]) {
   if (values.length === 0) {
     return {
       min: 0,

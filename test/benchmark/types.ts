@@ -9,11 +9,20 @@ export interface BenchmarkResult {
   metadata: Record<string, unknown>;
 }
 
+export interface ComponentTiming {
+  authentication: number;
+  rateLimiting: number;
+  jsonProcessing: number;
+  requestValidation: number;
+  networkOverhead: number;
+}
+
 export interface LatencyMeasurement {
   totalDuration: number;
   proxyOverhead: number;
   upstreamDuration: number;
   timestamp: string;
+  components?: ComponentTiming;
 }
 
 export interface LatencyResult extends BenchmarkResult {
