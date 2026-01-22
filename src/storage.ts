@@ -5,6 +5,38 @@ import { apiKeyCache } from './cache.js';
 
 const CACHE_ENABLED = process.env.CACHE_ENABLED !== 'false';
 
+// Cache logging configuration
+const CACHE_LOG_LEVEL = process.env.CACHE_LOG_LEVEL || 'none';
+
+/**
+ * Simple logger for cache operations
+ * Logs are only output if the level is <= CACHE_LOG_LEVEL
+ * Levels: none < info < debug
+ */
+function logCache(level: 'info' | 'debug', message: string, meta?: Record<string, unknown>): void {
+  if (CACHE_LOG_LEVEL === 'none') {
+    return;
+  }
+
+  if (level === 'debug' && CACHE_LOG_LEVEL !== 'debug') {
+    return;
+  }
+
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    timestamp,
+    level,
+    message,
+    ...meta,
+  };
+
+  if (level === 'debug') {
+    console.log(`[cache] ${message}`, meta ? JSON.stringify(meta) : '');
+  } else {
+    console.log(`[cache] ${message}`, meta ? JSON.stringify(meta) : '');
+  }
+}
+
 const DATA_FILE = process.env.DATA_FILE || path.join(process.cwd(), 'data/apikeys.json');
 const LOCK_FILE = DATA_FILE + '.lock';
 
@@ -58,9 +90,20 @@ export async function findApiKey(key: string): Promise<ApiKey | null> {
     if (apiKeyCache.has(key)) {
       // Key exists in cache, retrieve it (may be null for not-found keys)
       const cached = apiKeyCache.get(key);
+
+      // Debug log cache hit
+      logCache('debug', 'Cache hit', {
+        key: key.substring(0, 8) + '...', // Partial key for security
+        found: cached !== null,
+      });
+
       return cached;
     }
-    // Cache miss - fall through to file read
+
+    // Debug log cache miss
+    logCache('debug', 'Cache miss - fallback to file', {
+      key: key.substring(0, 8) + '...',
+    });
   }
 
   // Cache miss or disabled - fall back to file read
@@ -71,6 +114,12 @@ export async function findApiKey(key: string): Promise<ApiKey | null> {
     // Populate cache for future requests (including null for not-found keys)
     if (CACHE_ENABLED) {
       apiKeyCache.set(key, apiKey);
+
+      // Debug log cache population
+      logCache('debug', 'Cache populated after file read', {
+        key: key.substring(0, 8) + '...',
+        found: apiKey !== null,
+      });
     }
 
     return apiKey;
@@ -118,6 +167,13 @@ export async function updateApiKeyUsage(
     // Update cache with modified API key to maintain coherency
     if (CACHE_ENABLED) {
       apiKeyCache.set(key, apiKey);
+
+      // Info log cache invalidation/update
+      logCache('info', 'Cache updated after usage update', {
+        key: key.substring(0, 8) + '...',
+        tokensUsed,
+        totalTokens: apiKey.total_lifetime_tokens,
+      });
     }
   });
 }
@@ -149,11 +205,13 @@ export async function warmupCache(): Promise<void> {
       loaded++;
     }
 
-    // Log warm-up completion (only in development or if explicitly enabled)
-    if (process.env.NODE_ENV === 'development' || process.env.CACHE_LOG_LEVEL === 'info') {
-      const stats = apiKeyCache.getStats();
-      console.log(`Cache warm-up completed: ${loaded} API keys loaded (cache size: ${stats.size}/${stats.maxSize})`);
-    }
+    // Log warm-up completion
+    const stats = apiKeyCache.getStats();
+    logCache('info', 'Cache warm-up completed', {
+      keysLoaded: loaded,
+      cacheSize: stats.size,
+      maxSize: stats.maxSize,
+    });
   } catch (error) {
     // Don't fail startup if warm-up fails, just log the error
     console.error('Cache warm-up failed:', error);
