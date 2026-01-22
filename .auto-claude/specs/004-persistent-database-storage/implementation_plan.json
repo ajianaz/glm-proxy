@@ -2,7 +2,7 @@
   "feature": "Persistent Database Storage",
   "description": "# Persistent Database Storage\n\nReplace file-based storage with SQLite or PostgreSQL and Drizzle ORM for API keys, usage data, and configuration. Includes migration tool and data backup/restore functionality.\n\n## Rationale\nCurrent file-based storage doesn't support high concurrency and prevents horizontal scaling. Database enables multiple instances to share state and is critical for production deployments. Addresses major technical debt.\n\n## User Stories\n- As a production engineer, I want database-backed storage so that we can scale horizontally with multiple instances\n- As a DevOps engineer, I want automatic backups so that we don't lose API key data\n- As a developer, I want easy migration from file-based to database storage so that upgrading is seamless\n\n## Acceptance Criteria\n- [ ] SQLite support for simple deployments (zero external dependencies)\n- [ ] PostgreSQL support for production deployments\n- [ ] Migration tool to convert existing apikeys.json to database\n- [ ] Database schema supports all current API key fields\n- [ ] Database operations use transactions for consistency\n- [ ] Connection pooling for performance\n- [ ] Backup and restore functionality\n- [ ] Database health checks and connection error handling\n- [ ] Backward compatibility with file-based storage during transition period",
   "created_at": "2026-01-22T03:27:58.071Z",
-  "updated_at": "2026-01-22T04:15:14.150Z",
+  "updated_at": "2026-01-22T04:18:39.817Z",
   "status": "in_progress",
   "phases": [
     {
@@ -201,15 +201,18 @@
           "id": "3.3",
           "name": "Refactor file-based storage to adapter",
           "description": "Move existing file-based logic to FileStorage class implementing IStorage",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "src/storage/file.ts"
+            "src/storage/file.ts",
+            "src/storage/file.test.ts"
           ],
           "acceptance_criteria": [
             "Implements IStorage interface",
             "Preserves existing functionality",
             "No breaking changes to existing code"
-          ]
+          ],
+          "completed_at": "2026-01-22T12:15:00.000Z",
+          "notes": "Implemented FileStorage class in src/storage/file.ts with comprehensive IStorage implementation:\n\n**Core Implementation:**\n- findApiKey(key: string): Finds API key by key string using file-based storage\n- updateApiKeyUsage(key, tokensUsed, model): Updates usage tracking with 5-hour rolling window logic\n- getKeyStats(key): Returns comprehensive StatsResponse with computed statistics\n- initialize(): Creates data directory and initial file if needed\n\n**Design Features:**\n- Private withLock() method for atomic file operations using mkdir-based locking\n- Private readApiKeys/writeApiKeys methods for JSON file persistence\n- Atomic writes using temp file + rename pattern to prevent corruption\n- Private ensureInitialized() method validates initialization before operations\n- Configurable data file path via constructor parameter or DATA_FILE env var\n\n**Error Handling:**\n- Comprehensive error messages for all operations\n- Pre-initialization usage prevented with clear error message\n- File locking with retry mechanism (10 retries, 50ms delay)\n- Proper error propagation with context\n\n**Testing:**\n- Created src/storage/file.test.ts with 11 comprehensive tests:\n  * initialize() creates directory and file\n  * initialize() is idempotent\n  * findApiKey() returns null for non-existent keys\n  * findApiKey() throws error if not initialized\n  * updateApiKeyUsage() throws error for non-existent keys\n  * updateApiKeyUsage() throws error if not initialized\n  * getKeyStats() returns null for non-existent keys\n  * getKeyStats() throws error if not initialized\n  * Integration tests for complete workflow\n  * File locking tests for concurrent access\n- All 11 tests passing\n\n**Code Quality:**\n- ESLint validation passed (fixed unused parameter with underscore prefix)\n- Follows existing code patterns and documentation style\n- No console.log statements\n- Comprehensive JSDoc documentation with usage examples for all methods\n- Clean separation of concerns (private helper methods)\n\n**Backward Compatibility:**\n- Preserves all existing functionality from src/storage.ts\n- Same file format and locking mechanism\n- Compatible with existing apikeys.json files\n- No breaking changes to existing code\n\nAll acceptance criteria met:\n✅ Implements IStorage interface with all required methods\n✅ Preserves existing functionality from src/storage.ts\n✅ No breaking changes to existing code\n✅ All tests passing (11/11)\n✅ ESLint validation passed"
         },
         {
           "id": "3.4",

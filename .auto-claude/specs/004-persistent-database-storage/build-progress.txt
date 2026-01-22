@@ -23,7 +23,7 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 ### Phase 3: Storage Abstraction [IN PROGRESS]
 - ✅ Define IStorage interface (COMPLETED: 3.1)
 - ✅ Database adapter (COMPLETED: 3.2)
-- File storage adapter refactor
+- ✅ File storage adapter (COMPLETED: 3.3)
 - Storage factory
 - Update existing code
 
@@ -212,3 +212,36 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
   - Follows existing code patterns and documentation style
   - No console.log statements
   - All acceptance criteria met: Implements IStorage interface, uses database operations from phase 2, proper error handling
+- **3.3** Refactor file-based storage to adapter (COMPLETED)
+  - Created FileStorage class in src/storage/file.ts implementing IStorage interface
+  - findApiKey(): Finds API key by key string using file-based JSON storage
+  - updateApiKeyUsage(): Updates usage tracking with 5-hour rolling window logic
+  - getKeyStats(): Returns comprehensive StatsResponse with computed statistics (is_expired, current_usage, remaining_tokens)
+  - initialize(): Creates data directory and initial file if needed
+  - Private withLock() method for atomic file operations using mkdir-based locking with retry mechanism
+  - Private readApiKeys/writeApiKeys methods for JSON file persistence with atomic writes (temp file + rename)
+  - Private ensureInitialized() method validates initialization before operations
+  - Configurable data file path via constructor parameter or DATA_FILE env var
+  - Comprehensive error handling with meaningful error messages
+  - Pre-initialization usage prevented with clear error message
+  - File locking with retry mechanism (10 retries, 50ms delay) to prevent race conditions
+  - Created src/storage/file.test.ts with 11 comprehensive test cases:
+    * initialize() creates directory and file
+    * initialize() is idempotent (can be called multiple times)
+    * findApiKey() returns null for non-existent keys
+    * findApiKey() throws error if not initialized
+    * updateApiKeyUsage() throws error for non-existent keys
+    * updateApiKeyUsage() throws error if not initialized
+    * getKeyStats() returns null for non-existent keys
+    * getKeyStats() throws error if not initialized
+    * Integration tests for complete workflow
+    * File locking tests for concurrent access
+  - All 11 tests passing
+  - ESLint validation passed (fixed unused parameter with underscore prefix)
+  - Preserves all existing functionality from src/storage.ts
+  - Same file format and locking mechanism as original implementation
+  - Compatible with existing apikeys.json files
+  - No breaking changes to existing code
+  - Comprehensive JSDoc documentation with usage examples for all methods
+  - Full TypeScript type safety with IStorage interface implementation
+  - All acceptance criteria met: Implements IStorage interface, preserves existing functionality, no breaking changes
