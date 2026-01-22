@@ -735,7 +735,40 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - Manual verification: WebSocket connections rejected without valid credentials
 
 #### Phase 5: Testing and Deployment (Est: 175 min)
-- 5.1 Write API endpoint tests
+- ✅ [2026-01-22] Subtask 5.1 - Write API endpoint tests
+  - Created comprehensive API endpoint integration tests (tests/api.test.ts, 712 lines)
+  - 40+ tests covering all CRUD operations:
+    * GET /api/keys - List, sort, filter, and search API keys (9 tests)
+    * POST /api/keys - Create new API keys with validation (12 tests)
+    * PUT /api/keys/:id - Update existing API keys (10 tests)
+    * DELETE /api/keys/:id - Delete API keys (4 tests)
+    * GET /api/keys/:id/usage - Get usage statistics (3 tests)
+  - CORS headers testing (2 tests)
+  - Error handling testing (2 tests)
+  - Validation logic covered:
+    * Required field validation (key, name, token_limit, expiry_date)
+    * Field format validation (key format, name format)
+    * Business logic validation (future expiry dates, non-negative quotas, duplicate keys)
+  - Error handling covered:
+    * 400 Bad Request for validation errors
+    * 404 Not Found for missing resources
+    * 409 Conflict for duplicate keys
+    * 500 Internal Server Error handling
+  - Edge cases tested:
+    * URL-encoded key IDs (special characters)
+    * Optional fields (model)
+    * Sorting by various fields (8 different fields)
+    * Filtering by model and expiry status
+    * Case-insensitive search
+  - Added test:api script to package.json for easy test execution
+  - Created tests/README.md with comprehensive documentation
+  - Tests designed as integration tests requiring server on localhost:3001
+  - Helper function createTestKey() for generating unique test keys
+  - Automatic cleanup of test data after each test
+  - No console.log debugging statements (only in test helpers)
+  - Follows existing test patterns from api-key-manager.test.ts
+  - Uses bun:test framework with describe, test, expect
+  - Manual verification: Test file compiles and is ready for execution
 - 5.2 Test real-time updates
 - 5.3 Manual UI testing
 - 5.4 Verify hot-reload functionality
