@@ -19,7 +19,7 @@ Building a responsive web dashboard for managing API keys with real-time usage v
 - ⏳ Ready to begin Phase 1: Foundation and Setup
 
 ### Current Phase: Backend API Implementation - In Progress
-**Next Step:** Phase 2.3 - Create POST /api/keys endpoint
+**Next Step:** Phase 2.4 - Create PUT /api/keys/:id endpoint
 
 ### Recent Completed Subtasks
 - ✅ [2026-01-22] Subtask 1.1 - Initialize project structure and dependencies
@@ -115,6 +115,41 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - Error handling tested for invalid parameters
   - TypeScript compilation successful with no errors
   - No console.log debugging statements (only console.error for errors)
+- ✅ [2026-01-22] Subtask 2.3 - Create POST /api/keys endpoint
+  - Implemented POST /api/keys endpoint to create new API keys
+  - Added comprehensive request body validation:
+    - Required fields: key, name, token_limit_per_5h, expiry_date
+    - Optional fields: model
+    - Type validation for all fields
+  - Leverages api-key-manager validation functions:
+    - Key format (alphanumeric, hyphens, underscores, 8-256 chars)
+    - Name format (letters, numbers, spaces, hyphens, underscores, max 100 chars)
+    - Token limit (non-negative, max 10M tokens)
+    - Expiry date (ISO 8601 format, future dates only)
+    - Model (optional, max 50 chars)
+  - Returns appropriate HTTP status codes:
+    - 400 for validation errors with detailed messages
+    - 409 for duplicate keys
+    - 201 on success with created key object
+    - 500 for server errors
+  - Sets default values for:
+    - created_at: current timestamp
+    - last_used: current timestamp
+    - total_lifetime_tokens: 0
+    - usage_windows: empty array
+  - Broadcasts key creation via WebSocket for real-time updates
+  - Created comprehensive test script (test-post-endpoint.ts)
+  - All validation tests passing:
+    - ✓ Valid API key creation
+    - ✓ Duplicate key rejection
+    - ✓ Invalid key format rejection
+    - ✓ Negative quota rejection
+    - ✓ Past expiry date rejection
+    - ✓ Missing required field rejection
+  - Data persistence verified (keys written to apikeys.json)
+  - TypeScript compilation successful with no errors
+  - No console.log debugging statements (only console.error for errors)
+  - CORS headers properly configured
 
 ### Phase Breakdown
 
