@@ -3,6 +3,9 @@ export interface UsageWindow {
   tokens_used: number;
 }
 
+// Re-export rolling window types from rolling-window.ts
+export type { TimeBucket, RollingWindowData } from './rolling-window.js';
+
 export interface ApiKey {
   key: string;
   name: string;
@@ -13,6 +16,7 @@ export interface ApiKey {
   last_used: string; // ISO 8601
   total_lifetime_tokens: number;
   usage_windows: UsageWindow[];
+  rolling_window_cache?: RollingWindowData; // Optional cache for O(1) rate limit checks
 }
 
 export interface ApiKeysData {
