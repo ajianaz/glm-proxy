@@ -437,3 +437,35 @@ Ready to begin implementation starting with Phase 1: Project Setup & Environment
 - Code follows existing patterns from POST endpoint
 - Comprehensive test coverage includes all edge cases and error scenarios
 
+- ✅ **api-3: Create GET /admin/api/keys/:id endpoint**
+  - Implemented GET /admin/api/keys/:id endpoint in src/routes/admin/keys.ts
+  - ID parameter validation using Zod (must be positive integer)
+  - Admin authentication middleware integration (supports both API key and JWT token)
+  - Proper error handling:
+    - 400 Bad Request for invalid ID (non-integer, negative, zero)
+    - 401 Unauthorized for missing/invalid credentials
+    - 404 Not Found when API key doesn't exist
+    - 500 Internal Server Error for unexpected errors
+  - Returns 200 OK with ApiKeyResponse structure (all fields except sensitive data)
+  - Safe response format (never returns key, key_hash, or key_preview)
+  - Integration with ApiKeyModel.findById() method for database operations
+  - Created comprehensive integration test suite (23 new tests):
+    - Authentication tests (API key and token)
+    - ID parameter validation tests (all formats and edge cases)
+    - Not found scenario tests
+    - Response format tests (all fields, null handling, defaults)
+    - Edge case tests (large IDs, leading zeros, consistency, inactive keys)
+  - All 75 admin API integration tests passing
+  - TypeScript compilation successful with no errors
+  - Updated api-3 subtask status to completed
+
+### Implementation Notes
+- ID validation uses Zod's regex and transform for type coercion and validation
+- Leading zeros in IDs are handled correctly by parseInt (e.g., "01" becomes 1)
+- Returns consistent ApiKeyResponse format matching the list endpoint structure
+- Error messages include the specific ID for better debugging
+- Works correctly with both active and inactive API keys
+- No console.log statements (only console.error for unexpected errors)
+- Code follows existing patterns from POST and GET list endpoints
+- Comprehensive test coverage includes all edge cases and error scenarios
+
