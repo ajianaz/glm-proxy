@@ -191,7 +191,7 @@
           "id": "3.2",
           "name": "Add cache invalidation on write operations",
           "description": "Invalidate or update cache entries when API keys are modified",
-          "status": "pending",
+          "status": "completed",
           "estimated_time": "25m",
           "dependencies": [
             "3.1"
@@ -204,7 +204,9 @@
             "Any write operations trigger cache invalidation",
             "Consider selective invalidation vs full cache clear",
             "Cache coherency maintained on concurrent updates"
-          ]
+          ],
+          "completed_at": "2026-01-22T12:30:00.000Z",
+          "notes": "Successfully implemented cache update on write operations in updateApiKeyUsage function. After writing updated API key data to disk, the cache entry is updated with the modified API key object using apiKeyCache.set(key, apiKey). This selective update approach is more efficient than full cache invalidation - it keeps the cache hot and ensures subsequent reads return fresh usage data (last_used, total_lifetime_tokens, usage_windows) without requiring disk I/O. Manual verification confirmed cache is correctly updated when updateApiKeyUsage is called. All validator tests pass (6/6). Code follows existing patterns with CACHE_ENABLED check and proper error handling."
         },
         {
           "id": "3.3",
