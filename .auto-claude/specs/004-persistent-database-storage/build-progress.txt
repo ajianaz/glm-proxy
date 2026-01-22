@@ -1,7 +1,7 @@
 # Build Progress: Persistent Database Storage
 
 **Started:** 2026-01-22
-**Status:** In Progress - Phase 2
+**Status:** In Progress - Phase 3
 
 ## Overview
 Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizontal scaling and production readiness.
@@ -20,8 +20,8 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ Statistics queries (COMPLETED: 2.3)
 - ✅ Helper functions (COMPLETED: 2.4)
 
-### Phase 3: Storage Abstraction [PENDING]
-- Define IStorage interface
+### Phase 3: Storage Abstraction [IN PROGRESS]
+- ✅ Define IStorage interface (COMPLETED: 3.1)
 - Database adapter
 - File storage adapter refactor
 - Storage factory
@@ -168,3 +168,20 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
     - Proper cleanup of test data
   - All 34 total tests passing (24 existing + 10 new)
   - TypeScript compilation verified, ESLint validation passed
+- **3.1** Define storage interface (COMPLETED)
+  - Created IStorage interface in src/storage/interface.ts with comprehensive method definitions
+  - findApiKey(key: string): Promise<ApiKey | null> - Find API key by key string
+  - updateApiKeyUsage(key: string, tokensUsed: number, model: string): Promise<void> - Update usage tracking with 5-hour rolling window
+  - getKeyStats(key: string): Promise<StatsResponse | null> - Get comprehensive statistics including current window usage, remaining tokens, and expiration status
+  - initialize(): Promise<void> - Initialize storage backend (create tables, directories, etc.)
+  - Interface enables pluggable storage backends (file-based, SQLite, PostgreSQL)
+  - All methods are async for consistency and performance
+  - Comprehensive JSDoc documentation with usage examples for each method
+  - Uses proper TypeScript types (ApiKey, StatsResponse) from types.ts
+  - Matches current storage.ts function signatures for backward compatibility
+  - TypeScript compilation verified with npx tsc --noEmit
+  - ESLint validation passed with no errors
+  - Interface type checking verified with mock implementation
+  - All required methods present and correctly typed
+  - Ready for use in database and file storage adapters
+  - All acceptance criteria met: TypeScript interface defined, matches current signatures, supports async operations
