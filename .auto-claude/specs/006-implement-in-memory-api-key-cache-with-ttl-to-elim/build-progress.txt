@@ -207,11 +207,12 @@ This implementation will add an in-memory LRU cache to the storage layer to elim
   - Check memory usage ✅
   - **Implementation:** Created comprehensive load test suite in test/benchmarks/load-test.test.ts with 14 tests. Verified 100/500/1000 concurrent requests all succeed with 0 failures, no file locking timeouts, >95% cache hit rates, memory usage <100MB for 100 keys, and <50ms per request average. All tests pass successfully.
 
-- [ ] 6.2 Test failure scenarios (20m)
-  - Graceful degradation on errors
-  - TTL expiration under load
-  - File update coherency
-  - Startup with empty cache
+- [x] 6.2 Test failure scenarios (20m) ✅
+  - Graceful degradation on errors ✅
+  - TTL expiration under load ✅
+  - File update coherency ✅
+  - Startup with empty cache ✅
+  - **Implementation:** Created test/cache-failure-scenarios.test.ts with 20 comprehensive tests covering graceful degradation (missing file, corrupted JSON, concurrent requests), TTL expiration behavior, file update coherency, startup with empty cache, negative caching, and cache statistics accuracy. All tests pass successfully.
 
 - [ ] 6.3 Final QA and sign-off (15m)
   - Verify all acceptance criteria
