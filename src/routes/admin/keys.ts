@@ -10,6 +10,20 @@ import { z } from 'zod';
 import { adminAuthMiddleware, type AdminAuthContext } from '../../middleware/adminAuth.js';
 import { ApiKeyModel, ApiKeyValidationError, ApiKeyDuplicateError, ApiKeyNotFoundError } from '../../models/apiKey.js';
 import type { ApiKeyResponse, CreateApiKeyData } from '../../models/schema.js';
+import {
+  badRequestError,
+  unauthorizedError,
+  forbiddenError,
+  notFoundError,
+  conflictError,
+  internalServerError,
+  validationError,
+  invalidJsonError,
+  handleApiError,
+  createNotFoundError,
+  createConflictError,
+} from '../../utils/errors.js';
+import { formatValidationErrors } from '../../middleware/validation.js';
 
 // Create Hono app with admin auth context
 const app = new Hono<{ Variables: AdminAuthContext }>();
@@ -117,16 +131,6 @@ const updateApiKeySchema = z.object({
 type UpdateApiKeyRequest = z.infer<typeof updateApiKeySchema>;
 
 /**
- * Format validation errors for API response
- */
-function formatValidationErrors(error: z.ZodError): { field: string; message: string }[] {
-  return error.issues.map((issue) => ({
-    field: issue.path.join('.'),
-    message: issue.message,
-  }));
-}
-
-/**
  * POST /admin/api/keys
  *
  * Create a new API key with validation.
@@ -152,26 +156,14 @@ app.post('/', adminAuthMiddleware, async (c) => {
     try {
       rawBody = await c.req.json();
     } catch (parseError) {
-      return c.json(
-        {
-          error: 'Invalid JSON',
-          details: [{ field: 'body', message: 'Request body contains invalid JSON' }],
-        },
-        400
-      );
+      return invalidJsonError(c);
     }
 
     const validationResult = createApiKeySchema.safeParse(rawBody);
 
     if (!validationResult.success) {
       const errors = formatValidationErrors(validationResult.error);
-      return c.json(
-        {
-          error: 'Validation failed',
-          details: errors,
-        },
-        400
-      );
+      return validationError(c, errors);
     }
 
     const data: CreateApiKeyData = validationResult.data;
@@ -184,34 +176,15 @@ app.post('/', adminAuthMiddleware, async (c) => {
   } catch (error) {
     // Handle specific error types
     if (error instanceof ApiKeyValidationError) {
-      return c.json(
-        {
-          error: 'Validation failed',
-          details: [{ field: 'general', message: error.message }],
-        },
-        400
-      );
+      return validationError(c, [{ field: 'general', message: error.message }]);
     }
 
     if (error instanceof ApiKeyDuplicateError) {
-      return c.json(
-        {
-          error: 'Duplicate API key',
-          details: [{ field: 'key', message: 'An API key with this hash already exists' }],
-        },
-        409
-      );
+      return conflictError(c, 'Duplicate API key', [{ field: 'key', message: 'An API key with this hash already exists' }]);
     }
 
     // Handle unexpected errors
-    console.error('Unexpected error creating API key:', error);
-    return c.json(
-      {
-        error: 'Internal server error',
-        details: 'An unexpected error occurred while creating the API key',
-      },
-      500
-    );
+    return internalServerError(c, 'Failed to create API key', error);
   }
 });
 
@@ -234,13 +207,7 @@ app.get('/', adminAuthMiddleware, async (c) => {
 
     if (!validationResult.success) {
       const errors = formatValidationErrors(validationResult.error);
-      return c.json(
-        {
-          error: 'Validation failed',
-          details: errors,
-        },
-        400
-      );
+      return validationError(c, errors);
     }
 
     const params = validationResult.data;
@@ -257,14 +224,7 @@ app.get('/', adminAuthMiddleware, async (c) => {
     return c.json(result, 200);
   } catch (error) {
     // Handle unexpected errors
-    console.error('Unexpected error listing API keys:', error);
-    return c.json(
-      {
-        error: 'Internal server error',
-        details: 'An unexpected error occurred while listing API keys',
-      },
-      500
-    );
+    return internalServerError(c, 'Failed to list API keys', error);
   }
 });
 
@@ -294,13 +254,7 @@ app.get('/:id', adminAuthMiddleware, async (c) => {
 
     if (!idValidation.success) {
       const errors = formatValidationErrors(idValidation.error);
-      return c.json(
-        {
-          error: 'Validation failed',
-          details: errors,
-        },
-        400
-      );
+      return validationError(c, errors);
     }
 
     const id = idValidation.data.id;
@@ -322,14 +276,7 @@ app.get('/:id', adminAuthMiddleware, async (c) => {
     return c.json(result, 200);
   } catch (error) {
     // Handle unexpected errors
-    console.error('Unexpected error retrieving API key:', error);
-    return c.json(
-      {
-        error: 'Internal server error',
-        details: 'An unexpected error occurred while retrieving the API key',
-      },
-      500
-    );
+    return internalServerError(c, 'Failed to retrieve API key', error);
   }
 });
 
@@ -353,10 +300,11 @@ app.get('/:id', adminAuthMiddleware, async (c) => {
  * ```
  */
 app.put('/:id', adminAuthMiddleware, async (c) => {
-  try {
-    // Extract and validate ID parameter
-    const idParam = c.req.param('id');
+  // Extract ID parameter for error handling
+  const idParam = c.req.param('id');
 
+  try {
+    // Validate ID is a positive integer
     const idValidation = z.object({
       id: z.string()
         .regex(/^\d+$/, 'ID must be a positive integer')
@@ -366,13 +314,7 @@ app.put('/:id', adminAuthMiddleware, async (c) => {
 
     if (!idValidation.success) {
       const errors = formatValidationErrors(idValidation.error);
-      return c.json(
-        {
-          error: 'Validation failed',
-          details: errors,
-        },
-        400
-      );
+      return validationError(c, errors);
     }
 
     const id = idValidation.data.id;
@@ -382,26 +324,14 @@ app.put('/:id', adminAuthMiddleware, async (c) => {
     try {
       rawBody = await c.req.json();
     } catch (parseError) {
-      return c.json(
-        {
-          error: 'Invalid JSON',
-          details: [{ field: 'body', message: 'Request body contains invalid JSON' }],
-        },
-        400
-      );
+      return invalidJsonError(c);
     }
 
     const validationResult = updateApiKeySchema.safeParse(rawBody);
 
     if (!validationResult.success) {
       const errors = formatValidationErrors(validationResult.error);
-      return c.json(
-        {
-          error: 'Validation failed',
-          details: errors,
-        },
-        400
-      );
+      return validationError(c, errors);
     }
 
     const data = validationResult.data;
@@ -414,13 +344,7 @@ app.put('/:id', adminAuthMiddleware, async (c) => {
   } catch (error) {
     // Handle specific error types
     if (error instanceof ApiKeyValidationError) {
-      return c.json(
-        {
-          error: 'Validation failed',
-          details: [{ field: 'general', message: error.message }],
-        },
-        400
-      );
+      return validationError(c, [{ field: 'general', message: error.message }]);
     }
 
     if (error instanceof ApiKeyNotFoundError) {
@@ -434,14 +358,7 @@ app.put('/:id', adminAuthMiddleware, async (c) => {
     }
 
     // Handle unexpected errors
-    console.error('Unexpected error updating API key:', error);
-    return c.json(
-      {
-        error: 'Internal server error',
-        details: 'An unexpected error occurred while updating the API key',
-      },
-      500
-    );
+    return internalServerError(c, 'Failed to update API key', error);
   }
 });
 
@@ -470,13 +387,7 @@ app.delete('/:id', adminAuthMiddleware, async (c) => {
 
     if (!idValidation.success) {
       const errors = formatValidationErrors(idValidation.error);
-      return c.json(
-        {
-          error: 'Validation failed',
-          details: errors,
-        },
-        400
-      );
+      return validationError(c, errors);
     }
 
     const id = idValidation.data.id;
@@ -498,14 +409,7 @@ app.delete('/:id', adminAuthMiddleware, async (c) => {
     return new Response(null, { status: 204 });
   } catch (error) {
     // Handle unexpected errors
-    console.error('Unexpected error deleting API key:', error);
-    return c.json(
-      {
-        error: 'Internal server error',
-        details: 'An unexpected error occurred while deleting the API key',
-      },
-      500
-    );
+    return internalServerError(c, 'Failed to delete API key', error);
   }
 });
 
