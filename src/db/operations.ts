@@ -1,5 +1,5 @@
-import { eq, and, gte, lt } from 'drizzle-orm';
-import type { ApiKey } from '../types.js';
+import { eq, and, gte, lt, desc } from 'drizzle-orm';
+import type { ApiKey, StatsResponse } from '../types.js';
 import { getDb } from './connection.js';
 import * as schema from './schema.js';
 
@@ -379,5 +379,100 @@ export async function updateApiKeyUsage(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Failed to update API key usage: ${errorMessage}`);
+  }
+}
+
+/**
+ * Get comprehensive statistics for an API key
+ *
+ * This function joins api_keys with usage_windows and computes statistics including:
+ * - Expiration status
+ * - Current rolling window usage (5-hour window)
+ * - Remaining tokens in current window
+ * - Total lifetime usage
+ *
+ * @param key - The API key string to get statistics for
+ * @returns StatsResponse object with full statistics, or null if key not found
+ *
+ * @example
+ * ```ts
+ * import { getKeyStats } from './db/operations.js';
+ *
+ * const stats = await getKeyStats('sk-1234567890');
+ * if (stats) {
+ *   console.log(`Current usage: ${stats.current_usage.tokens_used_in_current_window}`);
+ *   console.log(`Remaining: ${stats.current_usage.remaining_tokens}`);
+ *   console.log(`Expired: ${stats.is_expired}`);
+ * }
+ * ```
+ */
+export async function getKeyStats(key: string): Promise<StatsResponse | null> {
+  try {
+    const { db, type } = getDb();
+
+    // Select the appropriate tables based on database type
+    const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
+    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+    // Query the API key
+    const result = await db.select().from(table).where(eq(table.key, key)).limit(1);
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    const apiKeyRow = result[0];
+
+    // Calculate if key is expired
+    const now = new Date();
+    const expiryDate = new Date(apiKeyRow.expiryDate);
+    const isExpired = expiryDate < now;
+
+    // Get usage windows within the last 5 hours for current window calculation
+    const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+
+    // Get all usage windows for total calculation
+    const allUsageWindows = await db
+      .select()
+      .from(usageTable)
+      .where(eq(usageTable.apiKey, key))
+      .orderBy(desc(usageTable.windowStart));
+
+    // Get current window (most recent window within 5 hours)
+    const currentWindow = allUsageWindows.find(w => {
+      const windowStart = new Date(w.windowStart);
+      return windowStart >= new Date(fiveHoursAgo);
+    });
+
+    // Calculate current window usage
+    const tokensUsedInCurrentWindow = currentWindow?.tokensUsed ?? 0;
+    const windowStartedAt = currentWindow?.windowStart ?? apiKeyRow.lastUsed;
+    const windowEndsAt = currentWindow
+      ? new Date(new Date(currentWindow.windowStart).getTime() + 5 * 60 * 60 * 1000).toISOString()
+      : new Date(new Date(apiKeyRow.lastUsed).getTime() + 5 * 60 * 60 * 1000).toISOString();
+
+    const remainingTokens = Math.max(0, apiKeyRow.tokenLimitPer5h - tokensUsedInCurrentWindow);
+
+    // Map to StatsResponse interface
+    return {
+      key: apiKeyRow.key,
+      name: apiKeyRow.name,
+      model: apiKeyRow.model ?? '',
+      token_limit_per_5h: apiKeyRow.tokenLimitPer5h,
+      expiry_date: apiKeyRow.expiryDate,
+      created_at: apiKeyRow.createdAt,
+      last_used: apiKeyRow.lastUsed,
+      is_expired: isExpired,
+      current_usage: {
+        tokens_used_in_current_window: tokensUsedInCurrentWindow,
+        window_started_at: windowStartedAt,
+        window_ends_at: windowEndsAt,
+        remaining_tokens: remainingTokens,
+      },
+      total_lifetime_tokens: apiKeyRow.totalLifetimeTokens,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to get API key stats: ${errorMessage}`);
   }
 }

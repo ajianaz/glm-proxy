@@ -5,7 +5,8 @@ import {
   createApiKey,
   updateApiKey,
   deleteApiKey,
-  updateApiKeyUsage
+  updateApiKeyUsage,
+  getKeyStats
 } from './operations.js';
 import type { ApiKey } from '../types.js';
 
@@ -193,5 +194,120 @@ test('updateApiKeyUsage should handle zero tokens', async () => {
 // Cleanup after usage tests
 test('cleanup: delete usage test key', async () => {
   const deleted = await deleteApiKey(usageTestKey.key);
+  expect(deleted).toBe(true);
+});
+
+// getKeyStats tests
+const statsTestKey: ApiKey = {
+  key: 'test-key-stats-12345',
+  name: 'Test Stats Key',
+  model: 'claude-3-5-sonnet-20241022',
+  token_limit_per_5h: 50000,
+  expiry_date: '2027-12-31T23:59:59Z', // Future date (we're in 2026)
+  created_at: new Date().toISOString(),
+  last_used: new Date().toISOString(),
+  total_lifetime_tokens: 0,
+  usage_windows: [],
+};
+
+test('getKeyStats should return null for non-existent key', async () => {
+  const stats = await getKeyStats('non-existent-key');
+  expect(stats).toBeNull();
+});
+
+test('getKeyStats should return stats for new key', async () => {
+  // Create the test key
+  await createApiKey(statsTestKey);
+
+  const stats = await getKeyStats(statsTestKey.key);
+
+  expect(stats).toBeDefined();
+  expect(stats?.key).toBe(statsTestKey.key);
+  expect(stats?.name).toBe(statsTestKey.name);
+  expect(stats?.model).toBe(statsTestKey.model);
+  expect(stats?.token_limit_per_5h).toBe(statsTestKey.token_limit_per_5h);
+  expect(stats?.total_lifetime_tokens).toBe(0);
+  expect(stats?.is_expired).toBe(false);
+  expect(stats?.current_usage.tokens_used_in_current_window).toBe(0);
+  expect(stats?.current_usage.remaining_tokens).toBe(statsTestKey.token_limit_per_5h);
+});
+
+test('getKeyStats should reflect usage updates', async () => {
+  // Update usage
+  await updateApiKeyUsage(statsTestKey.key, 5000, 'claude-3-5-sonnet-20241022');
+
+  const stats = await getKeyStats(statsTestKey.key);
+
+  expect(stats?.total_lifetime_tokens).toBe(5000);
+  expect(stats?.current_usage.tokens_used_in_current_window).toBe(5000);
+  expect(stats?.current_usage.remaining_tokens).toBe(45000); // 50000 - 5000
+  expect(stats?.last_used).toBeDefined();
+});
+
+test('getKeyStats should calculate expired status correctly', async () => {
+  // Create an expired key
+  const expiredKey: ApiKey = {
+    key: 'test-key-expired-12345',
+    name: 'Test Expired Key',
+    model: 'claude-3-5-sonnet-20241022',
+    token_limit_per_5h: 50000,
+    expiry_date: '2020-01-01T00:00:00Z', // Past date
+    created_at: '2019-12-31T00:00:00Z',
+    last_used: new Date().toISOString(),
+    total_lifetime_tokens: 0,
+    usage_windows: [],
+  };
+
+  await createApiKey(expiredKey);
+
+  const stats = await getKeyStats(expiredKey.key);
+
+  expect(stats?.is_expired).toBe(true);
+
+  // Cleanup
+  await deleteApiKey(expiredKey.key);
+});
+
+test('getKeyStats should handle keys without model', async () => {
+  // Create key without model
+  const noModelKey: ApiKey = {
+    key: 'test-key-nomodel-12345',
+    name: 'Test No Model Key',
+    token_limit_per_5h: 30000,
+    expiry_date: '2027-12-31T23:59:59Z', // Future date (we're in 2026)
+    created_at: new Date().toISOString(),
+    last_used: new Date().toISOString(),
+    total_lifetime_tokens: 0,
+    usage_windows: [],
+  };
+
+  await createApiKey(noModelKey);
+
+  const stats = await getKeyStats(noModelKey.key);
+
+  expect(stats?.model).toBe('');
+
+  // Cleanup
+  await deleteApiKey(noModelKey.key);
+});
+
+test('getKeyStats should have valid window timestamps', async () => {
+  const stats = await getKeyStats(statsTestKey.key);
+
+  expect(stats?.current_usage.window_started_at).toBeDefined();
+  expect(stats?.current_usage.window_ends_at).toBeDefined();
+
+  const windowStart = new Date(stats!.current_usage.window_started_at);
+  const windowEnd = new Date(stats!.current_usage.window_ends_at);
+
+  // Window end should be approximately 5 hours after start
+  const diffMs = windowEnd.getTime() - windowStart.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  expect(diffHours).toBeGreaterThanOrEqual(4.9); // Allow small timing differences
+  expect(diffHours).toBeLessThanOrEqual(5.1);
+});
+
+test('cleanup: delete stats test key', async () => {
+  const deleted = await deleteApiKey(statsTestKey.key);
   expect(deleted).toBe(true);
 });
