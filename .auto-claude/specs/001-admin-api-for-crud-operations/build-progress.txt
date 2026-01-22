@@ -252,6 +252,37 @@
 - Error messages updated to reflect both authentication methods
 - Uses jose library for JWT operations (modern, dependency-free, works with Bun)
 
+## 2026-01-22 - Phase 3 (continued): Authentication & Authorization
+
+### Completed
+- ✅ **auth-3: Add error handling for auth failures**
+  - Verified comprehensive error handling already implemented in authentication middleware and token utilities
+  - Error responses in adminAuthMiddleware (src/middleware/adminAuth.ts):
+    - 401 Unauthorized for missing credentials (no Authorization or x-api-key header)
+    - 401 Unauthorized for empty/whitespace-only credentials
+    - 401 Unauthorized for invalid API keys
+    - 401 Unauthorized for invalid tokens (tampered signatures, wrong format, etc.)
+    - 403 Forbidden when admin API is disabled (ADMIN_API_ENABLED=false)
+  - Error responses in validateAdminToken (src/utils/adminToken.ts):
+    - 401 Unauthorized for missing/empty tokens
+    - 401 Unauthorized for expired tokens
+    - 401 Unauthorized for invalid token signatures
+    - 401 Unauthorized for invalid token types
+    - 401 Unauthorized for generic validation failures
+  - All error responses include descriptive error messages
+  - Security: Error messages don't reveal sensitive information about valid vs invalid credentials
+  - All error scenarios covered by comprehensive test suite (51 tests passing in auth-related test files)
+  - No additional code changes required - error handling was implemented as part of auth-1 and auth-2
+
+### Implementation Notes
+- Authentication error handling follows HTTP status code standards:
+  - 401 Unauthorized for authentication failures (missing/invalid credentials)
+  - 403 Forbidden for authorization/service unavailable (admin API disabled)
+- Error messages are user-friendly but don't leak security-sensitive information
+- Both API key and token authentication paths have proper error handling
+- All errors return JSON format: { error: string }
+- Test coverage includes edge cases like long keys, special characters, and malformed tokens
+
 ### Implementation Plan Summary
 
 **Phase 1: Project Setup & Environment** (4 subtasks)
