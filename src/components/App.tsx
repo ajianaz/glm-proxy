@@ -279,7 +279,7 @@ export default function App(): React.JSX.Element {
  * Handles authentication flow and renders either LoginPage or Dashboard.
  */
 function AppContentWrapper(): React.JSX.Element {
-  const { isAuthenticated, setIsAuthenticated } = useApp();
+  const { isAuthenticated, setIsAuthenticated, logout } = useApp();
 
   // Check for existing authentication on mount
   useEffect(() => {
