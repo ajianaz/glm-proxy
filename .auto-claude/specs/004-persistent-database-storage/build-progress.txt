@@ -27,8 +27,8 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ Storage factory (COMPLETED: 3.4)
 - ✅ Update existing code to use storage interface (COMPLETED: 3.5)
 
-### Phase 4: Migration Tool [PENDING]
-- CLI migration script
+### Phase 4: Migration Tool [IN PROGRESS]
+- ✅ CLI migration script (COMPLETED: 4.1)
 - Backup before migration
 - Validation
 - Rollback capability
@@ -80,6 +80,20 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 6. Implement storage abstraction layer (NEXT: Phase 3)
 
 ## Completed Tasks
+- **4.1** Create migration CLI script (COMPLETED)
+  - Created scripts/migrate.ts with comprehensive migration functionality
+  - Reads apikeys.json from DATA_FILE env var or provided path via --file argument
+  - Validates JSON structure before migration (all required fields checked)
+  - Inserts data using createApiKey function from db/operations.ts
+  - Progress indicators showing current/total and success/failure counts
+  - CLI Features: --file argument, --dry-run mode, --force mode, --help flag
+  - Comprehensive validation with clear error messages
+  - Shows preview of API keys to migrate with confirmation prompt
+  - Works with both SQLite and PostgreSQL databases
+  - Tested help flag, dry-run mode, valid data, and invalid data scenarios
+  - Follows existing code patterns and documentation style
+  - Executable script with shebang for Bun
+  - All acceptance criteria met: reads from DATA_FILE or provided path, validates JSON structure, inserts data using database adapter, shows progress indicators
 - **1.1** Install Drizzle ORM and drivers
   - Installed drizzle-orm@0.45.1
   - Installed postgres@3.4.8
