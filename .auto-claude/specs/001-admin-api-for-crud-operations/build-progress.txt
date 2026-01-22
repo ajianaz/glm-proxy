@@ -804,3 +804,61 @@ All admin API endpoints now have:
 - Test documentation helps developers understand patterns and write new tests faster
 - Fixtures are optional - existing tests can continue using their current setup
 - Future tests can use fixtures to reduce boilerplate code
+
+## 2026-01-22 - Phase 6 (test-2): Unit Tests for Models
+
+### Completed
+- ✅ **test-2: Write unit tests for models**
+  - Enhanced existing test suite in test/unit/apiKey.test.ts with 21 new tests
+  - Added boundary condition tests for create operations:
+    - Maximum key length validation (256 chars)
+    - Maximum name length validation (255 chars)
+    - Maximum description length validation (1000 chars)
+    - Keys with dots, underscores, and hyphens
+    - Rate limit boundary values (0 and 10000)
+  - Added boundary condition tests for update operations:
+    - Maximum name length on update
+    - Maximum description length on update
+    - Invalid is_active type validation
+    - Rate limit boundary values on update
+  - Added edge case tests for list operations:
+    - Page beyond total pages
+    - Minimum limit clamping (0 → 1)
+    - Large page numbers with empty results
+    - Search with special characters
+    - Search with unicode characters
+    - Case-insensitive search verification
+  - All 68 ApiKey model tests passing (47 original + 21 new)
+  - Comprehensive coverage of all model methods:
+    - CRUD operations (create, read, update, delete)
+    - Validation functions (validateKeyFormat, validateCreateData, validateUpdateData)
+    - Helper functions (hashApiKeySync, generateKeyPreview, parseScopes, serializeScopes)
+    - Error classes (ApiKeyNotFoundError, ApiKeyDuplicateError, ApiKeyValidationError)
+  - Test coverage includes:
+    - All validation rules and boundary conditions
+    - All CRUD operations with edge cases
+    - Error handling scenarios
+    - Security features (key hashing, safe responses)
+    - Pagination and filtering
+    - Database operations (transactions, constraints)
+  - TypeScript compilation successful for test file
+  - No regressions in existing tests (405 + 21 = 426 tests passing)
+  - Updated implementation plan to mark test-2 as completed
+
+### Implementation Notes
+- Existing tests were comprehensive but lacked boundary condition testing
+- Added tests for all maximum length validations (key: 256, name: 255, description: 1000)
+- Added tests for special characters allowed in keys (dots, underscores, hyphens)
+- Added tests for rate limit boundaries (0 for unlimited, 10000 for maximum)
+- Added tests for list edge cases (page beyond total, empty results, case-insensitive search)
+- All new tests follow existing patterns and use beforeEach/afterEach for proper setup/teardown
+- Test suite provides complete coverage of ApiKey model functionality
+- Tests ensure data integrity and validation rules are enforced
+- Tests verify security features (key hashing, no sensitive data in responses)
+
+### Next Steps
+- test-3: Write unit tests for middleware
+- test-5: Write integration tests for GET endpoints
+- test-6: Write integration tests for PUT endpoint
+- test-7: Write integration tests for DELETE endpoint
+- test-8: Write authentication tests

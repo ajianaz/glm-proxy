@@ -166,6 +166,112 @@ describe('ApiKey Model', () => {
       // Last 4: '5678'
       expect(result.key_preview).toBe('preview-*************5678');
     });
+
+    it('should allow keys with dots and underscores', () => {
+      const data = {
+        key: 'test.key_with-underscore_123',
+        name: 'Test Key',
+      };
+
+      const result = ApiKeyModel.create(data);
+
+      expect(result).toBeDefined();
+      expect(result.id).toBeGreaterThan(0);
+    });
+
+    it('should throw validation error for key exceeding max length', () => {
+      const data = {
+        key: 'a'.repeat(257), // 257 characters, exceeds 256 max
+        name: 'Test Key',
+      };
+
+      expect(() => ApiKeyModel.create(data)).toThrow(ApiKeyValidationError);
+      expect(() => ApiKeyModel.create(data)).toThrow('must not exceed 256 characters');
+    });
+
+    it('should accept key at maximum length', () => {
+      const data = {
+        key: 'a'.repeat(256), // exactly 256 characters
+        name: 'Test Key',
+      };
+
+      const result = ApiKeyModel.create(data);
+
+      expect(result).toBeDefined();
+      expect(result.id).toBeGreaterThan(0);
+    });
+
+    it('should throw validation error for name exceeding max length', () => {
+      const data = {
+        key: 'name-length-test-12345',
+        name: 'a'.repeat(256), // 256 characters, exceeds 255 max
+      };
+
+      expect(() => ApiKeyModel.create(data)).toThrow(ApiKeyValidationError);
+      expect(() => ApiKeyModel.create(data)).toThrow('must not exceed 255 characters');
+    });
+
+    it('should accept name at maximum length', () => {
+      const data = {
+        key: 'name-max-test-123456',
+        name: 'a'.repeat(255), // exactly 255 characters
+      };
+
+      const result = ApiKeyModel.create(data);
+
+      expect(result).toBeDefined();
+      expect(result.name).toHaveLength(255);
+    });
+
+    it('should throw validation error for description exceeding max length', () => {
+      const data = {
+        key: 'desc-length-test-123',
+        name: 'Test Key',
+        description: 'a'.repeat(1001), // 1001 characters, exceeds 1000 max
+      };
+
+      expect(() => ApiKeyModel.create(data)).toThrow(ApiKeyValidationError);
+      expect(() => ApiKeyModel.create(data)).toThrow('must not exceed 1000 characters');
+    });
+
+    it('should accept description at maximum length', () => {
+      const data = {
+        key: 'desc-max-test-123456',
+        name: 'Test Key',
+        description: 'a'.repeat(1000), // exactly 1000 characters
+      };
+
+      const result = ApiKeyModel.create(data);
+
+      expect(result).toBeDefined();
+      expect(result.description).toHaveLength(1000);
+    });
+
+    it('should accept rate limit of 0 (unlimited)', () => {
+      const data = {
+        key: 'rate-zero-test-12345',
+        name: 'Test Key',
+        rate_limit: 0,
+      };
+
+      const result = ApiKeyModel.create(data);
+
+      expect(result).toBeDefined();
+      expect(result.rate_limit).toBe(0);
+    });
+
+    it('should accept rate limit at maximum value', () => {
+      const data = {
+        key: 'rate-max-test-123456',
+        name: 'Test Key',
+        rate_limit: 10000,
+      };
+
+      const result = ApiKeyModel.create(data);
+
+      expect(result).toBeDefined();
+      expect(result.rate_limit).toBe(10000);
+    });
   });
 
   describe('findById', () => {
@@ -332,6 +438,73 @@ describe('ApiKey Model', () => {
       expect(result.page).toBe(1);
       expect(result.limit).toBe(10);
     });
+
+    it('should handle page beyond total pages', () => {
+      const result = ApiKeyModel.list({ page: 10, limit: 2 });
+
+      expect(result.data).toHaveLength(0);
+      expect(result.page).toBe(10);
+      expect(result.pages).toBe(2); // total 4 items, limit 2 = 2 pages
+    });
+
+    it('should handle minimum limit of 1', () => {
+      const result = ApiKeyModel.list({ limit: 0 }); // will be clamped to 1
+
+      expect(result.limit).toBe(1);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('should handle large page number with empty result', () => {
+      resetDatabase();
+
+      const result = ApiKeyModel.list({ page: 999 });
+
+      expect(result.data).toHaveLength(0);
+      expect(result.total).toBe(0);
+      expect(result.pages).toBe(0);
+    });
+
+    it('should handle search with special characters', () => {
+      const created = ApiKeyModel.create({
+        key: 'special-chars-12345',
+        name: 'Test-Key_With.Special',
+      });
+
+      const result = ApiKeyModel.list({ search: 'Test-Key_With' });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe(created.id);
+    });
+
+    it('should handle search with unicode characters', () => {
+      const created = ApiKeyModel.create({
+        key: 'unicode-test-123456',
+        name: 'Test键匙',
+      });
+
+      const result = ApiKeyModel.list({ search: '键匙' });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe(created.id);
+    });
+
+    it('should handle case-insensitive search', () => {
+      const created = ApiKeyModel.create({
+        key: 'case-test-1234567',
+        name: 'TestKey',
+      });
+
+      const result1 = ApiKeyModel.list({ search: 'testkey' });
+      const result2 = ApiKeyModel.list({ search: 'TESTKEY' });
+      const result3 = ApiKeyModel.list({ search: 'TestKey' });
+
+      expect(result1.data).toHaveLength(1);
+      expect(result2.data).toHaveLength(1);
+      expect(result3.data).toHaveLength(1);
+      expect(result1.data[0].id).toBe(created.id);
+      expect(result2.data[0].id).toBe(created.id);
+      expect(result3.data[0].id).toBe(created.id);
+    });
   });
 
   describe('update', () => {
@@ -463,6 +636,78 @@ describe('ApiKey Model', () => {
 
       expect(() => ApiKeyModel.update(created.id, { rate_limit: -10 }))
         .toThrow(ApiKeyValidationError);
+    });
+
+    it('should throw validation error for name exceeding max length on update', () => {
+      const created = ApiKeyModel.create({
+        key: 'update-name-max-123',
+        name: 'Test Key',
+      });
+
+      expect(() => ApiKeyModel.update(created.id, { name: 'a'.repeat(256) }))
+        .toThrow(ApiKeyValidationError);
+      expect(() => ApiKeyModel.update(created.id, { name: 'a'.repeat(256) }))
+        .toThrow('must not exceed 255 characters');
+    });
+
+    it('should accept name at maximum length on update', () => {
+      const created = ApiKeyModel.create({
+        key: 'update-name-ok-1234',
+        name: 'Original Name',
+      });
+
+      const updated = ApiKeyModel.update(created.id, { name: 'a'.repeat(255) });
+
+      expect(updated.name).toHaveLength(255);
+    });
+
+    it('should throw validation error for description exceeding max length on update', () => {
+      const created = ApiKeyModel.create({
+        key: 'update-desc-max-123',
+        name: 'Test Key',
+      });
+
+      expect(() => ApiKeyModel.update(created.id, { description: 'a'.repeat(1001) }))
+        .toThrow(ApiKeyValidationError);
+      expect(() => ApiKeyModel.update(created.id, { description: 'a'.repeat(1001) }))
+        .toThrow('must not exceed 1000 characters');
+    });
+
+    it('should accept description at maximum length on update', () => {
+      const created = ApiKeyModel.create({
+        key: 'update-desc-ok-1234',
+        name: 'Test Key',
+      });
+
+      const updated = ApiKeyModel.update(created.id, { description: 'a'.repeat(1000) });
+
+      expect(updated.description).toHaveLength(1000);
+    });
+
+    it('should throw validation error for invalid is_active type', () => {
+      const created = ApiKeyModel.create({
+        key: 'validate-active-123',
+        name: 'Test Key',
+      });
+
+      expect(() => ApiKeyModel.update(created.id, { is_active: 'true' as any }))
+        .toThrow(ApiKeyValidationError);
+      expect(() => ApiKeyModel.update(created.id, { is_active: 'true' as any }))
+        .toThrow('must be a boolean');
+    });
+
+    it('should handle rate limit boundary values on update', () => {
+      const created = ApiKeyModel.create({
+        key: 'update-rate-bound-12',
+        name: 'Test Key',
+        rate_limit: 60,
+      });
+
+      let updated = ApiKeyModel.update(created.id, { rate_limit: 0 });
+      expect(updated.rate_limit).toBe(0);
+
+      updated = ApiKeyModel.update(created.id, { rate_limit: 10000 });
+      expect(updated.rate_limit).toBe(10000);
     });
   });
 
