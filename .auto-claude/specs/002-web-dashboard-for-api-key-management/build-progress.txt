@@ -334,6 +334,51 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - Follows existing code patterns from App.tsx
   - React best practices with hooks (useState, useMemo)
   - Accessible UI with proper ARIA labels and keyboard navigation
+- ✅ [2026-01-22] Subtask 3.3 - Build create/edit API key form
+  - Created comprehensive src/components/ApiKeyForm.tsx (543 lines)
+  - Implemented modal form for creating and editing API keys
+  - Comprehensive client-side validation matching backend rules:
+    * Key format: 8-256 chars, alphanumeric/hyphens/underscores only
+    * Name: required, max 100 chars, alphanumeric/spaces/hyphens/underscores
+    * Model: optional, max 50 chars
+    * Token limit: required, non-negative, max 10M tokens
+    * Expiry date: required, ISO 8601 format, must be in future
+  - Real-time validation with error messages per field
+  - Random API key generation (32 chars, alphanumeric + hyphens/underscores)
+  - Default expiry date set to 30 days from now
+  - Form states: create mode vs edit mode
+  - Integrated with App context (createKey, updateKey functions)
+  - Loading states during form submission
+  - Server error handling and display
+  - Modal backdrop with click-outside-to-close functionality
+  - Form hint text for all fields with validation requirements
+  - Updated App.tsx:
+    * Added showCreateForm and editingKey state management
+    * Added "Create New Key" button in action bar above table
+    * Integrated ApiKeyForm modal with proper open/close callbacks
+    * Form closes on successful submission or cancel
+  - Updated ApiKeyTable.tsx:
+    * Added onEdit prop to receive edit callback from parent
+    * Enabled edit button (was disabled in subtask 3.2)
+    * handleEdit function calls onEdit callback with key data
+  - Added CSS styles to dashboard.css:
+    * .required: red color for required field asterisk markers
+    * .input-error: error state styling with red border for invalid inputs
+    * .input-group: flex container for input + button combinations
+    * .action-bar: flex container for action buttons above table
+  - All TypeScript compilation successful with no errors
+  - No console.log debugging statements (only console.error for errors)
+  - Form validation tested via automated tests:
+    * ✅ Missing required field correctly rejected
+    * ✅ Invalid key format (spaces) correctly rejected
+    * ✅ Negative quota correctly rejected
+    * ✅ Past expiry date correctly rejected
+    * ✅ Valid key creation working
+    * ✅ Key update working
+  - Follows existing code patterns from App.tsx and ApiKeyTable.tsx
+  - React best practices with hooks (useState, useEffect)
+  - Accessible UI with proper labels, ARIA attributes, and keyboard navigation
+  - Manual verification completed: Form opens, validates, submits, and closes correctly
 
 ### Phase Breakdown
 
