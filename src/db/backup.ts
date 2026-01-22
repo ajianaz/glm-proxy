@@ -323,7 +323,7 @@ export async function backupDatabase(options: BackupOptions = {}): Promise<Backu
         await backupWithPgDump(connectionString, tempPath);
       } else {
         // Fall back to Drizzle-based backup
-        const db = getDb();
+        const db = await getDb();
         await backupWithDrizzle(db, tempPath);
       }
 
@@ -884,7 +884,7 @@ async function restorePostgreSQL(backupPath: string, compressed: boolean): Promi
       }
     } else {
       // Fall back to executing SQL directly via postgres client
-      const db = getDb();
+      const db = await getDb();
       if (db.type !== 'postgresql') {
         throw new Error('Database connection is not PostgreSQL');
       }
@@ -1105,7 +1105,7 @@ export async function restoreDatabase(
     }
 
     // Get restored database stats
-    const db = getDb();
+    const db = await getDb();
     let keysRestored = 0;
     let usageWindowsRestored = 0;
 

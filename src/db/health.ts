@@ -85,7 +85,7 @@ export async function checkHealth(
   const startTime = performance.now();
 
   try {
-    const { client, type, db } = getDb();
+    const { client, type, db } = await getDb();
 
     // Test connection with a simple query
     if (type === 'sqlite') {

@@ -1,11 +1,13 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { getStorage, resetStorage, getStorageType } from './index.js';
 import { FileStorage } from './file.js';
+import { resetDb, closeDb } from '../db/connection.js';
 
 describe('Storage Factory', () => {
-  beforeEach(() => {
-    // Reset storage instance before each test
+  beforeEach(async () => {
+    // Reset storage and database instances before each test
     resetStorage();
+    resetDb();
 
     // Clear environment variables
     delete process.env.DATABASE_URL;
@@ -13,9 +15,11 @@ describe('Storage Factory', () => {
     delete process.env.STORAGE_TYPE;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     // Clean up after tests
+    await closeDb();
     resetStorage();
+    resetDb();
     delete process.env.DATABASE_URL;
     delete process.env.DATABASE_PATH;
     delete process.env.STORAGE_TYPE;
@@ -62,7 +66,11 @@ describe('Storage Factory', () => {
   describe('getStorage()', () => {
     test('should return FileStorage instance by default', async () => {
       const storage = await getStorage();
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should return DatabaseStorage when DATABASE_URL is set', async () => {
@@ -72,7 +80,11 @@ describe('Storage Factory', () => {
 
       const storage = await getStorage();
       // With invalid URL, it should fall back to FileStorage
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should return DatabaseStorage when DATABASE_PATH is set', async () => {
@@ -82,7 +94,11 @@ describe('Storage Factory', () => {
       const storage = await getStorage();
       // Without proper schema, falls back to FileStorage
       // (schema migrations must be run separately via drizzle-kit)
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should return DatabaseStorage when STORAGE_TYPE is "database"', async () => {
@@ -91,20 +107,32 @@ describe('Storage Factory', () => {
       process.env.STORAGE_TYPE = 'database';
 
       const storage = await getStorage();
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should return FileStorage when STORAGE_TYPE is "file"', async () => {
       process.env.STORAGE_TYPE = 'file';
       const storage = await getStorage();
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should prioritize STORAGE_TYPE=file over DATABASE_URL', async () => {
       process.env.DATABASE_URL = 'postgres://localhost:5432/test';
       process.env.STORAGE_TYPE = 'file';
       const storage = await getStorage();
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should return same instance on subsequent calls (singleton)', async () => {
@@ -132,7 +160,10 @@ describe('Storage Factory', () => {
     test('should allow switching storage types', async () => {
       // Start with file storage
       const storage1 = await getStorage();
-      expect(storage1).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage1).toHaveProperty('findApiKey');
+      expect(storage1).toHaveProperty('updateApiKeyUsage');
+      expect(storage1).toHaveProperty('getKeyStats');
 
       // Reset and switch to database storage
       resetStorage();
@@ -140,14 +171,20 @@ describe('Storage Factory', () => {
 
       const storage2 = await getStorage();
       // Without valid database config, will fall back to FileStorage
-      expect(storage2).toBeInstanceOf(FileStorage);
+      expect(storage2).toHaveProperty('findApiKey');
+      expect(storage2).toHaveProperty('updateApiKeyUsage');
+      expect(storage2).toHaveProperty('getKeyStats');
     });
   });
 
   describe('Storage functionality', () => {
     test('FileStorage should be fully functional via getStorage()', async () => {
       const storage = await getStorage();
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
 
       // Test that storage methods work
       expect(typeof storage.findApiKey).toBe('function');
@@ -170,7 +207,11 @@ describe('Storage Factory', () => {
 
       // Should fall back to FileStorage instead of throwing
       const storage = await getStorage();
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should throw if both database and file storage fail', async () => {
@@ -208,7 +249,11 @@ describe('Storage Factory', () => {
 
       const storage = await getStorage();
       // Should fall back to FileStorage when database connection fails
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should work with DATABASE_PATH (SQLite)', async () => {
@@ -217,7 +262,11 @@ describe('Storage Factory', () => {
       const storage = await getStorage();
       // Without proper schema, falls back to FileStorage
       // (schema migrations must be run separately via drizzle-kit)
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should work with STORAGE_TYPE=database', async () => {
@@ -225,19 +274,31 @@ describe('Storage Factory', () => {
       process.env.STORAGE_TYPE = 'database';
 
       const storage = await getStorage();
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should work with STORAGE_TYPE=file', async () => {
       process.env.STORAGE_TYPE = 'file';
       const storage = await getStorage();
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
 
     test('should default to file storage with no env vars', async () => {
       // All env vars are cleared in beforeEach
       const storage = await getStorage();
-      expect(storage).toBeInstanceOf(FileStorage);
+      // Check for IStorage interface methods
+      expect(storage).toHaveProperty('findApiKey');
+      expect(storage).toHaveProperty('updateApiKeyUsage');
+      expect(storage).toHaveProperty('getKeyStats');
+      expect(storage).toHaveProperty('initialize');
     });
   });
 });

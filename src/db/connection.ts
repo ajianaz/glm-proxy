@@ -11,6 +11,33 @@ import * as schema from './schema.js';
 export type DatabaseType = 'sqlite' | 'postgresql';
 
 /**
+ * Retry options for database connection attempts
+ */
+export interface RetryOptions {
+  /** Maximum number of retry attempts (default: 3) */
+  maxRetries?: number;
+  /** Initial delay in milliseconds before first retry (default: 1000ms) */
+  initialDelayMs?: number;
+  /** Multiplier for exponential backoff (default: 2) */
+  backoffMultiplier?: number;
+  /** Maximum delay between retries in milliseconds (default: 10000ms) */
+  maxDelayMs?: number;
+  /** Whether to log retry attempts (default: true) */
+  silent?: boolean;
+}
+
+/**
+ * Default retry options
+ */
+const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
+  maxRetries: 3,
+  initialDelayMs: 1000,
+  backoffMultiplier: 2,
+  maxDelayMs: 10000,
+  silent: false,
+};
+
+/**
  * Database connection interface
  */
 export interface DatabaseConnection {
@@ -37,6 +64,134 @@ export function getDatabaseType(): DatabaseType {
     return 'postgresql';
   }
   return 'sqlite';
+}
+
+/**
+ * Calculate delay for exponential backoff retry
+ *
+ * @param attempt - The current attempt number (0-indexed)
+ * @param options - Retry options
+ * @returns Delay in milliseconds before next retry
+ */
+function calculateRetryDelay(attempt: number, options: Required<RetryOptions>): number {
+  const exponentialDelay = options.initialDelayMs * Math.pow(options.backoffMultiplier, attempt);
+  const clampedDelay = Math.min(exponentialDelay, options.maxDelayMs);
+  return clampedDelay;
+}
+
+/**
+ * Execute a function with exponential backoff retry logic
+ *
+ * This function wraps a potentially failing operation (like database connection)
+ * with retry logic using exponential backoff. It will:
+ * - Attempt the operation up to maxRetries times
+ * - Use exponential backoff between attempts (e.g., 1s, 2s, 4s, 8s...)
+ * - Log retry attempts unless silent mode is enabled
+ * - Throw the last error if all attempts fail
+ *
+ * @param fn - Async function to execute
+ * @param context - Description of the operation for error messages
+ * @param options - Retry options
+ * @returns Result of the function execution
+ * @throws Error if all retry attempts fail
+ *
+ * @example
+ * ```ts
+ * const result = await withRetry(
+ *   async () => connectToDatabase(),
+ *   'database connection',
+ *   { maxRetries: 5, initialDelayMs: 2000 }
+ * );
+ * ```
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  context: string,
+  options: RetryOptions = {}
+): Promise<T> {
+  const opts = { ...DEFAULT_RETRY_OPTIONS, ...options };
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= opts.maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // If this is the last attempt, don't wait/delay
+      if (attempt === opts.maxRetries) {
+        break;
+      }
+
+      // Calculate delay for this attempt
+      const delay = calculateRetryDelay(attempt, opts);
+
+      // Log retry attempt
+      if (!opts.silent) {
+        console.warn(
+          `Database ${context} failed (attempt ${attempt + 1}/${opts.maxRetries + 1}): ${lastError.message}. Retrying in ${delay}ms...`
+        );
+      }
+
+      // Wait before next retry
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  // All retries exhausted
+  throw new Error(
+    `Failed to ${context} after ${opts.maxRetries + 1} attempts: ${lastError?.message || 'Unknown error'}`
+  );
+}
+
+/**
+ * Load retry options from environment variables
+ *
+ * Environment variables:
+ * - DB_RETRY_MAX: Maximum retry attempts (default: 3)
+ * - DB_RETRY_DELAY_MS: Initial delay in milliseconds (default: 1000)
+ * - DB_RETRY_BACKOFF: Backoff multiplier (default: 2)
+ * - DB_RETRY_MAX_DELAY_MS: Maximum delay in milliseconds (default: 10000)
+ * - DB_RETRY_SILENT: Silent mode (true/false, default: false)
+ *
+ * @returns Retry options from environment variables
+ */
+export function getRetryOptionsFromEnv(): RetryOptions {
+  const options: RetryOptions = {};
+
+  if (process.env.DB_RETRY_MAX) {
+    const maxRetries = parseInt(process.env.DB_RETRY_MAX, 10);
+    if (!isNaN(maxRetries) && maxRetries >= 0) {
+      options.maxRetries = maxRetries;
+    }
+  }
+
+  if (process.env.DB_RETRY_DELAY_MS) {
+    const delayMs = parseInt(process.env.DB_RETRY_DELAY_MS, 10);
+    if (!isNaN(delayMs) && delayMs >= 0) {
+      options.initialDelayMs = delayMs;
+    }
+  }
+
+  if (process.env.DB_RETRY_BACKOFF) {
+    const multiplier = parseFloat(process.env.DB_RETRY_BACKOFF);
+    if (!isNaN(multiplier) && multiplier > 0) {
+      options.backoffMultiplier = multiplier;
+    }
+  }
+
+  if (process.env.DB_RETRY_MAX_DELAY_MS) {
+    const maxDelay = parseInt(process.env.DB_RETRY_MAX_DELAY_MS, 10);
+    if (!isNaN(maxDelay) && maxDelay >= 0) {
+      options.maxDelayMs = maxDelay;
+    }
+  }
+
+  if (process.env.DB_RETRY_SILENT === 'true') {
+    options.silent = true;
+  }
+
+  return options;
 }
 
 /**
@@ -113,9 +268,17 @@ function createPostgreSQLConnection(): DatabaseConnection {
  * Automatically selects database type based on environment variables.
  * Creates and caches the connection on first call.
  *
+ * Uses exponential backoff retry logic if connection fails, with configurable
+ * retry parameters via environment variables:
+ * - DB_RETRY_MAX: Maximum retry attempts (default: 3)
+ * - DB_RETRY_DELAY_MS: Initial delay in milliseconds (default: 1000)
+ * - DB_RETRY_BACKOFF: Backoff multiplier (default: 2)
+ * - DB_RETRY_MAX_DELAY_MS: Maximum delay in milliseconds (default: 10000)
+ * - DB_RETRY_SILENT: Silent mode (true/false, default: false)
+ *
  * @returns DatabaseConnection instance
  *
- * @throws Error if connection fails
+ * @throws Error if connection fails after all retry attempts
  *
  * @example
  * ```ts
@@ -125,25 +288,24 @@ function createPostgreSQLConnection(): DatabaseConnection {
  * console.log(`Using ${type} database`);
  * ```
  */
-export function getDb(): DatabaseConnection {
+export async function getDb(): Promise<DatabaseConnection> {
   if (dbInstance) {
     return dbInstance;
   }
 
   const dbType = getDatabaseType();
+  const retryOptions = getRetryOptionsFromEnv();
 
-  try {
+  const connection = await withRetry(async () => {
     if (dbType === 'postgresql') {
-      dbInstance = createPostgreSQLConnection();
+      return createPostgreSQLConnection();
     } else {
-      dbInstance = createSQLiteConnection();
+      return createSQLiteConnection();
     }
+  }, `create ${dbType} connection`, retryOptions);
 
-    return dbInstance;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to create database connection: ${errorMessage}`);
-  }
+  dbInstance = connection;
+  return connection;
 }
 
 /**
@@ -169,6 +331,37 @@ export async function closeDb(): Promise<void> {
 }
 
 /**
+ * Reset database connection instance
+ *
+ * This function clears the singleton database connection, allowing getDb()
+ * to create a new instance on the next call. This is primarily useful for:
+ * - Testing (resetting connections between tests)
+ * - Configuration changes (switching databases at runtime)
+ *
+ * Note: This does not close the existing connection. Use closeDb() first
+ * if you need to properly clean up resources.
+ *
+ * @example
+ * ```ts
+ * import { resetDb, getDb } from './db/connection.js';
+ *
+ * // Get database connection
+ * const db1 = await getDb();
+ *
+ * // Reset the instance
+ * resetDb();
+ *
+ * // Get a new instance (with new configuration if env vars changed)
+ * const db2 = await getDb();
+ *
+ * console.log(db1 === db2); // false (different instances)
+ * ```
+ */
+export function resetDb(): void {
+  dbInstance = null;
+}
+
+/**
  * Test database connection
  *
  * Executes a simple query to verify the connection is working.
@@ -187,7 +380,7 @@ export async function closeDb(): Promise<void> {
  */
 export async function testConnection(): Promise<boolean> {
   try {
-    const { client, type } = getDb();
+    const { client, type } = await getDb();
 
     if (type === 'sqlite') {
       // SQLite: Run a simple query through the native client

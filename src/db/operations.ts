@@ -21,7 +21,7 @@ import * as schema from './schema.js';
  */
 export async function findApiKey(key: string): Promise<ApiKey | null> {
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
 
     // Select the appropriate table based on database type
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
@@ -106,7 +106,7 @@ export async function createApiKey(apiKey: ApiKey): Promise<ApiKey> {
   }
 
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
 
     // Select the appropriate table based on database type
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
@@ -165,7 +165,7 @@ export async function updateApiKey(
   updates: Partial<Pick<ApiKey, 'name' | 'model' | 'token_limit_per_5h' | 'expiry_date'>>
 ): Promise<ApiKey | null> {
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
 
     // Select the appropriate table based on database type
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
@@ -254,7 +254,7 @@ export async function updateApiKey(
  */
 export async function deleteApiKey(key: string): Promise<boolean> {
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
 
     // Select the appropriate table based on database type
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
@@ -310,7 +310,7 @@ export async function updateApiKeyUsage(
   }
 
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
 
     // Select the appropriate tables based on database type
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
@@ -408,7 +408,7 @@ export async function updateApiKeyUsage(
  */
 export async function getKeyStats(key: string): Promise<StatsResponse | null> {
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
 
     // Select the appropriate tables based on database type
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
@@ -513,7 +513,7 @@ export async function getAllApiKeys(
   }
 
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
 
     // Select the appropriate tables based on database type
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
@@ -579,7 +579,7 @@ export async function findKeysByModel(model: string): Promise<ApiKey[]> {
   }
 
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
 
     // Select the appropriate tables based on database type
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
@@ -644,7 +644,7 @@ export async function findKeysByModel(model: string): Promise<ApiKey[]> {
  */
 export async function findExpiredKeys(): Promise<ApiKey[]> {
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
 
     // Select the appropriate tables based on database type
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
@@ -712,7 +712,7 @@ export async function findExpiredKeys(): Promise<ApiKey[]> {
  */
 export async function findActiveKeys(): Promise<ApiKey[]> {
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
 
     // Select the appropriate tables based on database type
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;

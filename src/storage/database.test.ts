@@ -19,7 +19,7 @@ describe('DatabaseStorage', () => {
     await storage.initialize();
 
     // Clean up any existing test data
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
 
     // Delete all test keys
@@ -28,7 +28,7 @@ describe('DatabaseStorage', () => {
 
   afterEach(async () => {
     // Clean up after tests
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
 
     await db.delete(table).where(eq(table.key, 'sk-test-database-storage'));
@@ -52,7 +52,7 @@ describe('DatabaseStorage', () => {
 
   test('findApiKey() should return ApiKey for existing key', async () => {
     // First, insert a test key directly into the database
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
 
     const testKey = 'sk-test-database-storage';
@@ -82,7 +82,7 @@ describe('DatabaseStorage', () => {
 
   test('updateApiKeyUsage() should track token usage', async () => {
     // Insert a test key
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
 
     const testKey = 'sk-test-database-storage';
@@ -112,7 +112,7 @@ describe('DatabaseStorage', () => {
 
   test('updateApiKeyUsage() should accumulate usage in same window', async () => {
     // Insert a test key
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
 
     const testKey = 'sk-test-database-storage';
@@ -154,7 +154,7 @@ describe('DatabaseStorage', () => {
 
   test('getKeyStats() should return stats for existing key', async () => {
     // Insert a test key
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
 
     const testKey = 'sk-test-database-storage';
@@ -187,7 +187,7 @@ describe('DatabaseStorage', () => {
 
   test('getKeyStats() should reflect usage updates', async () => {
     // Insert a test key
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
 
     const testKey = 'sk-test-database-storage';
@@ -218,7 +218,7 @@ describe('DatabaseStorage', () => {
 
   test('getKeyStats() should calculate expired status correctly', async () => {
     // Insert an expired test key
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
 
     const testKey = 'sk-test-database-storage';
@@ -245,7 +245,7 @@ describe('DatabaseStorage', () => {
 
   test('findApiKey() and updateApiKeyUsage() should work together', async () => {
     // Insert a test key
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
     const table = type === 'sqlite' ? schema.sqliteApiKeys : schema.pgApiKeys;
 
     const testKey = 'sk-test-database-storage';

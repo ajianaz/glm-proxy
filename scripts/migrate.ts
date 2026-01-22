@@ -238,7 +238,7 @@ async function insertUsageWindows(
   }
 
   try {
-    const { db, type } = getDb();
+    const { db, type } = await getDb();
     const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
 
     // Insert all usage windows for this key
@@ -548,7 +548,7 @@ async function main(): Promise<void> {
 
   try {
     // Test database connection
-    const { type } = getDb();
+    const { type } = await getDb();
     console.log(`Database type: ${type.toUpperCase()}`);
 
     // Read and validate API keys file

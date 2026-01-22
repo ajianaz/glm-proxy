@@ -62,7 +62,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Get database connection to ensure it's created
-      getDb();
+      await getDb();
 
       // Note: Schema migration should be handled separately via drizzle-kit
       // This ensures proper migration tracking and rollback capabilities
