@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import ApiKeyTable from './ApiKeyTable';
+import ApiKeyForm from './ApiKeyForm';
 import type { ApiKey } from '../types';
 
 /**
@@ -325,6 +326,8 @@ export default function App(): React.JSX.Element {
  */
 function AppContent(): React.JSX.Element {
   const { apiKeys, isLoading, error, isConnected } = useApp();
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingKey, setEditingKey] = useState<ApiKey | undefined>(undefined);
 
   if (isLoading) {
     return (
@@ -371,8 +374,35 @@ function AppContent(): React.JSX.Element {
         </div>
       </div>
 
+      {/* Action Bar */}
+      <div className="action-bar">
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowCreateForm(true)}
+        >
+          + Create New Key
+        </button>
+      </div>
+
       {/* API Key Table */}
-      <ApiKeyTable />
+      <ApiKeyTable
+        onEdit={(key) => setEditingKey(key)}
+      />
+
+      {/* Create/Edit Form Modal */}
+      {(showCreateForm || editingKey) && (
+        <ApiKeyForm
+          existingKey={editingKey}
+          onClose={() => {
+            setShowCreateForm(false);
+            setEditingKey(undefined);
+          }}
+          onSuccess={() => {
+            setShowCreateForm(false);
+            setEditingKey(undefined);
+          }}
+        />
+      )}
     </div>
   );
 }

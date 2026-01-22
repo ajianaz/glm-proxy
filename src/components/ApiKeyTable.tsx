@@ -78,11 +78,19 @@ function isKeyExpired(key: ApiKey): boolean {
 }
 
 /**
+ * Props for ApiKeyTable component
+ */
+interface ApiKeyTableProps {
+  /** Callback when edit button is clicked */
+  onEdit?: (key: ApiKey) => void;
+}
+
+/**
  * ApiKeyTable Component
  *
  * Displays API keys in a sortable, filterable table with actions.
  */
-export default function ApiKeyTable(): React.JSX.Element {
+export default function ApiKeyTable({ onEdit }: ApiKeyTableProps): React.JSX.Element {
   const { apiKeys, updateKey, deleteKey } = useApp();
 
   // State for sorting and filtering
@@ -181,11 +189,12 @@ export default function ApiKeyTable(): React.JSX.Element {
 
   /**
    * Handle edit action
-   * Form will be implemented in subtask 3.3
    */
-  async function handleEdit(keyId: string): Promise<void> {
-    // Edit functionality will be implemented in subtask 3.3
-    // Button is currently disabled
+  function handleEdit(keyId: string): void {
+    const key = apiKeys.find((k) => k.key === keyId);
+    if (key && onEdit) {
+      onEdit(key);
+    }
   }
 
   /**
@@ -413,8 +422,7 @@ export default function ApiKeyTable(): React.JSX.Element {
                         <button
                           className="btn btn-sm btn-ghost"
                           onClick={() => handleEdit(key.key)}
-                          title="Edit key (coming soon)"
-                          disabled
+                          title="Edit key"
                         >
                           ✎
                         </button>
