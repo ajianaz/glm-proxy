@@ -16,7 +16,6 @@ export default defineConfig({
 
     // Test environment: Node.js environment for server-side code
     environment: 'node',
-<<<<<<< HEAD
 
     // Test file patterns
     include: ['test/**/*.test.ts', '**/*.test.ts'],

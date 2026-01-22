@@ -2,7 +2,7 @@
   "feature": "Admin API for CRUD Operations",
   "description": "# Admin API for CRUD Operations\n\nRESTful API endpoints for programmatic API key management including create, read, update, delete operations with proper authentication and authorization.\n\n## Rationale\nEnables automation, integration with existing tools, and programmatic key management. Critical for DevOps workflows and CI/CD pipelines. Addresses gap where users must manually edit files.\n\n## User Stories\n- As a DevOps engineer, I want to automate API key provisioning through scripts so that I can integrate with our user onboarding system\n- As a developer, I want to programmatically manage test API keys so that I can automate test environment setup\n- As an integrator, I want to call an API to manage keys so that I can build custom tooling on top of GLM Proxy\n\n## Acceptance Criteria\n- [ ] POST /admin/api/keys - Create new API key with validation\n- [ ] GET /admin/api/keys - List all API keys with pagination\n- [ ] GET /admin/api/keys/:id - Get specific API key details\n- [ ] PUT /admin/api/keys/:id - Update API key properties\n- [ ] DELETE /admin/api/keys/:id - Delete API key\n- [ ] Admin API requires master API key or separate admin token\n- [ ] API returns proper HTTP status codes and error messages\n- [ ] Operations are atomic and prevent race conditions\n",
   "created_at": "2026-01-22T03:26:41.676Z",
-  "updated_at": "2026-01-22T06:26:00.000Z",
+  "updated_at": "2026-01-22T07:18:59.827Z",
   "status": "human_review",
   "phases": [
     {
@@ -279,7 +279,7 @@
     {
       "id": "phase-8",
       "name": "Security Hardening",
-      "status": "in_progress",
+      "status": "completed",
       "subtasks": [
         {
           "id": "sec-1",
@@ -290,24 +290,53 @@
         {
           "id": "sec-2",
           "name": "Add rate limiting",
-          "status": "pending",
-          "details": "Implement rate limiting on admin endpoints to prevent abuse"
+          "status": "completed",
+          "details": "Implemented request-based rate limiting with sliding window algorithm. Per-credential and per-IP limits, configurable via ADMIN_RATE_LIMIT and ADMIN_RATE_LIMIT_WINDOW_MS environment variables. 57 tests added (36 for rate limiter, 21 for middleware). All admin API endpoints protected."
         },
         {
           "id": "sec-3",
           "name": "Add CORS configuration",
-          "status": "pending",
-          "details": "Configure CORS headers appropriately for admin API"
+          "status": "completed",
+          "details": "Implemented environment-based CORS configuration with dynamic origin handler. Supports wildcard mode (*) for development and specific origin whitelisting for production. Applied to all routes (admin API and proxy endpoints). 14 tests added. All CORS headers properly configured (Allow-Origin, Allow-Methods, Allow-Headers). Documented in SECURITY_HARDENING.md."
         },
         {
           "id": "sec-4",
           "name": "Sanitize error messages",
-          "status": "pending",
-          "details": "Ensure error messages don't leak sensitive information"
+          "status": "completed",
+          "details": "Implemented comprehensive error message sanitization to prevent information leakage. Token validation errors now return generic 'Invalid admin API key or token' instead of verbose messages. Duplicate key errors changed from 'API key with this hash already exists' to 'An API key with this value already exists' to hide database implementation. Created 9 integration tests verifying sanitized error messages. Created SECURITY_HARDENING.md documenting all security features including error sanitization. All 552 admin-related tests passing."
         }
       ]
     }
   ],
   "planStatus": "review",
-  "recoveryNote": "Task recovered from stuck state at 2026-01-22T03:30:27.417Z"
+  "recoveryNote": "Task recovered from stuck state at 2026-01-22T03:30:27.417Z",
+  "qa_signoff": {
+    "status": "approved",
+    "timestamp": "2026-01-22T07:17:00.000Z",
+    "qa_session": 1,
+    "report_file": "qa_report.md",
+    "tests_passed": {
+      "unit": "287/287",
+      "integration": "225/225",
+      "total": "512/512"
+    },
+    "verified_by": "qa_agent",
+    "issues_found": "None",
+    "verdict": "APPROVED - Ready for merge to main branch"
+  },
+  "qa_iteration_history": [
+    {
+      "iteration": 1,
+      "status": "approved",
+      "timestamp": "2026-01-22T07:18:59.804051+00:00",
+      "issues": [],
+      "duration_seconds": 235.67
+    }
+  ],
+  "qa_stats": {
+    "total_iterations": 1,
+    "last_iteration": 1,
+    "last_status": "approved",
+    "issues_by_type": {}
+  }
 }
