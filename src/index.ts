@@ -6,8 +6,10 @@ import { proxyAnthropicRequest } from './anthropic.js';
 import { checkRateLimit } from './ratelimit.js';
 import { authMiddleware, getApiKeyFromContext, type AuthContext } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
+import { profilingMiddleware, type ProfilingContext } from './middleware/profiling.js';
 import { createProxyHandler } from './handlers/proxyHandler.js';
 import type { StatsResponse } from './types.js';
+import { Profiler } from './profiling/Profiler.js';
 
 type Bindings = {
   ZAI_API_KEY: string;
@@ -15,14 +17,21 @@ type Bindings = {
   PORT: string;
 };
 
-const app = new Hono<{ Bindings: Bindings; Variables: AuthContext }>();
+const app = new Hono<{ Bindings: Bindings; Variables: AuthContext & ProfilingContext }>();
+
+// Configure profiling based on environment variable
+const PROFILING_ENABLED = process.env.PROFILING_ENABLED !== 'false';
+Profiler.configure({ enabled: PROFILING_ENABLED });
 
 // Enable CORS
 app.use('/*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+  allowHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'X-Request-ID'],
 }));
+
+// Profiling middleware - must be before auth to capture full request duration
+app.use('/*', profilingMiddleware);
 
 // Stats endpoint
 app.get('/stats', authMiddleware, async (c) => {
@@ -53,6 +62,46 @@ app.get('/stats', authMiddleware, async (c) => {
   };
 
   return c.json(stats);
+});
+
+// Profiling data export endpoint
+app.get('/profiling', authMiddleware, async (c) => {
+  const stats = Profiler.getStatistics();
+
+  return c.json({
+    summary: {
+      totalRequests: stats.totalRequests,
+      averageDuration: `${stats.averageDuration.toFixed(2)}ms`,
+      p50Duration: `${stats.p50Duration.toFixed(2)}ms`,
+      p95Duration: `${stats.p95Duration.toFixed(2)}ms`,
+      p99Duration: `${stats.p99Duration.toFixed(2)}ms`,
+    },
+    slowestRequests: stats.slowestRequests.slice(0, 5).map(req => ({
+      requestId: req.requestId,
+      duration: `${req.totalDuration.toFixed(2)}ms`,
+      method: req.metadata.method,
+      path: req.metadata.path,
+      status: req.metadata.status,
+    })),
+  });
+});
+
+// Profiling data by request ID
+app.get('/profiling/:requestId', authMiddleware, async (c) => {
+  const requestId = c.req.param('requestId');
+  const data = Profiler.getDataById(requestId);
+
+  if (!data) {
+    return c.json({ error: 'Request not found' }, 404);
+  }
+
+  return c.json(data);
+});
+
+// Clear profiling data
+app.delete('/profiling', authMiddleware, async (c) => {
+  Profiler.clearData();
+  return c.json({ message: 'Profiling data cleared' });
 });
 
 // Create proxy handlers
