@@ -129,9 +129,11 @@
           "id": "2.3",
           "title": "Request Pipelining Support",
           "description": "Implement HTTP/2 pipelining for concurrent requests on same connection",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "src/pool/PipeliningManager.ts"
+            "src/pool/PipeliningManager.ts",
+            "test/pipelining.test.ts",
+            "src/pool/index.ts"
           ],
           "acceptance_criteria": [
             "Support multiple in-flight requests per connection",
@@ -139,7 +141,8 @@
             "Priority-based request scheduling",
             "Backpressure handling",
             "Pipelining metrics: concurrent requests, queue depth"
-          ]
+          ],
+          "notes": "Successfully implemented comprehensive HTTP/2 pipelining manager with all acceptance criteria met. Created PipeliningManager class supporting multiple concurrent requests per connection (configurable, default: 6), priority-based scheduling (CRITICAL, HIGH, NORMAL, LOW), request queuing with FIFO ordering, backpressure handling with max queue size, and comprehensive metrics tracking (p50/p95/p99 queue wait times, pipelined request count, peak concurrency, requests by priority). Implemented graceful shutdown with queued request rejection. Added 17 comprehensive tests covering all functionality including priority scheduling, backpressure, queue timeouts, error handling, and metrics tracking. All tests passing. Ready for integration into ConnectionPool to enable true HTTP/2 multiplexing."
         }
       ]
     },
