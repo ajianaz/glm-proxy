@@ -2,8 +2,8 @@ import type { ApiKey } from './types.js';
 import { getModelForKey } from './validator.js';
 import { updateApiKeyUsage } from './storage.js';
 
-const ZAI_API_BASE = 'https://api.z.ai/api/coding/paas/v4';
-const ZAI_API_KEY = process.env.ZAI_API_KEY;
+const ZAI_API_BASE = process.env.ZAI_API_BASE || 'https://api.z.ai/api/coding/paas/v4';
+const ZAI_API_KEY = process.env.ZAI_API_KEY || 'mock-api-key';
 
 export interface ProxyOptions {
   apiKey: ApiKey;
