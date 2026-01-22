@@ -645,7 +645,33 @@ Ready to begin implementation starting with Phase 1: Project Setup & Environment
   - Updated implementation plan to mark error-2 as completed
 
 ### Next Steps
-- error-3: Add not found handling (already implemented with notFoundError())
 - error-4: Add server error handling (already implemented with internalServerError())
 - error-5: Implement request logging
+
+- ✅ **error-3: Add not found handling**
+  - Replaced all manual 404 error responses with centralized notFoundError() helper function
+  - GET /admin/api/keys/:id now uses notFoundError(c, 'API key', 'id ${id}')
+  - PUT /admin/api/keys/:id now uses notFoundError(c, 'API key', 'id ${idParam}')
+  - DELETE /admin/api/keys/:id now uses notFoundError(c, 'API key', 'id ${id}')
+  - Updated test assertions to expect improved error messages:
+    - Changed from generic "Not found" to specific "API key with id X not found"
+    - Updated 5 test assertions in test/integration/adminApiKeys.test.ts
+  - All 139 admin API integration tests passing
+  - All error utilities tests passing (30 tests)
+  - All validation middleware tests passing (22 tests)
+  - TypeScript compilation successful for src/ files (no errors)
+  - Benefits:
+    - Consistent error response format: { error: string, details?: any }
+    - More descriptive error messages for API consumers
+    - Follows DRY principle by using centralized error utilities
+    - Better developer experience with helpful error details
+  - Updated implementation plan to mark error-3 as completed
+  - Committed changes: auto-claude: error-3 - Add not found handling
+
+### Implementation Notes
+- The notFoundError() helper was already implemented in error-1 subtask
+- This subtask focused on applying it consistently across all endpoints
+- Error messages now include resource type and identifier for better debugging
+- Example: "API key with id 99999 not found" instead of just "Not found"
+- All 404 responses return consistent format with error message and details field
 
