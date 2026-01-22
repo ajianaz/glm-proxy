@@ -9,8 +9,10 @@
  * Streaming configuration options
  */
 export interface StreamingOptions {
-  /** Buffer size for chunks in bytes (default: 64KB) */
+  /** Buffer size for chunks in bytes (default: from env or 16KB) */
   chunkSize?: number;
+  /** Enable buffer pool for reusing buffers (default: true) */
+  useBufferPool?: boolean;
   /** Maximum backpressure delay in ms before applying backpressure (default: 100ms) */
   backpressureThreshold?: number;
   /** Enable streaming (default: true) */
