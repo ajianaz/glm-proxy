@@ -102,6 +102,7 @@ describe('Anthropic Proxy', () => {
         }),
         body: expect.stringContaining('messages'),
         timeout: 30000,
+        streamResponse: false,
       });
     });
 

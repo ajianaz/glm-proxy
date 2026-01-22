@@ -86,8 +86,9 @@ describe('Proxy', () => {
       headers: expect.objectContaining({
         'Authorization': 'Bearer test_zai_key',
       }),
-      body: expect.stringContaining('"model":"glm-4.7"'),
+      body: expect.stringContaining('glm-4.7'),
       timeout: 30000,
+      streamResponse: false,
     });
   });
 

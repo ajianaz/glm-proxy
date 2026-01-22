@@ -198,3 +198,120 @@ export interface SerializeResult {
    */
   outputSize: number;
 }
+
+/**
+ * JSON transformation options
+ */
+export interface JsonTransformationOptions {
+  /**
+   * Allow regex-based extraction (faster but less flexible)
+   * @default true
+   */
+  allowRegexExtraction?: boolean;
+
+  /**
+   * Fallback to full JSON.parse on error
+   * @default true
+   */
+  fallbackToParse?: boolean;
+}
+
+/**
+ * Transformer performance metrics
+ */
+export interface TransformerMetrics {
+  /**
+   * Number of transformations performed
+   */
+  transformationCount: number;
+
+  /**
+   * Number of parses saved by direct string manipulation
+   */
+  parseSavedCount: number;
+
+  /**
+   * Average transformation time in microseconds
+   */
+  avgTransformTime: number;
+
+  /**
+   * Total bytes processed
+   */
+  totalBytesProcessed: number;
+}
+
+/**
+ * Model injection result
+ */
+export interface ModelInjectionResult {
+  /**
+   * JSON string with model injected
+   */
+  json: string;
+
+  /**
+   * Whether the JSON was modified
+   */
+  modified: boolean;
+
+  /**
+   * Transform time in microseconds
+   */
+  transformTime: number;
+
+  /**
+   * Input size in bytes
+   */
+  inputSize: number;
+}
+
+/**
+ * Token extraction result
+ */
+export interface TokenExtractionResult {
+  /**
+   * Extracted token count (null if not found)
+   */
+  tokensUsed: number | null;
+
+  /**
+   * Whether full JSON.parse was used
+   */
+  usedFullParse: boolean;
+
+  /**
+   * Transform time in microseconds
+   */
+  transformTime: number;
+
+  /**
+   * Input size in bytes
+   */
+  inputSize: number;
+}
+
+/**
+ * Field extraction result
+ */
+export interface FieldExtractor<T = unknown> {
+  /**
+   * Extracted field value (null if not found)
+   */
+  value: T | null;
+
+  /**
+   * Whether full JSON.parse was used
+   */
+  usedFullParse: boolean;
+
+  /**
+   * Transform time in microseconds
+   */
+  transformTime: number;
+
+  /**
+   * Input size in bytes
+   */
+  inputSize: number;
+}

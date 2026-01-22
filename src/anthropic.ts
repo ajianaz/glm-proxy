@@ -2,6 +2,7 @@ import type { ApiKey } from './types.js';
 import { getModelForKey } from './validator.js';
 import { updateApiKeyUsage } from './storage.js';
 import { getAnthropicPool } from './pool/PoolManager.js';
+import { injectModel, extractTokens } from './json/index.js';
 
 const ZAI_ANTHROPIC_BASE = 'https://open.bigmodel.cn/api/anthropic';
 
@@ -69,16 +70,15 @@ export async function proxyAnthropicRequest(options: AnthropicProxyOptions): Pro
   // For non-streaming requests with body, inject model
   if (body && typeof body === 'string' && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
     try {
-      const bodyJson = JSON.parse(body);
+      // Use optimized model injection (avoids full parse+stringify cycle)
+      const injectionResult = injectModel(body, model);
 
-      // Inject model for messages endpoint
-      if (path.includes('/messages')) {
-        bodyJson.model = model;
+      // Only use modified body if injection was successful
+      if (injectionResult.modified) {
+        processedBody = injectionResult.json;
       }
-
-      processedBody = JSON.stringify(bodyJson);
     } catch {
-      // Body not JSON, leave as-is
+      // Body not JSON or injection failed, leave as-is
     }
   }
   // For streaming bodies, we can't easily inject model without buffering
@@ -189,15 +189,12 @@ export async function proxyAnthropicRequest(options: AnthropicProxyOptions): Pro
     // Extract token usage from response (only for non-streaming responses)
     if (typeof responseBody === 'string' && statusCode >= 200 && statusCode < 300) {
       try {
-        const responseJson = JSON.parse(responseBody);
+        // Use optimized token extraction (avoids full parse when possible)
+        const tokenResult = extractTokens(responseBody);
 
-        // Anthropic format usage
-        if (responseJson.usage) {
-          tokensUsed = responseJson.usage.input_tokens + responseJson.usage.output_tokens;
-        }
+        if (tokenResult.tokensUsed !== null && tokenResult.tokensUsed > 0) {
+          tokensUsed = tokenResult.tokensUsed;
 
-        // Update usage after successful request
-        if (tokensUsed > 0) {
           // Don't await - fire and forget for performance
           updateApiKeyUsage(apiKey.key, tokensUsed, model).catch(console.error);
         }
