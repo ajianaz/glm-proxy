@@ -1,0 +1,331 @@
+{
+  "taskId": "002-web-dashboard-for-api-key-management",
+  "taskTitle": "Web Dashboard for API Key Management",
+  "estimatedPhases": 5,
+  "phases": [
+    {
+      "phaseId": 1,
+      "phaseName": "Foundation and Setup",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "1.1",
+          "title": "Initialize project structure and dependencies",
+          "description": "Create directory structure for dashboard, install required dependencies (React, React DOM, TypeScript types)",
+          "status": "pending",
+          "files": [
+            "package.json"
+          ],
+          "estimatedTime": "15 minutes"
+        },
+        {
+          "subtaskId": "1.2",
+          "title": "Create base server entry point with Bun.serve()",
+          "description": "Set up index.ts with Bun.serve() including HMR, routes configuration, and WebSocket support for real-time updates",
+          "status": "pending",
+          "files": [
+            "index.ts"
+          ],
+          "estimatedTime": "20 minutes"
+        },
+        {
+          "subtaskId": "1.3",
+          "title": "Create main dashboard HTML layout",
+          "description": "Create index.html with responsive meta tags, basic CSS imports, and React app mount point",
+          "status": "pending",
+          "files": [
+            "index.html"
+          ],
+          "estimatedTime": "10 minutes"
+        },
+        {
+          "subtaskId": "1.4",
+          "title": "Set up CSS framework and base styles",
+          "description": "Create CSS files with responsive grid system, utility classes, color scheme, and component styles",
+          "status": "pending",
+          "files": [
+            "styles/dashboard.css"
+          ],
+          "estimatedTime": "20 minutes"
+        }
+      ]
+    },
+    {
+      "phaseId": 2,
+      "phaseName": "Backend API Implementation",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "2.1",
+          "title": "Implement API key data access layer",
+          "description": "Create module to read/write api_keys.json with proper error handling, validation, and atomic file operations",
+          "status": "pending",
+          "files": [
+            "src/api-key-manager.ts"
+          ],
+          "estimatedTime": "30 minutes"
+        },
+        {
+          "subtaskId": "2.2",
+          "title": "Create GET /api/keys endpoint",
+          "description": "Implement endpoint to list all API keys with support for query parameters (sort, filter, search)",
+          "status": "pending",
+          "files": [
+            "index.ts"
+          ],
+          "estimatedTime": "20 minutes"
+        },
+        {
+          "subtaskId": "2.3",
+          "title": "Create POST /api/keys endpoint",
+          "description": "Implement endpoint to create new API keys with validation (name format, quota limits, model whitelist)",
+          "status": "pending",
+          "files": [
+            "index.ts"
+          ],
+          "estimatedTime": "25 minutes"
+        },
+        {
+          "subtaskId": "2.4",
+          "title": "Create PUT /api/keys/:id endpoint",
+          "description": "Implement endpoint to update existing API key properties with validation and conflict checking",
+          "status": "pending",
+          "files": [
+            "index.ts"
+          ],
+          "estimatedTime": "25 minutes"
+        },
+        {
+          "subtaskId": "2.5",
+          "title": "Create DELETE /api/keys/:id endpoint",
+          "description": "Implement endpoint to delete API keys with confirmation and safety checks",
+          "status": "pending",
+          "files": [
+            "index.ts"
+          ],
+          "estimatedTime": "15 minutes"
+        },
+        {
+          "subtaskId": "2.6",
+          "title": "Create GET /api/keys/:id/usage endpoint",
+          "description": "Implement endpoint to retrieve usage statistics for a specific key including token usage, remaining quota, and request counts",
+          "status": "pending",
+          "files": [
+            "index.ts"
+          ],
+          "estimatedTime": "20 minutes"
+        },
+        {
+          "subtaskId": "2.7",
+          "title": "Implement WebSocket for real-time updates",
+          "description": "Set up WebSocket broadcast mechanism to push usage updates to connected dashboard clients",
+          "status": "pending",
+          "files": [
+            "index.ts",
+            "src/websocket-manager.ts"
+          ],
+          "estimatedTime": "30 minutes"
+        }
+      ]
+    },
+    {
+      "phaseId": 3,
+      "phaseName": "Frontend UI Components",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "3.1",
+          "title": "Create React app entry point",
+          "description": "Create frontend.tsx with React root, main App component, and global state management setup",
+          "status": "pending",
+          "files": [
+            "frontend.tsx",
+            "src/components/App.tsx"
+          ],
+          "estimatedTime": "20 minutes"
+        },
+        {
+          "subtaskId": "3.2",
+          "title": "Build API key table component",
+          "description": "Create sortable, filterable table displaying key ID, name, model, quota, usage, expiry, and actions",
+          "status": "pending",
+          "files": [
+            "src/components/ApiKeyTable.tsx"
+          ],
+          "estimatedTime": "45 minutes"
+        },
+        {
+          "subtaskId": "3.3",
+          "title": "Build create/edit API key form",
+          "description": "Create modal form with validation for creating/editing keys including name, quota, expiry date, and model whitelist",
+          "status": "pending",
+          "files": [
+            "src/components/ApiKeyForm.tsx"
+          ],
+          "estimatedTime": "45 minutes"
+        },
+        {
+          "subtaskId": "3.4",
+          "title": "Build usage visualization components",
+          "description": "Create progress bars, charts, and statistics cards showing token usage, quota consumption, and request metrics",
+          "status": "pending",
+          "files": [
+            "src/components/UsageVisualization.tsx"
+          ],
+          "estimatedTime": "40 minutes"
+        },
+        {
+          "subtaskId": "3.5",
+          "title": "Build confirmation dialogs",
+          "description": "Create reusable confirmation dialog components for delete actions with safety warnings",
+          "status": "pending",
+          "files": [
+            "src/components/ConfirmDialog.tsx"
+          ],
+          "estimatedTime": "20 minutes"
+        },
+        {
+          "subtaskId": "3.6",
+          "title": "Implement API client utilities",
+          "description": "Create HTTP client with error handling, loading states, and WebSocket connection management for real-time updates",
+          "status": "pending",
+          "files": [
+            "src/utils/api-client.ts",
+            "src/utils/ws-client.ts"
+          ],
+          "estimatedTime": "30 minutes"
+        },
+        {
+          "subtaskId": "3.7",
+          "title": "Add responsive design and mobile optimizations",
+          "description": "Implement mobile-friendly table views, collapsible sections, and touch-optimized interactions",
+          "status": "pending",
+          "files": [
+            "styles/responsive.css"
+          ],
+          "estimatedTime": "30 minutes"
+        }
+      ]
+    },
+    {
+      "phaseId": 4,
+      "phaseName": "Authentication",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "4.1",
+          "title": "Implement authentication middleware",
+          "description": "Create middleware to validate bearer tokens or basic auth headers against environment variables or config file",
+          "status": "pending",
+          "files": [
+            "src/auth-middleware.ts"
+          ],
+          "estimatedTime": "25 minutes"
+        },
+        {
+          "subtaskId": "4.2",
+          "title": "Create login page",
+          "description": "Build simple login form with token/auth input, session storage, and automatic redirect",
+          "status": "pending",
+          "files": [
+            "src/components/LoginPage.tsx"
+          ],
+          "estimatedTime": "30 minutes"
+        },
+        {
+          "subtaskId": "4.3",
+          "title": "Add logout functionality",
+          "description": "Implement logout button that clears session and redirects to login page",
+          "status": "pending",
+          "files": [
+            "src/components/App.tsx"
+          ],
+          "estimatedTime": "10 minutes"
+        },
+        {
+          "subtaskId": "4.4",
+          "title": "Secure WebSocket connections",
+          "description": "Add authentication validation to WebSocket handshake to prevent unauthorized access",
+          "status": "pending",
+          "files": [
+            "index.ts"
+          ],
+          "estimatedTime": "15 minutes"
+        }
+      ]
+    },
+    {
+      "phaseId": 5,
+      "phaseName": "Testing and Deployment",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "5.1",
+          "title": "Write API endpoint tests",
+          "description": "Create tests for all CRUD operations, validation logic, and error handling",
+          "status": "pending",
+          "files": [
+            "tests/api.test.ts"
+          ],
+          "estimatedTime": "45 minutes"
+        },
+        {
+          "subtaskId": "5.2",
+          "title": "Test real-time updates",
+          "description": "Verify WebSocket broadcasts work correctly when API keys are created/updated/deleted",
+          "status": "pending",
+          "files": [
+            "tests/websocket.test.ts"
+          ],
+          "estimatedTime": "30 minutes"
+        },
+        {
+          "subtaskId": "5.3",
+          "title": "Manual UI testing",
+          "description": "Test all user flows including create, edit, delete, view, filter, sort on desktop and mobile",
+          "status": "pending",
+          "files": [],
+          "estimatedTime": "60 minutes"
+        },
+        {
+          "subtaskId": "5.4",
+          "title": "Verify hot-reload functionality",
+          "description": "Test that API key changes take effect immediately without requiring server restart",
+          "status": "pending",
+          "files": [],
+          "estimatedTime": "20 minutes"
+        },
+        {
+          "subtaskId": "5.5",
+          "title": "Document setup and usage",
+          "description": "Create README with installation instructions, environment variables, and usage examples",
+          "status": "pending",
+          "files": [
+            "README.md"
+          ],
+          "estimatedTime": "20 minutes"
+        }
+      ]
+    }
+  ],
+  "totalEstimatedTime": "8 hours 15 minutes",
+  "dependencies": {
+    "required": [
+      "Bun runtime",
+      "Existing api_keys.json structure"
+    ],
+    "suggested": [
+      "React 18+",
+      "TypeScript"
+    ]
+  },
+  "notes": [
+    "Prioritize core CRUD functionality before advanced features",
+    "Use Bun's built-in features (Bun.serve, WebSocket) rather than external libraries",
+    "Ensure atomic file operations to prevent data corruption",
+    "WebSocket updates should be optimistic - update UI immediately, validate on server"
+  ],
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "updated_at": "2026-01-22T03:31:42.147Z"
+}
