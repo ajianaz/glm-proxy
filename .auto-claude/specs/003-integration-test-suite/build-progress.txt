@@ -141,7 +141,7 @@
 - Upstream API errors ✅ COMPLETE (26 tests passing in 12.91s)
 - Git commit created: ebb6af5 (upstream error propagation tests)
 - Malformed request handling ✅ COMPLETE (50 tests passing in 22.35s)
-- Timeout errors
+- Timeout errors ✅ COMPLETE (20 tests passing in 12.69s)
 - Network errors
 
 **Phase 7: Concurrency Tests** (95 min)
@@ -178,7 +178,7 @@
 - [x] Tests cover all API endpoints
 - [x] Tests verify rate limiting enforcement with rolling window
 - [x] Tests validate streaming responses (OpenAI ✅, Anthropic ✅)
-- [ ] Tests verify error handling (streaming errors ✅, upstream errors ✅, validation errors ✅, network/timeouts pending)
+- [ ] Tests verify error handling (streaming errors ✅, upstream errors ✅, validation errors ✅, timeout errors ✅, network errors pending)
 - [x] Tests check authentication/authorization
 - [x] Tests validate API key expiry handling
 - [x] Tests verify concurrent request handling (rate limiting concurrent tests done)
@@ -263,3 +263,14 @@
 - Tests verify complex validation scenarios (mixed valid/invalid messages, deeply nested structures, extra fields)
 - All 50 tests passing in 22.35s
 - Git commit to be created: (validation error tests)
+- ✅ Subtask 6.3 Complete: Timeout error handling tests (20 tests passing in 12.69s)
+- Tests verify request timeout handling with appropriate status codes (408, 504)
+- Tests verify timeout during streaming requests returns JSON error not stream
+- Tests verify proper error message format for timeout scenarios
+- Tests verify CORS headers are included on timeout errors
+- Tests verify distinction between 408 Request Timeout and 504 Gateway Timeout
+- Tests verify 502 Bad Gateway for connection timeouts
+- Tests verify timeout handling with concurrent requests
+- Tests verify timeout error recovery and retry scenarios
+- Tests verify OpenAI and Anthropic endpoint timeout handling
+- All 20 tests passing in 12.69s

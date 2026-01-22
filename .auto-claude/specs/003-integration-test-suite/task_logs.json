@@ -1,7 +1,7 @@
 {
   "spec_id": "003-integration-test-suite",
   "created_at": "2026-01-22T03:27:47.106652+00:00",
-  "updated_at": "2026-01-22T05:02:28.271969+00:00",
+  "updated_at": "2026-01-22T05:06:05.636917+00:00",
   "phases": {
     "planning": {
       "phase": "planning",
@@ -13007,6 +13007,483 @@
           "phase": "coding",
           "tool_name": "Bash",
           "tool_input": "git commit -m \"$(cat <<'EOF'\nauto-claude: malfo...",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:02:29.501682+00:00",
+          "type": "tool_end",
+          "content": "[Bash] Done",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "session": 1,
+          "detail": "",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:02:34.079813+00:00",
+          "type": "text",
+          "content": "Let me verify the tests still pass:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:02:34.100170+00:00",
+          "type": "tool_start",
+          "content": "[Bash] bun test test/integration/errors-validation.tes...",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "tool_input": "bun test test/integration/errors-validation.tes...",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:02.264180+00:00",
+          "type": "tool_end",
+          "content": "[Bash] Done",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "session": 1,
+          "detail": "bun test v1.2.23 (cf136713)\nProxy Gateway starting on port 0\n\n 50 pass\n 0 fail\n 80 expect() calls\nRan 50 tests across 1 file. [28.04s]",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:03:10.169061+00:00",
+          "type": "text",
+          "content": "Perfect! All tests are passing. Let me provide a summary of what was accomplished:\n\n## Summary\n\nSuccessfully implemented **Subtask 6.2: Malformed Request Handling Tests** for the Integration Test Suite.\n\n### What Was Created\n\nCreated a comprehensive test file `test/integration/errors-validation.test.ts` with **50 tests** covering:\n\n1. **Invalid JSON Tests** (6 tests)\n   - Empty request body\n   - Malformed JSON\n   - Incomplete JSON\n   - JSON with trailing commas\n   - Non-JSON content\n   - For both OpenAI and Anthropic endpoints\n\n2. **Missing Required Fields Tests** (5 tests)\n   - Missing `messages` field\n   - Empty messages array\n   - Missing `model` field\n   - Missing `max_tokens` (Anthropic)\n   - Missing message fields (content, role)\n\n3. **Invalid Field Types Tests** (4 tests)\n   - Messages as string instead of array\n   - Model as number instead of string\n   - Stream/temperature as string instead of boolean/number\n\n4. **Invalid Message Roles Tests** (6 tests)\n   - Invalid role values\n   - Valid role acceptance (user, assistant, system)\n   - Null and numeric roles rejection\n\n5. **Invalid Parameter Values Tests** (8 tests)\n   - Negative temperature\n   - Temperature out of range (OpenAI: >2, Anthropic: >1)\n   - Negative max_tokens\n   - Invalid top_p and top_k values\n   - For both OpenAI and Anthropic formats\n\n6. **Null and Empty Values Tests** (5 tests)\n   - Null fields\n   - Empty strings\n   - Proper handling\n\n7. **Content Type Validation Tests** (3 tests)\n   - Missing content-type header\n   - Wrong content-type\n   - Valid application/json\n\n8. **Error Response Format Tests** (3 tests)\n   - Proper error structure\n   - Helpful error messages\n   - JSON content type\n\n9. **CORS Headers on Validation Errors** (1 test)\n\n10. **Complex Validation Scenarios Tests** (3 tests)\n    - Mixed valid/invalid messages\n    - Deeply nested structures\n    - Extra fields\n\n### Test Results\n\n✅ **All 50 tests passing in 22.35s**\n\n### Files Modified\n\n- ✅ Created: `test/integration/errors-validation.test.ts` (1,152 lines)\n- ✅ Updated: `build-progress.txt`\n- ✅ Updated: `implementation_plan.json`\n\n### Git Commit\n\nCreated commit `61154b1` with all changes:\n```\nauto-claude: malformed request validation tests (subtask 6.2)\n```\n\n### Next Steps\n\nThe next subtasks in Phase 6 (Error Handling Tests) are:\n- **Subtask 6.3**: Test timeout error handling\n- **Subtask 6.4**: Test network error handling\n\nThis completes the validation error handling tests, ensuring the proxy properly reports malformed requests, missing required fields, and validation errors.",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:21.210791+00:00",
+          "type": "text",
+          "content": "I'll help you verify request timeouts are properly handled and reported. Let me start by reading the spec and plan files to understand the context.",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:21.235388+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...claude/specs/003-integration-test-suite/spec.md",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...claude/specs/003-integration-test-suite/spec.md",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:21.254974+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...integration-test-suite/implementation_plan.json",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...integration-test-suite/implementation_plan.json",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:21.275761+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...e/specs/003-integration-test-suite/context.json",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...e/specs/003-integration-test-suite/context.json",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:21.299424+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:21.324469+00:00",
+          "type": "tool_end",
+          "content": "[Read] Error: <tool_use_error>File does not exist.</tool_use_error>",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "<tool_use_error>File does not exist.</tool_use_error>",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:03:24.972888+00:00",
+          "type": "text",
+          "content": "Now let me check the existing error handling test files to understand the patterns used:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:25.000597+00:00",
+          "type": "tool_start",
+          "content": "[Read] test/integration/errors-upstream.test.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "test/integration/errors-upstream.test.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:25.017258+00:00",
+          "type": "tool_start",
+          "content": "[Read] test/integration/errors-validation.test.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "test/integration/errors-validation.test.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:25.030760+00:00",
+          "type": "tool_start",
+          "content": "[Read] test/integration/helpers.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "test/integration/helpers.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:25.042813+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "     1→/**\n     2→ * Integration Test Helpers\n     3→ *\n     4→ * Provides utilities for setting up test servers, making HTTP requests,\n     5→ * and validating responses in integration tests.\n     6→ */\n     7→\n     8→import { serve } from 'bun';\n     9→import fs from 'fs';\n    10→import path from 'path';\n    11→import type { ApiKey, UsageWindow } from '../../src/types';\n    12→\n    13→/**\n    14→ * Test server interface\n    15→ */\n    16→export interface TestServer {\n    17→  url: string;\n    18→  port: number;\n    19→  stop: () => Promise<void>;\n    20→}\n    21→\n    22→/**\n    23→ * HTTP response wrapper\n    24→ */\n    25→export interface TestResponse {\n    26→  status: number;\n    27→  headers: Headers;\n    28→  body: string;\n    29→  json: () => any;\n    30→}\n    31→\n    32→/**\n    33→ * Rate limit info for validation\n    34→ */\n    35→export interface RateLimitInfo {\n    36→  allowed: boolean;\n    37→  tokensUsed: number;\n    38→  tokensLimit: number;\n    39→  windowStart?: string;\n    40→  windowEnd?: string;\n    41→  reason?: string;\n    42→  retryAfter?: number;\n    43→}\n    44→\n    45→/**\n    46→ * Starts a test server instance\n    47→ *\n    48→ * @param port - Optional port number (defaults to random available port)\n    49→ * @returns Test server instance with URL and stop function\n    50→ */\n    51→export async function startTestServer(port?: number): Promise<TestServer> {\n    52→  // Find available port if not specified\n    53→  const actualPort = port || (await findAvailablePort());\n    54→\n    55→  // Import app dynamically to ensure test environment is set up first\n    56→  const app = (await import('../../src/index')).default;\n    57→\n    58→  // Start the server\n    59→  const server = serve({\n    60→    fetch: app.fetch,\n    61→    port: actualPort,\n    62→  });\n    63→\n    64→  return {\n    65→    url: `http://localhost:${actualPort}`,\n    66→    port: actualPort,\n    67→    stop: async () => {\n    68→      server.stop();\n    69→    },\n    70→  };\n    71→}\n    72→\n    73→/**\n    74→ * Finds an available port for testing\n    75→ */\n    76→async function findAvailablePort(): Promise<number> {\n    77→  // Try ports starting from 3001\n    78→  for (let port = 3001; port < 4000; port++) {\n    79→    try {\n    80→      const server = serve({ port, fetch: () => new Response('ok') });\n    81→      server.stop();\n    82→      return port;\n    83→    } catch (e) {\n    84→      // Port in use, try next\n    85→      continue;\n    86→    }\n    87→  }\n    88→  throw new Error('No available port found for test server');\n    89→}\n    90→\n    91→/**\n    92→ * Makes an HTTP request to the test server\n    93→ *\n    94→ * @param url - Request URL\n    95→ * @param options - Request options\n    96→ * @returns Test response wrapper\n    97→ */\n    98→export async function makeRequest(\n    99→  url: string,\n   100→  options: RequestInit = {}\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:03:31.124297+00:00",
+          "type": "text",
+          "content": "Now let me check the proxy implementation to understand how timeouts are handled:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:31.142508+00:00",
+          "type": "tool_start",
+          "content": "[Grep] pattern: timeout",
+          "phase": "coding",
+          "tool_name": "Grep",
+          "tool_input": "pattern: timeout",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:31.160141+00:00",
+          "type": "tool_start",
+          "content": "[Glob] pattern: src/**/*.ts",
+          "phase": "coding",
+          "tool_name": "Glob",
+          "tool_input": "pattern: src/**/*.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:31.743478+00:00",
+          "type": "tool_end",
+          "content": "[Glob] Done",
+          "phase": "coding",
+          "tool_name": "Glob",
+          "session": 1,
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:03:36.103400+00:00",
+          "type": "tool_start",
+          "content": "[Read] src/proxy.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "src/proxy.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:36.125611+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "     1→import type { ApiKey } from './types.js';\n     2→import { getModelForKey } from './validator.js';\n     3→import { updateApiKeyUsage } from './storage.js';\n     4→\n     5→const ZAI_API_BASE = 'https://api.z.ai/api/coding/paas/v4';\n     6→const ZAI_API_KEY = process.env.ZAI_API_KEY;\n     7→\n     8→export interface ProxyOptions {\n     9→  apiKey: ApiKey;\n    10→  path: string;\n    11→  method: string;\n    12→  headers: Record<string, string>;\n    13→  body: string | null;\n    14→}\n    15→\n    16→export interface ProxyResult {\n    17→  success: boolean;\n    18→  status: number;\n    19→  headers: Record<string, string>;\n    20→  body: string;\n    21→  tokensUsed?: number;\n    22→}\n    23→\n    24→export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> {\n    25→  const { apiKey, path, method, headers, body } = options;\n    26→\n    27→  // Runtime check for ZAI_API_KEY\n    28→  if (!ZAI_API_KEY) {\n    29→    return {\n    30→      success: false,\n    31→      status: 500,\n    32→      headers: { 'content-type': 'application/json' },\n    33→      body: JSON.stringify({\n    34→        error: {\n    35→          message: 'ZAI_API_KEY environment variable is not configured',\n    36→          type: 'configuration_error',\n    37→        },\n    38→      }),\n    39→      tokensUsed: 0,\n    40→    };\n    41→  }\n    42→\n    43→  const model = getModelForKey(apiKey);\n    44→\n    45→  // Build target URL\n    46→  // Z.AI uses /v4 base, OpenAI compatibility but without /v1 prefix\n    47→  // e.g., /v1/chat/completions -> /chat/completions -> /v4/chat/completions\n    48→  const cleanPath = path.startsWith('/v1/') ? path.substring(4) : path;\n    49→  const slash = cleanPath.startsWith('/') ? '' : '/';\n    50→  const targetUrl = `${ZAI_API_BASE}${slash}${cleanPath}`;\n    51→\n    52→  // Prepare headers for Z.AI - always forward Authorization with master key\n    53→  const proxyHeaders: Record<string, string> = {\n    54→    'Authorization': `Bearer ${ZAI_API_KEY}`,\n    55→  };\n    56→\n    57→  // Forward relevant headers from client (but not Authorization)\n    58→  const forwardHeaders = ['content-type', 'accept', 'user-agent'];\n    59→  for (const h of forwardHeaders) {\n    60→    const key = Object.keys(headers).find(k => k.toLowerCase() === h);\n    61→    if (key) {\n    62→      proxyHeaders[key] = headers[key];\n    63→    }\n    64→  }\n    65→\n    66→  // Inject/override model in request body\n    67→  let processedBody = body;\n    68→  let tokensUsed = 0;\n    69→\n    70→  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {\n    71→    try {\n    72→      const bodyJson = JSON.parse(body);\n    73→\n    74→      // Inject model for chat/completions endpoint\n    75→      if (path.includes('/chat/completions') || path.includes('/completions')) {\n    76→        bodyJson.model = model;\n    77→      }\n    78→\n    79→      processedBody = JSON.stringify(bodyJson);\n    80→    } catch {\n    81→      // Body not JSON, leave as-is\n    82→    }\n    83→  }\n    84→\n    85→  // Make request to Z.AI\n    86→  try {\n    87→    const response = await fetch(targetUrl, {\n    88→      method,\n    89→      headers: proxyHeaders,\n    90→      body: processedBody,\n    91→    });\n    92→\n    93→    // Get response body\n    94→    const responseBody = await response.text();\n    95→\n    96→    // Extract token usage from response\n    97→    if (response.ok) {\n    98→      try {\n    99→        const responseJson = JSON.parse(responseBody);\n   100→\n   101→        // OpenAI format usage\n   102→        if (responseJson.usage) {\n   103→          tokensUsed = responseJson.usage.total_tokens || 0;\n   104→        }\n   105→\n   106→        // Update usage after successful request\n   107→        if (tokensUsed > 0) {\n   108→          // Don't await - fire and forget for performance\n   109→          updateApiKeyUsage(apiKey.key, tokensUsed, model).catch(console.error);\n   110→        }\n   111→      } catch {\n   112→        // Response not JSON or no usage field\n   113→      }\n   114→    }\n   115→\n   116→    // Build response headers\n   117→    const responseHeaders: Record<string, string> = {\n   118→      'content-type': response.headers.get('content-type') || 'application/json',\n   119→    };\n   120→\n   121→    return {\n   122→      success: response.ok,\n   123→      status: response.status,\n   124→      headers: responseHeaders,\n   125→      body: responseBody,\n   126→      tokensUsed,\n   127→    };\n   128→  } catch (error: any) {\n   129→    return {\n   130→      success: false,\n   131→      status: 502,\n   132→      headers: { 'content-type': 'application/json' },\n   133→      body: JSON.stringify({\n   134→        error: {\n   135→          message: `Upstream request failed: ${error.message}`,\n   136→          type: 'upstream_error',\n   137→        },\n   138→      }),\n   139→      tokensUsed: 0,\n   140→    };\n   141→  }\n   142→}\n   143→\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:03:39.376265+00:00",
+          "type": "tool_start",
+          "content": "[Grep] pattern: timeout",
+          "phase": "coding",
+          "tool_name": "Grep",
+          "tool_input": "pattern: timeout",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:40.125954+00:00",
+          "type": "tool_end",
+          "content": "[Grep] Done",
+          "phase": "coding",
+          "tool_name": "Grep",
+          "session": 1,
+          "detail": "test/integration/streaming-anthropic.test.ts:892:      await new Promise(resolve => setTimeout(resolve, 100));\ntest/integration/helpers.ts:464:  return new Promise(resolve => setTimeout(resolve, ms));\ntest/integration/streaming-openai.test.ts:750:      await new Promise(resolve => setTimeout(resolve, 100));\ntest/integration/auth.test.ts:321:      await new Promise(resolve => setTimeout(resolve, 100));\ntest/integration/ratelimit-concurrent.test.ts:109:      const requestCount = 5; // Reduced to avoid lock timeouts\ntest/integration/streaming-ratelimit.test.ts:406:      await new Promise(resolve => setTimeout(resolve, 100));\ntest/integration/streaming-ratelimit.test.ts:448:      await new Promise(resolve => setTimeout(resolve, 100));\ntest/integration/streaming-errors.test.ts:505:    it('should handle upstream timeout during streaming', async () => {\ntest/integration/streaming-errors.test.ts:506:      // This test verifies timeout handling\ntest/integration/streaming-errors.test.ts:507:      // In a real scenario, this would require mocking the upstream to timeout\ntest/integration/streaming-errors.test.ts:521:      // Should get some response (success, error, or timeout)\ntest/integration/streaming-errors.test.ts:560:    it('should handle upstream timeout during streaming', async () => {\ntest/integration/streaming-errors.test.ts:561:      // This test verifies timeout handling\ntest/integration/streaming-errors.test.ts:562:      // In a real scenario, this would require mocking the upstream to timeout\ntest/integration/streaming-errors.test.ts:577:      // Should get some response (success, error, or timeout)",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:03:42.958559+00:00",
+          "type": "tool_start",
+          "content": "[Read] test/integration/streaming-errors.test.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "test/integration/streaming-errors.test.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:42.976093+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "   500→        const body = await response.json();\n   501→        expect(body).toHaveProperty('error');\n   502→      }\n   503→    });\n   504→\n   505→    it('should handle upstream timeout during streaming', async () => {\n   506→      // This test verifies timeout handling\n   507→      // In a real scenario, this would require mocking the upstream to timeout\n   508→      const response = await fetch(`${testServer.url}/v1/chat/completions`, {\n   509→        method: 'POST',\n   510→        headers: {\n   511→          'Authorization': `Bearer ${VALID_API_KEY.key}`,\n   512→          'Content-Type': 'application/json',\n   513→        },\n   514→        body: JSON.stringify({\n   515→          model: 'glm-4',\n   516→          messages: TEST_OPENAI_MESSAGES,\n   517→          stream: true,\n   518→        }),\n   519→      });\n   520→\n   521→      // Should get some response (success, error, or timeout)\n   522→      expect(response.status).toBeGreaterThanOrEqual(200);\n   523→      expect(response.status).toBeLessThan(600);\n   524→    });\n   525→  });\n   526→\n   527→  describe('Anthropic Streaming - Upstream Errors', () => {\n   528→    it('should handle upstream API errors during streaming', async () => {\n   529→      // This test verifies that if the upstream returns an error during streaming,\n   530→      // the error is properly propagated to the client\n   531→      const response = await fetch(`${testServer.url}/v1/messages`, {\n   532→        method: 'POST',\n   533→        headers: {\n   534→          'Authorization': `Bearer ${VALID_API_KEY.key}`,\n   535→          'Content-Type': 'application/json',\n   536→        },\n   537→        body: JSON.stringify({\n   538→          model: 'claude-3-5-sonnet-20241022',\n   539→          messages: TEST_ANTHROPIC_MESSAGES,\n   540→          max_tokens: 1024,\n   541→          stream: true,\n   542→        }),\n   543→      });\n   544→\n   545→      // If upstream returns an error (non-2xx status), it should be propagated\n   546→      if (!response.ok) {\n   547→        // Should not return streaming content type for errors\n   548→        const contentType = response.headers.get('content-type');\n   549→        if (contentType) {\n   550→          expect(contentType).toContain('application/json');\n   551→          expect(contentType).not.toContain('text/event-stream');\n   552→        }\n   553→\n   554→        // Should have error body\n   555→        const body = await response.json();\n   556→        expect(body).toHaveProperty('error');\n   557→      }\n   558→    });\n   559→\n   560→    it('should handle upstream timeout during streaming', async () => {\n   561→      // This test verifies timeout handling\n   562→      // In a real scenario, this would require mocking the upstream to timeout\n   563→      const response = await fetch(`${testServer.url}/v1/messages`, {\n   564→        method: 'POST',\n   565→        headers: {\n   566→          'Authorization': `Bearer ${VALID_API_KEY.key}`,\n   567→          'Content-Type': 'application/json',\n   568→        },\n   569→        body: JSON.stringify({\n   570→          model: 'claude-3-5-sonnet-20241022',\n   571→          messages: TEST_ANTHROPIC_MESSAGES,\n   572→          max_tokens: 1024,\n   573→          stream: true,\n   574→        }),\n   575→      });\n   576→\n   577→      // Should get some response (success, error, or timeout)\n   578→      expect(response.status).toBeGreaterThanOrEqual(200);\n   579→      expect(response.status).toBeLessThan(600);\n   580→    });\n   581→  });\n   582→\n   583→  describe('OpenAI Streaming - Connection Errors', () => {\n   584→    it('should handle client disconnect during streaming gracefully', async () => {\n   585→      const response = await fetch(`${testServer.url}/v1/chat/completions`, {\n   586→        method: 'POST',\n   587→        headers: {\n   588→          'Authorization': `Bearer ${VALID_API_KEY.key}`,\n   589→          'Content-Type': 'application/json',\n   590→        },\n   591→        body: JSON.stringify({\n   592→          model: 'glm-4',\n   593→          messages: TEST_OPENAI_MESSAGES,\n   594→          stream: true,\n   595→        }),\n   596→      });\n   597→\n   598→      if (!response.ok) return;\n   599→\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:03:49.572851+00:00",
+          "type": "tool_start",
+          "content": "[Read] test/integration/fixtures.ts",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "test/integration/fixtures.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:03:49.592069+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "     1→/**\n     2→ * Integration Test Fixtures\n     3→ *\n     4→ * Provides mock API keys and test data for various testing scenarios.\n     5→ */\n     6→\n     7→import type { ApiKey, UsageWindow } from '../../src/types';\n     8→\n     9→/**\n    10→ * Valid API key with default settings\n    11→ */\n    12→export const VALID_API_KEY: ApiKey = {\n    13→  key: 'pk_test_valid_key',\n    14→  name: 'Valid Test User',\n    15→  model: 'glm-4.7',\n    16→  token_limit_per_5h: 100000,\n    17→  expiry_date: '2026-12-31T23:59:59Z',\n    18→  created_at: '2026-01-18T00:00:00Z',\n    19→  last_used: '2026-01-18T00:00:00Z',\n    20→  total_lifetime_tokens: 0,\n    21→  usage_windows: [],\n    22→};\n    23→\n    24→/**\n    25→ * Expired API key for testing expiry handling\n    26→ */\n    27→export const EXPIRED_API_KEY: ApiKey = {\n    28→  key: 'pk_test_expired_key',\n    29→  name: 'Expired Test User',\n    30→  model: 'glm-4.7',\n    31→  token_limit_per_5h: 100000,\n    32→  expiry_date: '2025-01-01T00:00:00Z',\n    33→  created_at: '2024-01-01T00:00:00Z',\n    34→  last_used: '2024-12-31T23:59:59Z',\n    35→  total_lifetime_tokens: 50000,\n    36→  usage_windows: [],\n    37→};\n    38→\n    39→/**\n    40→ * API key that will expire soon for testing upcoming expiry\n    41→ */\n    42→export const EXPIRING_SOON_API_KEY: ApiKey = {\n    43→  key: 'pk_test_expiring_soon',\n    44→  name: 'Expiring Soon User',\n    45→  model: 'glm-4.7',\n    46→  token_limit_per_5h: 100000,\n    47→  expiry_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now\n    48→  created_at: '2026-01-01T00:00:00Z',\n    49→  last_used: new Date().toISOString(),\n    50→  total_lifetime_tokens: 10000,\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:05:05.285301+00:00",
+          "type": "text",
+          "content": "Now I'll create the timeout error handling tests. Based on the existing patterns and the proxy implementation, I'll create comprehensive tests for timeout scenarios:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:05.311289+00:00",
+          "type": "tool_start",
+          "content": "[Write] test/integration/errors-timeout.test.ts",
+          "phase": "coding",
+          "tool_name": "Write",
+          "tool_input": "test/integration/errors-timeout.test.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:06.301486+00:00",
+          "type": "tool_end",
+          "content": "[Write] Done",
+          "phase": "coding",
+          "tool_name": "Write",
+          "session": 1,
+          "detail": "File created successfully at: test/integration/errors-timeout.test.ts",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:05:09.225748+00:00",
+          "type": "text",
+          "content": "Now let me run the tests to verify they work correctly:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:09.249459+00:00",
+          "type": "tool_start",
+          "content": "[Bash] bun test test/integration/errors-timeout.test.ts",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "tool_input": "bun test test/integration/errors-timeout.test.ts",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:23.081261+00:00",
+          "type": "tool_end",
+          "content": "[Bash] Done",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "session": 1,
+          "detail": "bun test v1.2.23 (cf136713)\nProxy Gateway starting on port 0\n\n 20 pass\n 0 fail\n 25 expect() calls\nRan 20 tests across 1 file. [12.69s]",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:05:28.907675+00:00",
+          "type": "text",
+          "content": "Great! All tests passed. Now let me update the implementation plan and commit the changes:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:28.928556+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...integration-test-suite/implementation_plan.json",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...integration-test-suite/implementation_plan.json",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:28.947419+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "   230→          \"estimated_minutes\": 20\n   231→        },\n   232→        {\n   233→          \"subtask_id\": \"6.3\",\n   234→          \"title\": \"Test timeout error handling\",\n   235→          \"description\": \"Verify request timeouts are properly handled and reported\",\n   236→          \"status\": \"pending\",\n   237→          \"file\": \"test/integration/errors-timeout.test.ts\",\n   238→          \"estimated_minutes\": 15\n   239→        },\n   240→        {\n   241→          \"subtask_id\": \"6.4\",\n   242→          \"title\": \"Test network error handling\",\n   243→          \"description\": \"Verify network failures, connection errors, and DNS failures are properly handled\",\n   244→          \"status\": \"pending\",\n   245→          \"file\": \"test/integration/errors-network.test.ts\",\n   246→          \"estimated_minutes\": 15\n   247→        }\n   248→      ]\n   249→    },\n   250→    {\n   251→      \"phase_id\": 7,\n   252→      \"phase_name\": \"Concurrency Tests\",\n   253→      \"phase_description\": \"Test concurrent request handling and thread safety\",\n   254→      \"status\": \"pending\",\n   255→      \"subtasks\": [\n   256→        {\n   257→          \"subtask_id\": \"7.1\",\n   258→          \"title\": \"Test concurrent API requests\",\n   259→          \"description\": \"Verify multiple simultaneous requests are handled correctly without race conditions\",\n   260→          \"status\": \"pending\",\n   261→          \"file\": \"test/integration/concurrent-requests.test.ts\",\n   262→          \"estimated_minutes\": 25\n   263→        },\n   264→        {\n   265→          \"subtask_id\": \"7.2\",\n   266→          \"title\": \"Test concurrent stats queries\",\n   267→          \"description\": \"Verify multiple simultaneous /stats requests don't cause data corruption\",\n   268→          \"status\": \"pending\",\n   269→          \"file\": \"test/integration/concurrent-stats.test.ts\",\n   270→          \"estimated_minutes\": 20\n   271→        },\n   272→        {\n   273→          \"subtask_id\": \"7.3\",\n   274→          \"title\": \"Test concurrent rate limit updates\",\n   275→          \"description\": \"Verify simultaneous token usage updates are handled correctly with file locking\",\n   276→          \"status\": \"pending\",\n   277→          \"file\": \"test/integration/concurrent-ratelimit.test.ts\",\n   278→          \"estimated_minutes\": 25\n   279→        },\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:05:34.886929+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...integration-test-suite/implementation_plan.json",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...integration-test-suite/implementation_plan.json",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:34.920310+00:00",
+          "type": "tool_end",
+          "content": "[Edit] Done",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "session": 1,
+          "detail": "The file .auto-claude/specs/003-integration-test-suite/implementation_plan.json has been updated successfully.",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:05:38.037364+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:38.057886+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "   140→**Phase 6: Error Handling Tests** (70 min)\n   141→- Upstream API errors ✅ COMPLETE (26 tests passing in 12.91s)\n   142→- Git commit created: ebb6af5 (upstream error propagation tests)\n   143→- Malformed request handling ✅ COMPLETE (50 tests passing in 22.35s)\n   144→- Timeout errors\n   145→- Network errors\n   146→\n   147→**Phase 7: Concurrency Tests** (95 min)\n   148→- Concurrent API requests\n   149→- Concurrent stats queries\n   150→- Concurrent rate limit updates\n   151→- Stress testing (50+ requests)\n   152→\n   153→**Phase 8: CI/CD Integration & Coverage** (80 min)\n   154→- Coverage reporting configuration\n   155→- CI/CD workflow setup\n   156→- Performance optimization (< 60s)\n   157→- Documentation\n   158→\n   159→### Next Steps\n   160→\n   161→1. ✅ Start Phase 2: API Endpoint Tests (COMPLETED)\n   162→2. ✅ Create test for /health endpoint (COMPLETED)\n   163→3. ✅ Create test for /stats endpoint (COMPLETED)\n   164→4. ✅ Create test for /v1/chat/completions endpoint (COMPLETED)\n   165→5. ✅ Create test for /v1/messages endpoint (COMPLETED)\n   166→6. ✅ Create test for root endpoint (COMPLETED)\n   167→7. ✅ Start Phase 3: Authentication & Authorization Tests (COMPLETED)\n   168→8. ✅ Start Phase 4: Rate Limiting Tests (COMPLETED)\n   169→9. ✅ Start Phase 5: Streaming Response Tests (COMPLETED)\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:05:42.972731+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:42.999073+00:00",
+          "type": "tool_end",
+          "content": "[Edit] Done",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "session": 1,
+          "detail": "The file .auto-claude/specs/003-integration-test-suite/build-progress.txt has been updated successfully.",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:05:46.021330+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:46.045905+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "   170→10. ✅ Subtask 5.1: OpenAI streaming tests (COMPLETED)\n   171→11. ✅ Subtask 5.2: Anthropic streaming tests (COMPLETED)\n   172→12. ✅ Subtask 5.3: Streaming error handling (COMPLETED)\n   173→13. ✅ Subtask 5.4: Streaming with rate limiting (COMPLETED)\n   174→14. Start Phase 6: Error Handling Tests (NEXT)\n   175→\n   176→### Acceptance Criteria Status\n   177→\n   178→- [x] Tests cover all API endpoints\n   179→- [x] Tests verify rate limiting enforcement with rolling window\n   180→- [x] Tests validate streaming responses (OpenAI ✅, Anthropic ✅)\n   181→- [ ] Tests verify error handling (streaming errors ✅, upstream errors ✅, validation errors ✅, network/timeouts pending)\n   182→- [x] Tests check authentication/authorization\n   183→- [x] Tests validate API key expiry handling\n   184→- [x] Tests verify concurrent request handling (rate limiting concurrent tests done)\n   185→- [ ] Tests can be run in CI/CD pipeline\n   186→- [ ] Test coverage report available\n   187→- [ ] Tests complete in under 60 seconds\n   188→\n   189→### Notes\n   190→\n   191→- Using Vitest for testing (already configured)\n   192→- Tests will use actual HTTP requests to test server instance\n   193→- Separate test data directory to avoid affecting production\n   194→- Mock upstream API responses to avoid external dependencies\n   195→- Focus on deterministic, order-independent tests\n   196→- ✅ All helper utilities verified with passing tests (18/18 passing)\n   197→- ✅ Health endpoint tests created and passing (16/16 passing)\n   198→- ✅ Stats endpoint tests created and passing (51/51 passing)\n   199→- ✅ OpenAI chat completions tests created and passing (35/35 passing)\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:05:50.018154+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:50.044108+00:00",
+          "type": "tool_end",
+          "content": "[Edit] Done",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "session": 1,
+          "detail": "The file .auto-claude/specs/003-integration-test-suite/build-progress.txt has been updated successfully.",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:05:52.733503+00:00",
+          "type": "tool_start",
+          "content": "[Read] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Read",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:52.759811+00:00",
+          "type": "tool_end",
+          "content": "[Read] Done",
+          "phase": "coding",
+          "tool_name": "Read",
+          "session": 1,
+          "detail": "   260→- Tests verify content type validation works correctly\n   261→- Tests verify error response format is correct (JSON content type, error object structure)\n   262→- Tests verify CORS headers are included on validation errors\n   263→- Tests verify complex validation scenarios (mixed valid/invalid messages, deeply nested structures, extra fields)\n   264→- All 50 tests passing in 22.35s\n   265→- Git commit to be created: (validation error tests)\n   266→\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:05:59.153510+00:00",
+          "type": "tool_start",
+          "content": "[Edit] ...s/003-integration-test-suite/build-progress.txt",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "tool_input": "...s/003-integration-test-suite/build-progress.txt",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:05:59.182956+00:00",
+          "type": "tool_end",
+          "content": "[Edit] Done",
+          "phase": "coding",
+          "tool_name": "Edit",
+          "session": 1,
+          "detail": "The file .auto-claude/specs/003-integration-test-suite/build-progress.txt has been updated successfully.",
+          "collapsed": true
+        },
+        {
+          "timestamp": "2026-01-22T05:06:05.544571+00:00",
+          "type": "text",
+          "content": "Perfect! Now let me commit the changes:",
+          "phase": "coding",
+          "session": 1
+        },
+        {
+          "timestamp": "2026-01-22T05:06:05.636449+00:00",
+          "type": "tool_start",
+          "content": "[Bash] git add . && git commit -m \"$(cat <<'EOF'\nauto-...",
+          "phase": "coding",
+          "tool_name": "Bash",
+          "tool_input": "git add . && git commit -m \"$(cat <<'EOF'\nauto-...",
           "session": 1
         }
       ]
