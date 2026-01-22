@@ -115,7 +115,7 @@ Optimize rate limiting from O(n) to O(1) complexity by implementing a rolling wi
 - Refactor checkRateLimit() to use O(1) algorithm ✅
 - Update rate limit tests ✅
 
-**Phase 5: Update Storage Logic** (2 subtasks) 🚧 IN PROGRESS
+**Phase 5: Update Storage Logic** (2 subtasks) ✅ COMPLETED
 - [x] **phase-5-subtask-1**: Update updateApiKeyUsage to maintain rolling window cache ✅ COMPLETED
   - Modified src/storage.ts to update rolling window cache when recording usage
   - Imported RollingWindow class
@@ -128,7 +128,15 @@ Optimize rate limiting from O(n) to O(1) complexity by implementing a rolling wi
     * Add current usage to rolling window cache
     * Serialize and store cache back to apiKey.rolling_window_cache
   - All tests passing (37 rolling window tests, 12 rate limit tests)
-- [ ] **phase-5-subtask-2**: Add migration logic for existing keys
+- [x] **phase-5-subtask-2**: Add migration logic for existing keys ✅ COMPLETED
+  - Added migrateToRollingWindow() helper function to storage.ts
+  - Function creates RollingWindow instance from usage_windows if cache doesn't exist
+  - Refactored updateApiKeyUsage() to use the new helper function
+  - Added comprehensive tests for migration function (3 test cases):
+    * Creates rolling window cache from usage_windows
+    * Does not overwrite existing cache
+    * Handles empty usage_windows correctly
+  - All tests passing (3/3 migration tests, 49/49 rate limit tests)
 
 **Phase 6: Performance Testing and Benchmarking** (2 subtasks)
 - Create performance benchmarks comparing O(n) vs O(1)
