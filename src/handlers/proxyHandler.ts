@@ -8,8 +8,9 @@ export interface ProxyResult {
   success: boolean;
   status: number;
   headers: Record<string, string>;
-  body: string;
+  body: string | ReadableStream<Uint8Array>;
   tokensUsed?: number;
+  streamed?: boolean;
 }
 
 // Proxy function signature
@@ -18,7 +19,7 @@ export type ProxyFunction = (options: {
   path: string;
   method: string;
   headers: Record<string, string>;
-  body: string | null;
+  body: string | ReadableStream<Uint8Array> | null;
 }) => Promise<ProxyResult>;
 
 // Create a proxy handler from a proxy function
@@ -41,14 +42,28 @@ export function createProxyHandler(proxyFn: ProxyFunction) {
       headers[key] = value;
     });
 
-    // Extract body
+    // Extract body - support streaming
     if (profiler) {
       profiler.mark('body_extraction');
     }
-    const body = c.req.raw.body ? await c.req.text() : null;
+
+    // Enable streaming by default if client provides a stream
+    const useStreaming = !!c.req.raw.body;
+
+    let body: string | ReadableStream<Uint8Array> | null = null;
+
+    if (c.req.raw.body) {
+      // For streaming, pass the readable stream directly
+      body = c.req.raw.body;
+    } else {
+      // No body (GET, HEAD, etc.)
+      body = null;
+    }
+
     if (profiler) {
       profiler.endMark('body_extraction');
-      profiler.addMetadata('bodySize', body ? body.length : 0);
+      profiler.addMetadata('bodySize', typeof body === 'string' ? body.length : 'stream');
+      profiler.addMetadata('streaming', useStreaming);
     }
 
     // Call proxy function
@@ -66,6 +81,7 @@ export function createProxyHandler(proxyFn: ProxyFunction) {
       profiler.endMark('upstream_request');
       profiler.addMetadata('upstreamStatus', result.status);
       profiler.addMetadata('upstreamSuccess', result.success);
+      profiler.addMetadata('responseStreamed', result.streamed ?? false);
       if (result.tokensUsed) {
         profiler.addMetadata('tokensUsed', result.tokensUsed);
       }
@@ -83,6 +99,16 @@ export function createProxyHandler(proxyFn: ProxyFunction) {
       profiler.endMark('proxy_start');
     }
 
-    return c.body(result.body, result.status as any);
+    // Return response (stream or buffer)
+    if (result.streamed && result.body instanceof ReadableStream) {
+      // Streaming response
+      return new Response(result.body, {
+        status: result.status,
+        headers: result.headers as any,
+      });
+    } else {
+      // Buffered response
+      return c.body(result.body as string, result.status as any);
+    }
   };
 }

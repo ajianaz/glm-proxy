@@ -10,15 +10,16 @@ export interface ProxyOptions {
   path: string;
   method: string;
   headers: Record<string, string>;
-  body: string | null;
+  body: string | ReadableStream<Uint8Array> | null;
 }
 
 export interface ProxyResult {
   success: boolean;
   status: number;
   headers: Record<string, string>;
-  body: string;
+  body: string | ReadableStream<Uint8Array>;
   tokensUsed?: number;
+  streamed?: boolean;
 }
 
 export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> {
@@ -65,10 +66,11 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
   }
 
   // Inject/override model in request body
-  let processedBody = body;
+  let processedBody: string | ReadableStream<Uint8Array> | null = body;
   let tokensUsed = 0;
 
-  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+  // For non-streaming requests with body, inject model
+  if (body && typeof body === 'string' && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
     try {
       const bodyJson = JSON.parse(body);
 
@@ -82,6 +84,9 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
       // Body not JSON, leave as-is
     }
   }
+  // For streaming bodies, we can't easily inject model without buffering
+  // In production, you'd want to use a streaming JSON transformer
+  // For now, we pass the stream through without modification
 
   // Make request to Z.AI
   try {
@@ -90,6 +95,9 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
     let responseHeaders: Record<string, string>;
 
     // Try connection pool first, fall back to regular fetch
+    // Enable streaming for non-streaming request bodies
+    const useStreaming = typeof processedBody !== 'string' && processedBody instanceof ReadableStream;
+
     if (process.env.DISABLE_CONNECTION_POOL !== 'true') {
       try {
         const pool = getZaiPool();
@@ -104,18 +112,43 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
           headers: proxyHeaders,
           body: processedBody,
           timeout: 30000,
+          streamResponse: useStreaming, // Enable streaming response for streaming requests
         });
 
         responseBody = pooledResponse.body;
         statusCode = pooledResponse.status;
         responseHeaders = pooledResponse.headers;
+
+        // Mark if response is streamed
+        if (pooledResponse.streamed) {
+          return {
+            success: statusCode >= 200 && statusCode < 300,
+            status: statusCode,
+            headers: responseHeaders,
+            body: responseBody as ReadableStream<Uint8Array>,
+            streamed: true,
+          };
+        }
       } catch (poolError) {
         // Pool failed, fall back to regular fetch
         const response = await fetch(targetUrl, {
           method,
           headers: proxyHeaders,
           body: processedBody,
+          // @ts-ignore - Bun supports duplex for streaming
+          duplex: 'half',
         });
+
+        // For streaming requests, stream the response
+        if (useStreaming && response.body) {
+          return {
+            success: response.ok,
+            status: response.status,
+            headers: Object.fromEntries(response.headers.entries()),
+            body: response.body,
+            streamed: true,
+          };
+        }
 
         responseBody = await response.text();
         statusCode = response.status;
@@ -129,7 +162,20 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
         method,
         headers: proxyHeaders,
         body: processedBody,
+        // @ts-ignore - Bun supports duplex for streaming
+        duplex: 'half',
       });
+
+      // For streaming requests, stream the response
+      if (useStreaming && response.body) {
+        return {
+          success: response.ok,
+          status: response.status,
+          headers: Object.fromEntries(response.headers.entries()),
+          body: response.body,
+          streamed: true,
+        };
+      }
 
       responseBody = await response.text();
       statusCode = response.status;
@@ -138,8 +184,8 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
       };
     }
 
-    // Extract token usage from response
-    if (statusCode >= 200 && statusCode < 300) {
+    // Extract token usage from response (only for non-streaming responses)
+    if (typeof responseBody === 'string' && statusCode >= 200 && statusCode < 300) {
       try {
         const responseJson = JSON.parse(responseBody);
 

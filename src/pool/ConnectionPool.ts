@@ -226,8 +226,10 @@ export class ConnectionPool {
         const response = await fetch(url.toString(), fetchOptions);
         clearTimeout(timeoutId);
 
-        // Get response body
-        const body = await response.text();
+        // Get response body (stream or buffer based on options)
+        const body = options.streamResponse
+          ? response.body!
+          : await response.text();
 
         // Update connection stats
         connection.requestCount++;
@@ -251,6 +253,7 @@ export class ConnectionPool {
           headers,
           body,
           duration,
+          streamed: options.streamResponse ?? false,
         };
       } finally {
         // Always release connection

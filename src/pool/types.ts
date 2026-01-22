@@ -63,10 +63,12 @@ export interface PooledRequestOptions {
   path: string;
   /** Request headers */
   headers: Record<string, string>;
-  /** Request body */
-  body?: string | null;
+  /** Request body (string or stream for streaming support) */
+  body?: string | ReadableStream<Uint8Array> | null;
   /** Request timeout in ms */
   timeout?: number;
+  /** Enable streaming response (default: false for backward compatibility) */
+  streamResponse?: boolean;
 }
 
 /**
@@ -79,10 +81,12 @@ export interface PooledResponse {
   status: number;
   /** Response headers */
   headers: Record<string, string>;
-  /** Response body */
-  body: string;
+  /** Response body (string for buffered, stream for streaming) */
+  body: string | ReadableStream<Uint8Array>;
   /** Request duration in ms */
   duration: number;
+  /** Whether response is streamed */
+  streamed?: boolean;
 }
 
 /**
