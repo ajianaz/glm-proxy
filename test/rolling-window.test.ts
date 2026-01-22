@@ -352,5 +352,185 @@ describe('RollingWindow', () => {
       expect(window.getBucketCount()).toBe(1);
       expect(window.validate()).toBe(true);
     });
+
+    it('should handle very large token values', () => {
+      const window = new RollingWindow();
+      const now = new Date();
+
+      window.addTokens(now, Number.MAX_SAFE_INTEGER - 1000);
+      window.addTokens(now, 500);
+
+      const total = window.getTotalTokens(now);
+      expect(total).toBeGreaterThan(Number.MAX_SAFE_INTEGER - 1000);
+      expect(window.getBucketCount()).toBe(1);
+      expect(window.validate()).toBe(true);
+    });
+
+    it('should handle empty serialization', () => {
+      const window = new RollingWindow();
+
+      const serialized = window.toSerializable();
+      const deserialized = RollingWindow.fromSerializable(serialized);
+
+      expect(deserialized.getTotalTokens(new Date())).toBe(0);
+      expect(deserialized.getBucketCount()).toBe(0);
+      expect(serialized.buckets).toHaveLength(0);
+      expect(serialized.runningTotal).toBe(0);
+    });
+
+    it('should handle custom window size with boundary conditions', () => {
+      // Small window: 10 minutes with 1-minute buckets
+      const window = new RollingWindow(10 * 60 * 1000, 60 * 1000);
+      const now = new Date();
+
+      window.addTokens(now, 1000);
+      window.addTokens(new Date(now.getTime() + 5 * 60 * 1000), 500);
+
+      expect(window.getTotalTokens(now)).toBe(1500);
+
+      // At exactly 10 minutes, first bucket should be expired
+      const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000);
+      expect(window.getTotalTokens(tenMinutesLater)).toBe(500);
+    });
+
+    it('should handle cleanup with no expired buckets', () => {
+      const window = new RollingWindow();
+      const now = new Date();
+
+      window.addTokens(now, 1000);
+      window.addTokens(new Date(now.getTime() + 5 * 60 * 1000), 500);
+
+      window.cleanup(now);
+
+      expect(window.getTotalTokens(now)).toBe(1500);
+      expect(window.getBucketCount()).toBe(2);
+    });
+
+    it('should handle multiple cleanups over time', () => {
+      const window = new RollingWindow();
+      const now = new Date('2026-01-22T00:00:00Z');
+
+      // Add buckets over 6 hours
+      for (let i = 0; i <= 6; i++) {
+        const time = new Date(now.getTime() + i * 60 * 60 * 1000);
+        window.addTokens(time, 1000);
+      }
+
+      expect(window.getBucketCount()).toBe(7);
+
+      // Cleanup after 1 hour - should still have all buckets
+      window.cleanup(new Date(now.getTime() + 60 * 60 * 1000));
+      expect(window.getBucketCount()).toBe(7);
+
+      // Cleanup after 5 hours - should expire first bucket
+      window.cleanup(new Date(now.getTime() + 5 * 60 * 60 * 1000));
+      expect(window.getBucketCount()).toBe(6);
+
+      // Cleanup after 6 hours - should expire two buckets
+      window.cleanup(new Date(now.getTime() + 6 * 60 * 60 * 1000));
+      expect(window.getBucketCount()).toBe(5);
+    });
+
+    it('should handle UTC timezone consistently', () => {
+      const window = new RollingWindow();
+      const utcTime = new Date('2026-01-22T00:00:00Z');
+
+      window.addTokens(utcTime, 1000);
+
+      // Same timestamp in different format should still map to same bucket
+      const sameTime = new Date('2026-01-22T00:00:00.000Z');
+      window.addTokens(sameTime, 500);
+
+      expect(window.getTotalTokens(utcTime)).toBe(1500);
+      expect(window.getBucketCount()).toBe(1);
+    });
+
+    it('should handle bucket boundary precisely', () => {
+      const window = new RollingWindow();
+      const now = new Date('2026-01-22T12:00:00Z');
+
+      // Add tokens at start of bucket
+      window.addTokens(now, 1000);
+
+      // Add tokens at last millisecond of bucket
+      const endOfBucket = new Date(now.getTime() + 5 * 60 * 1000 - 1);
+      window.addTokens(endOfBucket, 500);
+
+      // Add tokens at start of next bucket
+      const startOfNextBucket = new Date(now.getTime() + 5 * 60 * 1000);
+      window.addTokens(startOfNextBucket, 200);
+
+      expect(window.getTotalTokens(now)).toBe(1700);
+      expect(window.getBucketCount()).toBe(2);
+    });
+
+    it('should handle sparse bucket distribution', () => {
+      const window = new RollingWindow();
+      const now = new Date();
+
+      // Add tokens to sparse buckets (every hour instead of every 5 minutes)
+      for (let i = 0; i < 5; i++) {
+        const time = new Date(now.getTime() + i * 60 * 60 * 1000);
+        window.addTokens(time, 1000);
+      }
+
+      expect(window.getTotalTokens(now)).toBe(5000);
+      expect(window.getBucketCount()).toBe(5);
+      expect(window.validate()).toBe(true);
+    });
+
+    it('should handle deserialization with expired buckets', () => {
+      const window = new RollingWindow();
+      const now = new Date();
+
+      // Add tokens that will be expired after deserialization
+      window.addTokens(new Date(now.getTime() - 6 * 60 * 60 * 1000), 1000);
+      window.addTokens(now, 500);
+
+      const serialized = window.toSerializable();
+      const deserialized = RollingWindow.fromSerializable(serialized);
+
+      // getTotalTokens should cleanup expired buckets
+      expect(deserialized.getTotalTokens(now)).toBe(500);
+      expect(deserialized.getBucketCount()).toBe(1);
+    });
+  });
+
+  describe('method interactions', () => {
+    it('should maintain consistency across addTokens and getTotalTokens', () => {
+      const window = new RollingWindow();
+      const now = new Date();
+
+      // Add tokens, check total, add more, check total again
+      window.addTokens(now, 1000);
+      expect(window.getTotalTokens(now)).toBe(1000);
+
+      window.addTokens(new Date(now.getTime() + 5 * 60 * 1000), 500);
+      expect(window.getTotalTokens(now)).toBe(1500);
+
+      window.addTokens(new Date(now.getTime() + 10 * 60 * 1000), 300);
+      expect(window.getTotalTokens(now)).toBe(1800);
+
+      expect(window.validate()).toBe(true);
+    });
+
+    it('should handle serialization in the middle of time progression', () => {
+      const window = new RollingWindow();
+      const now = new Date('2026-01-22T00:00:00Z');
+
+      // Add tokens at different times
+      window.addTokens(now, 1000);
+      window.addTokens(new Date(now.getTime() + 60 * 60 * 1000), 500);
+
+      // Serialize
+      const serialized = window.toSerializable();
+
+      // Add more tokens after serialization time
+      window.addTokens(new Date(now.getTime() + 2 * 60 * 60 * 1000), 300);
+
+      // Deserialize and verify
+      const deserialized = RollingWindow.fromSerializable(serialized);
+      expect(deserialized.getTotalTokens(new Date(now.getTime() + 2 * 60 * 60 * 1000))).toBe(1500);
+    });
   });
 });
