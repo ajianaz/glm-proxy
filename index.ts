@@ -1,5 +1,3 @@
-import indexPage from "./index.html";
-
 /**
  * WebSocket client tracking for real-time updates
  */
@@ -26,6 +24,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
   // Serve the main dashboard page
   if (pathname === '/' || pathname === '/index.html') {
+    const indexPage = await Bun.file("./index.html").text();
     return new Response(indexPage, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
