@@ -34,9 +34,9 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ Rollback capability (COMPLETED: 4.4)
 - ✅ npm scripts (COMPLETED: 4.5)
 
-### Phase 5: Backup & Restore [PENDING]
-- SQLite backup
-- PostgreSQL backup
+### Phase 5: Backup & Restore [IN PROGRESS]
+- ✅ SQLite backup (COMPLETED: 5.1)
+- ✅ PostgreSQL backup (COMPLETED: 5.2)
 - Restore functionality
 - CLI commands
 - Scheduled backups
@@ -434,3 +434,53 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
     * Tests updated to work with new interface
     * No breaking changes to existing code
   - All acceptance criteria met: All imports use storage interface, no direct database/file operations, backward compatible
+- **5.2** Implement PostgreSQL backup (COMPLETED)
+  - Implemented comprehensive PostgreSQL backup functionality in src/db/backup.ts
+  - Features implemented:
+    * Auto-detects pg_dump availability using 'which' command
+    * Uses pg_dump for reliable, production-grade backups when available
+    * Falls back to Drizzle-based SQL dump using raw SQL queries when pg_dump unavailable
+    * Supports gzip compression for reduced storage
+    * Streams data efficiently for large datasets
+    * Uses connection info from DATABASE_URL environment variable
+  - Core functions:
+    * checkPgDumpAvailable(): Checks if pg_dump command is available on the system
+    * backupWithPgDump(): Executes pg_dump with proper connection parameters (host, port, user, database)
+      - Sets PGPASSWORD environment variable for authentication
+      - Includes flags: --no-owner, --no-acl, --clean, --if-exists
+      - Captures stdout and writes directly to backup file
+      - Comprehensive error handling with detailed error messages
+    * backupWithDrizzle(): Fallback method using postgres client directly
+      - Executes raw SQL queries to avoid Drizzle ORM type issues
+      - Generates SQL INSERT statements with ON CONFLICT DO NOTHING for idempotency
+      - Proper SQL literal escaping for string values
+      - Creates timestamped header in backup file
+    * escapeSqlLiteral(): Helper function to escape SQL string literals
+  - Enhanced existing functions:
+    * backupDatabase(): Now auto-detects database type via getDatabaseType()
+      - Calls appropriate backup function based on database type
+      - PostgreSQL backups use .sql or .sql.gz extensions
+      - SQLite backups use .db or .db.gz extensions (unchanged)
+    * getBackupFilename(): Accepts dbType parameter to generate appropriate prefix (pg-backup or sqlite-backup)
+    * verifyBackupIntegrity(): Handles PostgreSQL SQL dumps by checking for CREATE TABLE/INSERT statements and api_keys references
+    * verifyBackup(): Auto-detects database type from filename if not provided
+    * listBackups(): Lists both SQLite (.db, .db.gz) and PostgreSQL (.sql, .sql.gz) backups
+    * getBackupMetadata(): Returns correct databaseType based on filename pattern
+  - Testing:
+    * Added 10 comprehensive tests for PostgreSQL backup functionality in src/db/backup.test.ts:
+      - verifyBackup for PostgreSQL (valid SQL dump, compressed backup, invalid SQL, missing api_keys)
+      - getBackupMetadata for PostgreSQL (uncompressed, compressed, auto-detection)
+      - listBackups for mixed SQLite/PostgreSQL (mixed types, compressed identification)
+      - PostgreSQL backup filename generation (format validation)
+    * All 37 tests passing (27 existing SQLite + 10 new PostgreSQL)
+  - Code quality:
+    * Follows existing code patterns and conventions
+    * No console.log statements
+    * Comprehensive JSDoc documentation with usage examples
+    * ESLint validation passed (fixed unused imports, added eslint-disable for necessary any)
+    * TypeScript compilation verified
+  - All acceptance criteria met:
+    ✅ Uses pg_dump if available (checkPgDumpAvailable + backupWithPgDump)
+    ✅ Falls back to SQL dump via Drizzle (backupWithDrizzle with raw SQL queries)
+    ✅ Handles large datasets efficiently (streams pg_dump output, raw queries)
+    ✅ Creates compressed backups (gzip compression support for both methods)

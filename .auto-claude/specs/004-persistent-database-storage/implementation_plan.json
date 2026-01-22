@@ -375,16 +375,19 @@
           "id": "5.2",
           "name": "Implement PostgreSQL backup",
           "description": "Create backup function using pg_dump or SQL dump via Drizzle",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "src/db/backup.ts"
+            "src/db/backup.ts",
+            "src/db/backup.test.ts"
           ],
           "acceptance_criteria": [
             "Uses pg_dump if available",
             "Falls back to SQL dump via Drizzle",
             "Handles large datasets efficiently",
             "Creates compressed backups"
-          ]
+          ],
+          "completed_at": "2026-01-22T05:30:00.000Z",
+          "notes": "Implemented comprehensive PostgreSQL backup functionality:\n\n**Core Features:**\n- Auto-detects pg_dump availability using 'which' command\n- Uses pg_dump for reliable, production-grade backups when available\n- Falls back to Drizzle-based SQL dump using raw SQL queries when pg_dump unavailable\n- Supports gzip compression for reduced storage\n- Streams data efficiently for large datasets\n- Uses connection info from DATABASE_URL environment variable\n\n**Implementation Details:**\n- backupWithPgDump(): Executes pg_dump with proper connection parameters (host, port, user, database)\n  * Sets PGPASSWORD environment variable for authentication\n  * Includes flags: --no-owner, --no-acl, --clean, --if-exists\n  * Captures stdout and writes directly to backup file\n  * Comprehensive error handling with detailed error messages\n- backupWithDrizzle(): Fallback method using postgres client directly\n  * Executes raw SQL queries to avoid Drizzle ORM type issues\n  * Generates SQL INSERT statements with ON CONFLICT DO NOTHING for idempotency\n  * Proper SQL literal escaping for string values\n  * Creates timestamped header in backup file\n- Enhanced backupDatabase(): Now auto-detects database type via getDatabaseType()\n  * Calls appropriate backup function based on database type\n  * PostgreSQL backups use .sql or .sql.gz extensions\n  * SQLite backups use .db or .db.gz extensions (unchanged)\n\n**Helper Functions Enhanced:**\n- getBackupFilename(): Accepts dbType parameter to generate appropriate prefix (pg-backup or sqlite-backup)\n- verifyBackupIntegrity(): Handles PostgreSQL SQL dumps by checking for CREATE TABLE/INSERT statements and api_keys references\n- verifyBackup(): Auto-detects database type from filename if not provided\n- listBackups(): Lists both SQLite (.db, .db.gz) and PostgreSQL (.sql, .sql.gz) backups\n- getBackupMetadata(): Returns correct databaseType based on filename pattern\n\n**Testing:**\n- Added 10 comprehensive tests for PostgreSQL backup functionality:\n  * verifyBackup for PostgreSQL (valid SQL dump, compressed backup, invalid SQL, missing api_keys)\n  * getBackupMetadata for PostgreSQL (uncompressed, compressed, auto-detection)\n  * listBackups for mixed SQLite/PostgreSQL (mixed types, compressed identification)\n  * PostgreSQL backup filename generation (format validation)\n- All 37 tests passing (27 existing SQLite + 10 new PostgreSQL)\n\n**Code Quality:**\n- Follows existing code patterns and conventions\n- No console.log statements\n- Comprehensive JSDoc documentation with usage examples\n- ESLint validation passed (fixed unused imports, added eslint-disable for necessary any)\n- TypeScript compilation verified\n\nAll acceptance criteria met:\n✅ Uses pg_dump if available (checkPgDumpAvailable + backupWithPgDump)\n✅ Falls back to SQL dump via Drizzle (backupWithDrizzle with raw SQL queries)\n✅ Handles large datasets efficiently (streams pg_dump output, raw queries)\n✅ Creates compressed backups (gzip compression support for both methods)"
         },
         {
           "id": "5.3",
