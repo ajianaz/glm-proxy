@@ -693,7 +693,46 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - Created test-logout.tsx to verify logout functionality
   - Manual verification: Logout button clears session and redirects to login page correctly
 
-- 4.4 Secure WebSocket connections
+- ✅ [2026-01-22] Subtask 4.4 - Secure WebSocket connections
+  - Added authentication validation to WebSocket handshake to prevent unauthorized access
+  - Updated src/auth-middleware.ts to support query parameter authentication:
+    * authenticateRequest() now accepts optional searchParams parameter
+    * Query parameters are checked first (before headers) for WebSocket compatibility
+    * Supports both bearer token and basic auth via query parameters
+    * Maintains backward compatibility with header-based authentication
+  - Updated index.ts to validate auth before WebSocket upgrade:
+    * Imports authenticateRequest and createUnauthorizedResponse functions
+    * Calls authenticateRequest with both headers and URL searchParams
+    * Returns 401 Unauthorized response if authentication fails
+    * Only proceeds with upgrade if authentication is successful
+  - Updated src/utils/ws-client.ts to send auth credentials:
+    * Added authToken and authType config options to WebSocketClientConfig
+    * Updated getDefaultUrl() to include auth credentials as query parameters
+    * Automatically retrieves credentials from sessionStorage if not provided
+    * Falls back gracefully when no auth is configured
+  - Created comprehensive test suite (test-websocket-auth.test.ts, 230 lines):
+    * Tests bearer token authentication via query parameters
+    * Tests basic authentication via query parameters
+    * Tests invalid credentials and rejection
+    * Tests auth priority (query params over headers)
+    * Tests fallback to header authentication
+    * Tests disabled auth (no credentials configured)
+    * All 10 tests passing successfully
+  - Created manual test script (test-websocket-connection.ts):
+    * Demonstrates WebSocket connection with bearer token auth
+    * Demonstrates WebSocket connection with basic auth
+    * Demonstrates connection rejection without auth
+    * Useful for manual verification and debugging
+  - All existing tests still passing (25 auth-middleware tests)
+  - TypeScript compilation successful with no errors
+  - No console.log debugging statements (only console.error for errors)
+  - Follows existing code patterns from auth-middleware and ws-client modules
+  - Security considerations documented:
+    * Query parameter auth used because browser WebSocket API doesn't support custom headers
+    * In production, WSS should be used for secure credential transmission
+    * Auth is validated before connection upgrade, preventing unauthorized access
+  - WebSocket connections now require valid authentication when auth is configured
+  - Manual verification: WebSocket connections rejected without valid credentials
 
 #### Phase 5: Testing and Deployment (Est: 175 min)
 - 5.1 Write API endpoint tests
