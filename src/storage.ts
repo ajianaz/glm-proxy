@@ -3,6 +3,7 @@ import path from 'path';
 import type { ApiKeysData, ApiKey } from './types.js';
 import { broadcastUsageUpdated } from './websocket-manager.js';
 import { apiKeyCache } from './cache.js';
+import { RollingWindow } from './rolling-window.js';
 
 // Helper function to check if cache is enabled (reads env var at runtime)
 function isCacheEnabled(): boolean {
@@ -143,6 +144,7 @@ export async function updateApiKeyUsage(
 
     const apiKey = data.keys[keyIndex];
     const now = new Date().toISOString();
+    const nowDate = new Date();
 
     // Update last_used and total tokens
     apiKey.last_used = now;
@@ -165,6 +167,17 @@ export async function updateApiKeyUsage(
     apiKey.usage_windows = apiKey.usage_windows.filter(
       w => w.window_start >= fiveHoursAgo
     );
+
+    // Update rolling window cache for O(1) rate limit checks
+    // Migrate if cache doesn't exist, then load it
+    migrateToRollingWindow(apiKey);
+    const rollingWindow = RollingWindow.fromSerializable(apiKey.rolling_window_cache!);
+
+    // Add current usage to rolling window cache
+    rollingWindow.addTokens(nowDate, tokensUsed);
+
+    // Serialize and store cache
+    apiKey.rolling_window_cache = rollingWindow.toSerializable();
 
     await writeApiKeys(data);
 
@@ -200,6 +213,30 @@ export async function updateApiKeyUsage(
       });
     }
   });
+}
+
+/**
+ * Migrate an API key's usage_windows to rolling window cache format
+ * This function provides on-demand migration for keys that don't have a cache
+ * @param apiKey - The API key to migrate (modified in place)
+ */
+export function migrateToRollingWindow(apiKey: ApiKey): void {
+  // Skip migration if cache already exists
+  if (apiKey.rolling_window_cache) {
+    return;
+  }
+
+  // Create new RollingWindow instance with 5-hour window and 5-minute buckets
+  const rollingWindow = new RollingWindow(5 * 60 * 60 * 1000, 5 * 60 * 1000);
+
+  // Populate cache from existing usage_windows
+  for (const window of apiKey.usage_windows) {
+    const windowTime = new Date(window.window_start);
+    rollingWindow.addTokens(windowTime, window.tokens_used);
+  }
+
+  // Serialize and store cache in the API key
+  apiKey.rolling_window_cache = rollingWindow.toSerializable();
 }
 
 export async function getKeyStats(key: string): Promise<ApiKey | null> {
