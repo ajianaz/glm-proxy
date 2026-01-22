@@ -2,14 +2,14 @@
   "feature": "Persistent Database Storage",
   "description": "# Persistent Database Storage\n\nReplace file-based storage with SQLite or PostgreSQL and Drizzle ORM for API keys, usage data, and configuration. Includes migration tool and data backup/restore functionality.\n\n## Rationale\nCurrent file-based storage doesn't support high concurrency and prevents horizontal scaling. Database enables multiple instances to share state and is critical for production deployments. Addresses major technical debt.\n\n## User Stories\n- As a production engineer, I want database-backed storage so that we can scale horizontally with multiple instances\n- As a DevOps engineer, I want automatic backups so that we don't lose API key data\n- As a developer, I want easy migration from file-based to database storage so that upgrading is seamless\n\n## Acceptance Criteria\n- [ ] SQLite support for simple deployments (zero external dependencies)\n- [ ] PostgreSQL support for production deployments\n- [ ] Migration tool to convert existing apikeys.json to database\n- [ ] Database schema supports all current API key fields\n- [ ] Database operations use transactions for consistency\n- [ ] Connection pooling for performance\n- [ ] Backup and restore functionality\n- [ ] Database health checks and connection error handling\n- [ ] Backward compatibility with file-based storage during transition period",
   "created_at": "2026-01-22T03:27:58.071Z",
-  "updated_at": "2026-01-22T03:49:07.365Z",
+  "updated_at": "2026-01-22T03:56:01.899Z",
   "status": "in_progress",
   "phases": [
     {
       "id": "phase-1",
       "name": "Database Setup & Schema Design",
       "description": "Install dependencies, set up Drizzle ORM, and define database schema matching current API key structure",
-      "status": "in_progress",
+      "status": "completed",
       "subtasks": [
         {
           "id": "1.1",
@@ -83,15 +83,16 @@
       "id": "phase-2",
       "name": "Database Operations Implementation",
       "description": "Implement CRUD operations using Drizzle ORM with proper transactions and error handling",
-      "status": "pending",
+      "status": "in_progress",
       "subtasks": [
         {
           "id": "2.1",
           "name": "Implement API key CRUD operations",
           "description": "Create functions for findApiKey, createApiKey, updateApiKey, deleteApiKey using Drizzle",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "src/db/operations.ts"
+            "src/db/operations.ts",
+            "src/db/operations.test.ts"
           ],
           "acceptance_criteria": [
             "findApiKey by key string",
@@ -99,7 +100,9 @@
             "updateApiKey for metadata",
             "deleteApiKey with cascade to usage_windows",
             "All operations use transactions where appropriate"
-          ]
+          ],
+          "completed_at": "2026-01-22T11:00:00.000Z",
+          "notes": "Implemented CRUD operations for API keys using Drizzle ORM:\n- findApiKey: Find API key by key string with usage windows (joins api_keys and usage_windows tables)\n- createApiKey: Create new API key with validation (required fields, positive token limit, no duplicates)\n- updateApiKey: Update API key metadata (name, model, token limit, expiry date) with validation\n- deleteApiKey: Delete API key with cascade delete to usage_windows via foreign key constraint\n\nAll operations support both SQLite and PostgreSQL databases using the getDb() connection pattern. Comprehensive error handling with meaningful error messages. Full test coverage with 10 passing tests covering:\n- Successful CRUD operations\n- Validation (required fields, positive values, no duplicates)\n- Edge cases (non-existent keys, null returns)\n\nDatabase migration generated and schema applied successfully. All acceptance criteria met:\n✅ findApiKey by key string with usage_windows populated\n✅ createApiKey with full validation\n✅ updateApiKey for metadata fields only\n✅ deleteApiKey with cascade to usage_windows\n✅ TypeScript compilation verified, ESLint validation passed"
         },
         {
           "id": "2.2",
