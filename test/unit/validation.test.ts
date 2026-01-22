@@ -526,7 +526,7 @@ describe('Validation Middleware', () => {
         name: z.string().min(1),
       });
 
-      app.post('/test', authMiddleware, validateBody(bodySchema), async (c) => {
+      app.post('/test', authMiddleware, validateBody(bodySchema), async (c: any) => {
         const authenticated = c.get('isAuthenticated');
         const body = c.get('validatedBody');
         return c.json({ success: true, authenticated, data: body });
