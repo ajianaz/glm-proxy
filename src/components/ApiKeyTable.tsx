@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from './App';
+import ConfirmDialog from './ConfirmDialog';
 import type { ApiKey } from '../types';
 
 /**
@@ -103,6 +104,17 @@ export default function ApiKeyTable({ onEdit, onFocus }: ApiKeyTableProps): Reac
     showExpired: true,
   });
 
+  // State for delete confirmation dialog
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    keyId: string;
+    keyName: string;
+  }>({
+    isOpen: false,
+    keyId: '',
+    keyName: '',
+  });
+
   // Get unique models for filter dropdown
   const models = useMemo(() => {
     const modelSet = new Set<string>();
@@ -202,18 +214,32 @@ export default function ApiKeyTable({ onEdit, onFocus }: ApiKeyTableProps): Reac
   /**
    * Handle delete action with confirmation
    */
-  async function handleDelete(keyId: string, keyName: string): Promise<void> {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete the API key "${keyName}"?\n\nThis action cannot be undone.`
-    );
+  function handleDelete(keyId: string, keyName: string): void {
+    setDeleteConfirm({
+      isOpen: true,
+      keyId,
+      keyName,
+    });
+  }
 
-    if (confirmed) {
-      try {
-        await deleteKey(keyId);
-      } catch (err) {
-        console.error('Failed to delete API key:', err);
-      }
+  /**
+   * Confirm delete action
+   */
+  async function confirmDelete(): Promise<void> {
+    const { keyId } = deleteConfirm;
+    try {
+      await deleteKey(keyId);
+      setDeleteConfirm({ isOpen: false, keyId: '', keyName: '' });
+    } catch (err) {
+      console.error('Failed to delete API key:', err);
     }
+  }
+
+  /**
+   * Cancel delete action
+   */
+  function cancelDelete(): void {
+    setDeleteConfirm({ isOpen: false, keyId: '', keyName: '' });
   }
 
   /**
@@ -453,6 +479,20 @@ export default function ApiKeyTable({ onEdit, onFocus }: ApiKeyTableProps): Reac
           </tbody>
         </table>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm.isOpen && (
+        <ConfirmDialog
+          title="Delete API Key"
+          message={`Are you sure you want to delete the API key "${deleteConfirm.keyName}"?`}
+          warning="This action cannot be undone."
+          details="All data associated with this key will be permanently removed from the system."
+          confirmLabel="Delete"
+          confirmVariant="danger"
+          onCancel={cancelDelete}
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   );
 }
