@@ -15,8 +15,9 @@
 import path from 'node:path';
 import { existsSync, mkdirSync, copyFileSync } from 'node:fs';
 import type { ApiKey, ApiKeysData } from '../src/types.js';
-import { createApiKey } from '../src/db/operations.js';
+import { createApiKey, getAllApiKeys, findApiKey } from '../src/db/operations.js';
 import { getDb } from '../src/db/connection.js';
+import * as schema from '../src/db/schema.js';
 
 // Configuration
 const DEFAULT_DATA_FILE = path.join(process.cwd(), 'data/apikeys.json');
@@ -63,8 +64,9 @@ Environment Variables:
   DATABASE_PATH        SQLite database path (default: ./data/sqlite.db)
 
 Features:
-  - Automatic backup: Creates timestamped backup in <source-dir>/backups/ before migration
-  - Validation: Validates JSON structure before migration
+  - Automatic backup: Creates timestamped backup in <source-dir>/backsups/ before migration
+  - Pre-migration validation: Validates JSON structure before migration
+  - Post-migration validation: Compares source data with migrated data for integrity
   - Progress tracking: Shows migration progress and success/failure counts
 
 Examples:
@@ -215,9 +217,213 @@ function createBackup(sourcePath: string): string {
 }
 
 /**
+ * Insert usage windows for an API key
+ *
+ * @param apiKey - The API key string
+ * @param usageWindows - Array of usage windows to insert
+ * @throws Error if insertion fails
+ */
+async function insertUsageWindows(
+  apiKey: string,
+  usageWindows: { window_start: string; tokens_used: number }[]
+): Promise<void> {
+  if (usageWindows.length === 0) {
+    return;
+  }
+
+  try {
+    const { db, type } = getDb();
+    const usageTable = type === 'sqlite' ? schema.sqliteUsageWindows : schema.pgUsageWindows;
+
+    // Insert all usage windows for this key
+    const values = usageWindows.map((window) => ({
+      apiKey,
+      windowStart: window.window_start,
+      tokensUsed: window.tokens_used,
+    }));
+
+    await db.insert(usageTable).values(values);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to insert usage windows: ${errorMessage}`);
+  }
+}
+
+/**
+ * Get the current count of API keys in the database
+ *
+ * @returns The number of API keys in the database
+ */
+export async function getDatabaseKeyCount(): Promise<number> {
+  try {
+    const allKeys = await getAllApiKeys({ limit: 1000000 });
+    return allKeys.length;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to count database keys: ${errorMessage}`);
+  }
+}
+
+/**
+ * Compare two usage window arrays for equality
+ *
+ * @param windows1 - First usage windows array
+ * @param windows2 - Second usage windows array
+ * @returns True if the arrays contain the same data
+ */
+export function usageWindowsEqual(
+  windows1: { window_start: string; tokens_used: number }[],
+  windows2: { window_start: string; tokens_used: number }[]
+): boolean {
+  if (windows1.length !== windows2.length) {
+    return false;
+  }
+
+  // Sort both arrays by window_start for comparison
+  const sorted1 = [...windows1].sort((a, b) =>
+    a.window_start.localeCompare(b.window_start)
+  );
+  const sorted2 = [...windows2].sort((a, b) =>
+    a.window_start.localeCompare(b.window_start)
+  );
+
+  for (let i = 0; i < sorted1.length; i++) {
+    if (
+      sorted1[i].window_start !== sorted2[i].window_start ||
+      sorted1[i].tokens_used !== sorted2[i].tokens_used
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Validate that all data was migrated correctly
+ *
+ * @param sourceData - The original ApiKeysData from the file
+ * @param keysBeforeMigration - The count of keys before migration
+ * @returns Object with validation result and discrepancies
+ */
+export async function validateMigration(
+  sourceData: ApiKeysData,
+  keysBeforeMigration: number
+): Promise<{
+  valid: boolean;
+  discrepancies: string[];
+  details: {
+    sourceCount: number;
+    databaseCount: number;
+    newKeysCount: number;
+  };
+}> {
+  const discrepancies: string[] = [];
+  const sourceCount = sourceData.keys.length;
+
+  try {
+    // Get all keys from database
+    const databaseKeys = await getAllApiKeys({ limit: 1000000 });
+    const databaseCount = databaseKeys.length;
+    const newKeysCount = databaseCount - keysBeforeMigration;
+
+    // Validate count matches
+    if (newKeysCount !== sourceCount) {
+      discrepancies.push(
+        `Record count mismatch: expected ${sourceCount} new keys, found ${newKeysCount} in database`
+      );
+    }
+
+    // Validate each source key exists in database and data matches
+    for (const sourceKey of sourceData.keys) {
+      const dbKey = await findApiKey(sourceKey.key);
+
+      if (!dbKey) {
+        discrepancies.push(
+          `Key '${sourceKey.key}' (${sourceKey.name}) not found in database`
+        );
+        continue;
+      }
+
+      // Compare fields
+      if (dbKey.name !== sourceKey.name) {
+        discrepancies.push(
+          `Key '${sourceKey.key}': name mismatch - source: '${sourceKey.name}', db: '${dbKey.name}'`
+        );
+      }
+
+      if (dbKey.model !== sourceKey.model) {
+        discrepancies.push(
+          `Key '${sourceKey.key}': model mismatch - source: '${sourceKey.model || 'undefined'}', db: '${dbKey.model || 'undefined'}'`
+        );
+      }
+
+      if (dbKey.token_limit_per_5h !== sourceKey.token_limit_per_5h) {
+        discrepancies.push(
+          `Key '${sourceKey.key}': token_limit_per_5h mismatch - source: ${sourceKey.token_limit_per_5h}, db: ${dbKey.token_limit_per_5h}`
+        );
+      }
+
+      // Compare expiry_date (normalize by converting to Date objects)
+      const sourceExpiry = new Date(sourceKey.expiry_date).getTime();
+      const dbExpiry = new Date(dbKey.expiry_date).getTime();
+      if (sourceExpiry !== dbExpiry) {
+        discrepancies.push(
+          `Key '${sourceKey.key}': expiry_date mismatch - source: '${sourceKey.expiry_date}', db: '${dbKey.expiry_date}'`
+        );
+      }
+
+      // Compare created_at timestamps
+      const sourceCreated = new Date(sourceKey.created_at).getTime();
+      const dbCreated = new Date(dbKey.created_at).getTime();
+      if (sourceCreated !== dbCreated) {
+        discrepancies.push(
+          `Key '${sourceKey.key}': created_at mismatch - source: '${sourceKey.created_at}', db: '${dbKey.created_at}'`
+        );
+      }
+
+      // Compare last_used timestamps
+      const sourceLastUsed = new Date(sourceKey.last_used).getTime();
+      const dbLastUsed = new Date(dbKey.last_used).getTime();
+      if (sourceLastUsed !== dbLastUsed) {
+        discrepancies.push(
+          `Key '${sourceKey.key}': last_used mismatch - source: '${sourceKey.last_used}', db: '${dbKey.last_used}'`
+        );
+      }
+
+      if (dbKey.total_lifetime_tokens !== sourceKey.total_lifetime_tokens) {
+        discrepancies.push(
+          `Key '${sourceKey.key}': total_lifetime_tokens mismatch - source: ${sourceKey.total_lifetime_tokens}, db: ${dbKey.total_lifetime_tokens}`
+        );
+      }
+
+      // Compare usage windows
+      if (!usageWindowsEqual(sourceKey.usage_windows, dbKey.usage_windows)) {
+        discrepancies.push(
+          `Key '${sourceKey.key}': usage_windows mismatch - source: ${sourceKey.usage_windows.length} windows, db: ${dbKey.usage_windows.length} windows`
+        );
+      }
+    }
+
+    return {
+      valid: discrepancies.length === 0,
+      discrepancies,
+      details: {
+        sourceCount,
+        databaseCount,
+        newKeysCount,
+      },
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Validation failed: ${errorMessage}`);
+  }
+}
+
+/**
  * Migrate API keys to database
  */
-async function migrateApiKeys(apiKeysData: ApiKeysData): Promise<void> {
+export async function migrateApiKeys(apiKeysData: ApiKeysData): Promise<void> {
   const { keys } = apiKeysData;
   const total = keys.length;
   let success = 0;
@@ -230,7 +436,14 @@ async function migrateApiKeys(apiKeysData: ApiKeysData): Promise<void> {
     const progress = `[${i + 1}/${total}]`;
 
     try {
+      // Create the API key
       await createApiKey(apiKey);
+
+      // Insert usage windows if present
+      if (apiKey.usage_windows && apiKey.usage_windows.length > 0) {
+        await insertUsageWindows(apiKey.key, apiKey.usage_windows);
+      }
+
       success++;
       process.stdout.write(`\r${progress} ✓ Migrated: ${apiKey.name} (${apiKey.key})\n`);
     } catch (error) {
@@ -308,11 +521,34 @@ async function main(): Promise<void> {
       }
     }
 
+    // Get count before migration
+    const keysBeforeMigration = await getDatabaseKeyCount();
+    console.log(`\nKeys in database before migration: ${keysBeforeMigration}`);
+
     // Perform migration
     await migrateApiKeys(apiKeysData);
 
-    console.log('\n✓ Migration successful!');
-    console.log(`Backup saved at: ${backupPath}`);
+    // Validate migration
+    console.log('\nValidating migration...');
+    const validation = await validateMigration(apiKeysData, keysBeforeMigration);
+
+    console.log(`\nValidation Results:`);
+    console.log(`  Source keys:     ${validation.details.sourceCount}`);
+    console.log(`  Database keys:   ${validation.details.databaseCount}`);
+    console.log(`  New keys added:  ${validation.details.newKeysCount}`);
+
+    if (validation.valid) {
+      console.log('\n✓ Validation PASSED - All data migrated correctly!');
+      console.log(`Backup saved at: ${backupPath}`);
+    } else {
+      console.error('\n✗ Validation FAILED - Data discrepancies detected:');
+      validation.discrepancies.forEach((discrepancy) => {
+        console.error(`  • ${discrepancy}`);
+      });
+      console.error(`\nBackup preserved at: ${backupPath}`);
+      console.error('Please review the discrepancies and restore from backup if needed.');
+      process.exit(1);
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`\n✗ Migration failed: ${errorMessage}`);
