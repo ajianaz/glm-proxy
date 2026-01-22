@@ -624,8 +624,27 @@ Ready to begin implementation starting with Phase 1: Project Setup & Environment
 - Helper functions reduce code duplication across endpoints
 - Error handling is centralized, making it easier to maintain and extend
 
+- ✅ **error-2: Add validation error responses**
+  - Refactored all admin API endpoints to use centralized error utilities from src/utils/errors.ts
+  - POST /admin/api/keys now uses validationError(), invalidJsonError(), and conflictError()
+  - GET /admin/api/keys uses validationError() for query parameter validation
+  - GET /admin/api/keys/:id uses validationError() for ID validation
+  - PUT /admin/api/keys/:id uses validationError() and invalidJsonError()
+  - DELETE /admin/api/keys/:id uses validationError() for ID validation
+  - Removed duplicate formatValidationErrors() function (now imported from validation middleware)
+  - All endpoints use internalServerError() for consistent error logging
+  - All validation errors return 400 Bad Request with field-level validation details
+  - Benefits:
+    - Eliminates code duplication across endpoints
+    - Ensures consistent error response format: { error: string, details?: any }
+    - Centralizes error message formatting logic
+    - Improves maintainability and follows DRY principles
+    - Internal server errors are properly logged with console.error
+  - All 191 relevant tests pass (errors, validation, admin API integration tests)
+  - TypeScript compilation successful for src/ files
+  - Updated implementation plan to mark error-2 as completed
+
 ### Next Steps
-- error-2: Add validation error responses (already implemented with validationError())
 - error-3: Add not found handling (already implemented with notFoundError())
 - error-4: Add server error handling (already implemented with internalServerError())
 - error-5: Implement request logging
