@@ -434,6 +434,45 @@ Building a responsive web dashboard for managing API keys with real-time usage v
   - React best practices with hooks (useState, useMemo)
   - Accessible UI with proper labels and semantic HTML
   - Manual verification completed: All charts, progress bars, and statistics cards display correctly
+- ✅ [2026-01-22] Subtask 3.5 - Build confirmation dialogs
+  - Created comprehensive src/components/ConfirmDialog.tsx (204 lines)
+  - Implemented reusable modal dialog component with safety warnings
+  - Component features:
+    * Customizable title, message, warning, and details sections
+    * Three button variants: primary, danger, warning
+    * Loading state support during async operations
+    * Click-outside-to-close and ESC key to dismiss
+    * Full accessibility with ARIA attributes (role, aria-modal, aria-labelledby, aria-describedby)
+    * Keyboard navigation support
+  - Added useConfirmDialog hook for easy state management:
+    * Provides isOpen, props, open(), and close() methods
+    * Simplifies dialog state management in components
+    * Fully typed with TypeScript
+  - Updated ApiKeyTable.tsx to use ConfirmDialog:
+    * Replaced window.confirm() with styled modal dialog
+    * Added deleteConfirm state for dialog management
+    * Implemented confirmDelete() and cancelDelete() handlers
+    * Dialog shows key name, warning message, and details
+  - Added CSS styles to dashboard.css:
+    * .confirm-message: styling for main message text
+    * .confirm-details: styling for additional details section
+    * .alert-icon and .alert-text: styling for warning alert components
+  - Created comprehensive test suite (tests/confirm-dialog.test.tsx):
+    * 8 tests covering all component functionality
+    * Verified component exports, props interface, default values
+    * Tested button variants, callbacks, and async operations
+    * All tests passing successfully
+  - Created demo file (test-confirm-dialog.tsx):
+    * Demonstrates three use cases: delete (danger), enable (primary), reset (warning)
+    * Shows different button variants and configurations
+    * Includes example code and usage patterns
+  - All TypeScript compilation successful with no errors
+  - Build verification successful (1.1 MB bundle, no size increase concerns)
+  - No console.log debugging statements (only test console.log for verification)
+  - Follows existing code patterns from ApiKeyForm modal structure
+  - React best practices with hooks (useState)
+  - Accessible UI with proper ARIA attributes and keyboard navigation
+  - Manual verification completed: Dialog renders correctly, buttons work, callbacks fire properly
 
 ### Phase Breakdown
 
