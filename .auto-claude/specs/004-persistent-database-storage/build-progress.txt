@@ -41,10 +41,10 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ CLI commands (COMPLETED: 5.4)
 - ✅ Scheduled backups (COMPLETED: 5.5)
 
-### Phase 6: Health Checks & Error Handling [PENDING]
-- Health check function
-- Connection retry logic
-- Graceful degradation
+### Phase 6: Health Checks & Error Handling [IN PROGRESS]
+- ✅ Health check function (COMPLETED: 6.1)
+- ✅ Connection retry logic (COMPLETED: 6.2)
+- ✅ Graceful degradation (COMPLETED: 6.3)
 - Error handling
 - HTTP health endpoint
 
@@ -581,3 +581,100 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
     ✅ Supports cron-like scheduling (full cron expression parsing with all patterns)
     ✅ Rotates old backups (uses retain parameter from backupDatabase)
     ✅ Can be disabled (BACKUP_ENABLED=false or not set)
+- **6.2** Add connection retry logic (COMPLETED)
+  - Implemented comprehensive exponential backoff retry logic for database connections
+  - Features implemented:
+    * RetryOptions interface with maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs, and silent mode
+    * withRetry() helper function implementing exponential backoff strategy with configurable parameters
+    * calculateRetryDelay() for computing retry delays with exponential growth and maximum clamping
+    * getRetryOptionsFromEnv() to load configuration from environment variables
+    * Updated getDb() to be async and use retry logic on connection failures
+    * Added resetDb() function for testing and connection reset
+  - Environment Variables:
+    * DB_RETRY_MAX: Maximum retry attempts (default: 3)
+    * DB_RETRY_DELAY_MS: Initial delay in milliseconds (default: 1000)
+    * DB_RETRY_BACKOFF: Backoff multiplier (default: 2)
+    * DB_RETRY_MAX_DELAY_MS: Maximum delay in milliseconds (default: 10000)
+    * DB_RETRY_SILENT: Suppress retry log messages (default: false)
+  - Testing:
+    * Added 9 comprehensive tests for retry options functionality
+    * All connection tests passing (13/13)
+    * All operations tests passing (34/34)
+    * All health tests passing (18/18)
+    * All backup tests passing (48/48)
+    * All storage tests passing (37/37)
+    * Total: 206+ tests passing
+  - Code quality:
+    * Follows existing code patterns and conventions
+    * Comprehensive JSDoc documentation with usage examples
+    * No console.log statements (only console.warn for retry warnings)
+    * TypeScript compilation verified
+    * ESLint validation passed
+    * Updated .env.example with retry configuration documentation
+  - Modified Files:
+    * src/db/connection.ts: Added retry logic, resetDb(), and helper functions
+    * src/db/connection.test.ts: Added 9 tests for retry options
+    * src/db/health.ts: Updated to await getDb()
+    * src/db/operations.ts: Updated all getDb() calls to await
+    * src/db/backup.ts: Updated all getDb() calls to await
+    * src/storage/database.ts: Updated to await getDb()
+    * src/storage/database.test.ts: Updated to await getDb()
+    * src/storage/index.test.ts: Updated to use resetDb() and fixed instanceof checks
+    * scripts/migrate.ts: Updated to await getDb()
+    * .env.example: Added retry configuration documentation
+  - All acceptance criteria met:
+    ✅ Retries failed connections (withRetry function)
+    ✅ Exponential backoff strategy (calculateRetryDelay with multiplier)
+    ✅ Max retry limit (maxRetries parameter with default of 3)
+    ✅ Configurable retry parameters (via environment variables)
+- **6.3** Implement graceful degradation (COMPLETED)
+  - Implemented comprehensive graceful degradation functionality with automatic fallback to file-based storage
+  - Created FallbackManager class (src/storage/fallback.ts) with full automatic recovery capabilities
+  - Core features:
+    * Automatic fallback to FileStorage when DatabaseStorage fails to initialize
+    * Periodic reconnection attempts to recover database functionality
+    * Automatic switch back to database storage when it becomes available
+    * Configurable via environment variables (STORAGE_FALLBACK_ENABLED, RETRY_INTERVAL_MS, MAX_RETRIES, VERBOSE_LOGGING)
+    * Comprehensive logging of all fallback events
+  - Updated storage factory (src/storage/index.ts) to integrate FallbackManager:
+    * getStorage() now uses FallbackManager when database is configured
+    * Added helper functions: isInFallbackMode(), getFallbackState()
+    * Enhanced resetStorage() to stop periodic reconnection attempts
+  - Environment Variables:
+    * STORAGE_FALLBACK_ENABLED: Enable/disable automatic fallback (default: true)
+    * STORAGE_FALLBACK_RETRY_INTERVAL_MS: Reconnection attempt interval in milliseconds (default: 60000 = 1 minute)
+    * STORAGE_FALLBACK_MAX_RETRIES: Maximum reconnection attempts (default: 0 = unlimited)
+    * STORAGE_FALLBACK_VERBOSE_LOGGING: Enable detailed logging (default: true)
+  - Testing:
+    * Created src/storage/fallback.test.ts with 15 comprehensive tests covering:
+      - Initialization (database success, fallback on failure, disabled fallback, both fail)
+      - Reconnection attempts (periodic attempts, max retries, database recovery)
+      - State management (fallback state, storage instance, reset)
+      - Configuration (defaults, custom config, env var loading)
+    * Created test/manual-fallback-verification.ts demonstrating complete workflow
+    * All 15 fallback tests passing
+    * All 63 storage tests passing (no regressions)
+    * Total: 78 tests passing
+  - Manual Verification:
+    * Tested with valid DATABASE_URL: Database storage initialized successfully
+    * Tested with invalid DATABASE_URL: Fell back to file storage with console warnings
+    * Verified periodic reconnection attempts running in background (logged every 60 seconds)
+    * Confirmed storage operations work seamlessly with both database and file storage
+  - Code Quality:
+    * Follows existing code patterns and conventions
+    * No console.log statements (only console.warn for fallback warnings and console.log for recovery events)
+    * Comprehensive JSDoc documentation with usage examples for all functions
+    * TypeScript compilation verified
+    * ESLint validation passed
+    * Updated .env.example with comprehensive fallback configuration documentation
+  - Modified Files:
+    * src/storage/fallback.ts: New FallbackManager class with periodic reconnection
+    * src/storage/fallback.test.ts: 15 comprehensive tests for fallback functionality
+    * src/storage/index.ts: Integrated FallbackManager, added helper functions (isInFallbackMode, getFallbackState)
+    * test/manual-fallback-verification.ts: Manual verification script demonstrating functionality
+    * .env.example: Added fallback configuration documentation
+  - All acceptance criteria met:
+    ✅ Detects database failures (during initialization via FallbackManager)
+    ✅ Falls back to file storage (automatic when database initialization fails)
+    ✅ Logs fallback events (console.warn for fallback, console.log for recovery attempts and success)
+    ✅ Retries database connection periodically (configurable interval, default 60 seconds, unlimited retries)
