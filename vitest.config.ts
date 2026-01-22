@@ -16,6 +16,7 @@ export default defineConfig({
 
     // Test environment: Node.js environment for server-side code
     environment: 'node',
+<<<<<<< HEAD
 
     // Test file patterns
     include: ['test/**/*.test.ts', '**/*.test.ts'],
@@ -61,5 +62,7 @@ export default defineConfig({
       // Clean coverage output directory before running coverage
       clean: true,
     },
+    setupFiles: ['./test/setup.ts'],
+    fileParallelism: false, // Run test files sequentially to avoid state pollution
   },
 });

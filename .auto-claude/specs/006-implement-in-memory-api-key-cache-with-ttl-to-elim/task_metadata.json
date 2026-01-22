@@ -1,9 +1,0 @@
-{
-  "sourceType": "ideation",
-  "ideationType": "performance_optimizations",
-  "ideaId": "perf-001",
-  "rationale": "Every authenticated request (POST /v1/*, POST /v1/messages) currently triggers a file read operation via findApiKey(). With concurrent requests, this creates I/O contention. The file locking mechanism (withLock) adds retry delays up to 500ms. Caching validated keys reduces I/O by ~95% while only invalidating every 5 minutes.",
-  "category": "performance",
-  "performanceCategory": "runtime",
-  "impact": "high"
-}

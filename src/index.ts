@@ -8,11 +8,13 @@ import { authMiddleware, getApiKeyFromContext, type AuthContext } from './middle
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { createProxyHandler } from './handlers/proxyHandler.js';
 import { keysRoutes } from './routes/admin/index.js';
-import type { StatsResponse } from './types.js';
+import type { StatsResponse, CacheStatsResponse } from './types.js';
 import { internalServerError } from './utils/errors.js';
 import { startScheduler, loadSchedulerConfigFromEnv, type ScheduledBackupResult } from './db/scheduler.js';
 import { checkHealth, type HealthCheckResult } from './db/health.js';
 import { getStorageType, isInFallbackMode, getFallbackState } from './storage/index.js';
+import { warmupCache } from './storage.js';
+import { apiKeyCache } from './cache.js';
 
 type Bindings = {
   ZAI_API_KEY: string;
@@ -69,6 +71,19 @@ app.get('/stats', authMiddleware, async (c) => {
       remaining_tokens: Math.max(0, rateLimit.tokensLimit - rateLimit.tokensUsed),
     },
     total_lifetime_tokens: apiKey.total_lifetime_tokens,
+  };
+
+  return c.json(stats);
+});
+
+// Cache statistics endpoint
+app.get('/cache-stats', authMiddleware, async (c) => {
+  const cacheStats = apiKeyCache.getStats();
+  const cacheEnabled = process.env.CACHE_ENABLED !== 'false';
+
+  const stats: CacheStatsResponse = {
+    ...cacheStats,
+    enabled: cacheEnabled,
   };
 
   return c.json(stats);
@@ -193,6 +208,7 @@ app.get('/', (c) => {
       health: 'GET /health',
       stats: 'GET /stats',
       admin_api: 'GET, POST /admin/api/keys',
+      cache_stats: 'GET /cache-stats',
       openai_compatible: 'ALL /v1/* (except /v1/messages)',
       anthropic_compatible: 'POST /v1/messages',
     },
@@ -232,6 +248,14 @@ const startScheduledBackups = async (): Promise<void> => {
 (async () => {
   await startScheduledBackups();
   console.log(`Proxy Gateway starting on port ${port}`);
+
+  // Optional cache warm-up on startup (non-blocking)
+  if (process.env.CACHE_WARMUP_ON_START === 'true') {
+    // Fire and forget - don't await, let it run in background
+    warmupCache().catch(error => {
+      console.error('Cache warm-up error:', error);
+    });
+  }
 })();
 
 export default {

@@ -3,7 +3,10 @@ import { getModelForKey } from './validator.js';
 import { getStorage } from './storage/index.js';
 
 const ZAI_API_BASE = 'https://api.z.ai/api/coding/paas/v4';
-const ZAI_API_KEY = process.env.ZAI_API_KEY;
+
+function getZaiApiKey(): string | undefined {
+  return process.env.ZAI_API_KEY;
+}
 
 export interface ProxyOptions {
   apiKey: ApiKey;
@@ -25,6 +28,7 @@ export async function proxyRequest(options: ProxyOptions): Promise<ProxyResult> 
   const { apiKey, path, method, headers, body } = options;
 
   // Runtime check for ZAI_API_KEY
+  const ZAI_API_KEY = getZaiApiKey();
   if (!ZAI_API_KEY) {
     return {
       success: false,

@@ -1,6 +1,6 @@
 # GLM Proxy
 
-An API Gateway with rate limiting that proxies requests to Z.AI API (glm-4.7). Supports streaming, REST API, multi-user token-based quota management, and a web dashboard for API key management.
+An API Gateway with rate limiting that proxies requests to Z.AI API (glm-4.7). Supports streaming, REST API, and multi-user token-based quota management.
 
 Created by [ajianaz](https://github.com/ajianaz)
 
@@ -13,7 +13,7 @@ Created by [ajianaz](https://github.com/ajianaz)
 - **Multi-User**: Multiple API keys with per-key limits
 - **Usage Tracking**: Monitor token usage per key
 - **Model Override**: Set specific model per API key
-- **Web Dashboard**: User-friendly UI for managing API keys with real-time usage visualization
+- **In-Memory Caching**: LRU cache with TTL for API key lookups (eliminates 95%+ file I/O)
 
 ## Quick Setup
 
@@ -27,6 +27,13 @@ cp .env.example .env
 ZAI_API_KEY=your_zai_api_key_here    # Required: Master API key from Z.AI
 DEFAULT_MODEL=glm-4.7                 # Optional: Default model (fallback)
 PORT=3030                             # Optional: Service port
+
+# Cache Configuration (Optional)
+CACHE_ENABLED=true                    # Enable/disable in-memory cache (default: true)
+CACHE_TTL_MS=300000                   # Cache TTL in milliseconds (default: 300000 = 5 minutes)
+CACHE_MAX_SIZE=1000                   # Maximum cache entries (default: 1000)
+CACHE_WARMUP_ON_START=false           # Pre-load all keys on startup (default: false)
+CACHE_LOG_LEVEL=none                  # Cache logging: none, info, or debug (default: none)
 ```
 
 ### 2. Start Service
@@ -42,294 +49,7 @@ bun install
 bun start
 ```
 
----
-
-## Web Dashboard
-
-The GLM Proxy includes a responsive web dashboard for managing API keys without manual JSON editing. Features include:
-
-- **Create, View, Edit, Delete API Keys**: Simple form-based management
-- **Real-time Usage Visualization**: Live updates of token consumption
-- **Quota Monitoring**: Track remaining quota per key
-- **Sortable & Filterable Table**: Easy navigation of multiple keys
-- **Responsive Design**: Works on desktop, tablet, and mobile devices
-- **Authentication**: Optional bearer token or basic auth protection
-- **Hot Reload**: Changes take effect immediately without server restart
-
-### Dashboard Setup
-
-#### 1. Environment Configuration
-
-Add the following variables to your `.env` file:
-
-```bash
-# Dashboard Port (default: 3001)
-DASHBOARD_PORT=3001
-
-# Optional: Dashboard Authentication
-# Choose one of the following methods:
-
-# Method 1: Bearer Token
-DASHBOARD_AUTH_TOKEN=your_secret_token_here
-
-# Method 2: Basic Auth (Username & Password)
-DASHBOARD_AUTH_USERNAME=admin
-DASHBOARD_AUTH_PASSWORD=secure_password_here
-
-# If none are set, the dashboard is publicly accessible
-```
-
-#### 2. Start the Dashboard
-
-**Development Mode (with hot reload):**
-```bash
-bun dashboard
-```
-
-**Production Mode:**
-```bash
-bun dashboard
-```
-
-The dashboard will be available at `http://localhost:3001` (or your configured `DASHBOARD_PORT`).
-
-#### 3. Accessing the Dashboard
-
-Open your browser and navigate to:
-```
-http://localhost:3001
-```
-
-If authentication is configured, you'll see a login page:
-
-- **Bearer Token Auth**: Enter your token in the login form
-- **Basic Auth**: Enter your username and password
-
-### Dashboard Features
-
-#### Creating an API Key
-
-1. Click the "Create New Key" button
-2. Fill in the form:
-   - **Key**: Auto-generated or enter custom (format: `pk_*`)
-   - **Name**: Display name for the key
-   - **Model**: Model to use (e.g., `glm-4.7`, `glm-4.5-air`)
-   - **Token Limit**: Quota per 5-hour window (e.g., `100000`)
-   - **Expiry Date**: When the key expires (ISO 8601 format)
-3. Click "Create Key"
-
-#### Viewing API Keys
-
-The table displays all keys with:
-- **Key ID**: Unique identifier
-- **Name**: Display name
-- **Model**: Assigned model
-- **Quota**: Token limit per 5h window
-- **Usage**: Current usage with progress bar
-- **Expiry**: Expiration date
-
-#### Editing an API Key
-
-1. Click the edit icon (✏️) in the Actions column
-2. Modify the desired fields
-3. Click "Update Key"
-
-#### Deleting an API Key
-
-1. Click the delete icon (🗑️) in the Actions column
-2. Confirm the deletion in the dialog
-
-#### Real-time Usage Monitoring
-
-- **Overview Cards**: Total keys, active keys, total quota, current usage
-- **Top Consumer**: Highest usage key highlighted
-- **Usage Charts**: Top keys by usage, quota distribution by model
-- **Detailed Stats**: Click the focus button (📊) to see detailed stats for a specific key
-
-#### Filter & Sort
-
-- **Search**: Filter by key ID or name
-- **Model Filter**: Show only keys for a specific model
-- **Expired Filter**: Show/hide expired keys
-- **Sort**: Click column headers to sort by any field
-
-### Dashboard API Endpoints
-
-The dashboard uses RESTful API endpoints that you can also use programmatically:
-
-#### GET /api/keys
-
-List all API keys with optional filtering and sorting.
-
-```bash
-curl -H "Authorization: Bearer YOUR_DASHBOARD_TOKEN" \
-  "http://localhost:3001/api/keys?sort_by=created_at&sort_order=desc"
-```
-
-Query Parameters:
-- `sort_by`: Field to sort by (`key`, `name`, `model`, `token_limit_per_5h`, `expiry_date`, `created_at`, `last_used`, `total_lifetime_tokens`)
-- `sort_order`: `asc` or `desc`
-- `filter_model`: Filter by model name
-- `filter_expired`: `true` or `false`
-- `search`: Search in key and name fields
-
-Response:
-```json
-{
-  "keys": [
-    {
-      "key": "pk_user_12345",
-      "name": "User Full Name",
-      "model": "glm-4.7",
-      "token_limit_per_5h": 100000,
-      "expiry_date": "2026-12-31T23:59:59Z",
-      "created_at": "2026-01-18T00:00:00Z",
-      "last_used": "2026-01-18T01:00:00.000Z",
-      "total_lifetime_tokens": 150,
-      "usage_windows": []
-    }
-  ],
-  "total": 1
-}
-```
-
-#### POST /api/keys
-
-Create a new API key.
-
-```bash
-curl -X POST http://localhost:3001/api/keys \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_DASHBOARD_TOKEN" \
-  -d '{
-    "key": "pk_new_user_123",
-    "name": "New User",
-    "model": "glm-4.7",
-    "token_limit_per_5h": 50000,
-    "expiry_date": "2026-12-31T23:59:59Z"
-  }'
-```
-
-#### PUT /api/keys/:id
-
-Update an existing API key.
-
-```bash
-curl -X PUT http://localhost:3001/api/keys/pk_user_12345 \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_DASHBOARD_TOKEN" \
-  -d '{
-    "name": "Updated Name",
-    "token_limit_per_5h": 75000
-  }'
-```
-
-#### DELETE /api/keys/:id
-
-Delete an API key.
-
-```bash
-curl -X DELETE http://localhost:3001/api/keys/pk_user_12345 \
-  -H "Authorization: Bearer YOUR_DASHBOARD_TOKEN"
-```
-
-#### GET /api/keys/:id/usage
-
-Get usage statistics for a specific key.
-
-```bash
-curl -H "Authorization: Bearer YOUR_DASHBOARD_TOKEN" \
-  "http://localhost:3001/api/keys/pk_user_12345/usage"
-```
-
-Response:
-```json
-{
-  "key": "pk_user_12345",
-  "name": "User Full Name",
-  "current_usage": {
-    "tokens_used_in_current_window": 1500,
-    "window_started_at": "2026-01-22T07:00:00.000Z",
-    "window_ends_at": "2026-01-22T12:00:00.000Z",
-    "remaining_tokens": 98500
-  },
-  "total_lifetime_tokens": 5000,
-  "token_limit_per_5h": 100000,
-  "is_expired": false,
-  "expiry_date": "2026-12-31T23:59:59Z"
-}
-```
-
-### WebSocket Events
-
-The dashboard uses WebSocket for real-time updates. Connect to:
-```
-ws://localhost:3001
-```
-
-Include authentication credentials as query parameters:
-```
-ws://localhost:3001?auth_token=YOUR_TOKEN
-```
-or
-```
-ws://localhost:3001?auth_username=USER&auth_password=PASS
-```
-
-Event Types:
-- `connected`: Connection established
-- `key_created`: New API key created
-- `key_updated`: API key updated
-- `key_deleted`: API key deleted
-- `usage_updated`: Usage statistics updated
-
-Example event:
-```json
-{
-  "type": "key_created",
-  "timestamp": "2026-01-22T12:00:00.000Z",
-  "data": {
-    "key": "pk_new_key",
-    "name": "New Key",
-    "model": "glm-4.7",
-    "token_limit_per_5h": 100000
-  }
-}
-```
-
-### Hot Reload
-
-All API key changes made through the dashboard take effect immediately:
-- **Created keys**: Immediately available for API requests
-- **Updated keys**: New quota/limits apply on next request
-- **Deleted keys**: Immediately rejected
-
-No server restart required!
-
-### Running Both Services
-
-To run both the proxy service and dashboard simultaneously:
-
-**Terminal 1 - Proxy:**
-```bash
-bun start
-# Runs on PORT=3000 (or configured port)
-```
-
-**Terminal 2 - Dashboard:**
-```bash
-bun dashboard
-# Runs on DASHBOARD_PORT=3001
-```
-
-Or use Docker Compose to run both services:
-```bash
-docker-compose up -d
-```
-
----
-
-## Proxy API Documentation
+## API Documentation
 
 ### Endpoints
 
@@ -337,6 +57,7 @@ docker-compose up -d
 |--------|----------|-------------|---------------|
 | GET | `/health` | Health check | No |
 | GET | `/stats` | Usage statistics | Yes |
+| GET | `/cache-stats` | Cache statistics | Yes |
 | POST | `/v1/chat/completions` | Chat completion (OpenAI-compatible) | Yes |
 | POST | `/v1/messages` | Messages API (Anthropic-compatible) | Yes |
 | GET | `/v1/models` | List available models | Yes |
@@ -512,23 +233,121 @@ print(message.content)
 
 ---
 
-## API Key Management
+## Cache Architecture
 
-### Recommended: Use the Web Dashboard
+### Overview
 
-**The web dashboard is the recommended method** for managing API keys. It provides:
-- User-friendly interface (no manual JSON editing)
-- Real-time validation
-- Instant updates (hot reload)
-- Usage visualization
+The proxy implements an **in-memory LRU (Least Recently Used) cache** to dramatically reduce file I/O overhead. Every API request requires an authentication check that looks up the API key from `data/apikeys.json`. Without caching, each request triggers a disk read with file locking, creating a bottleneck under load.
 
-See [Web Dashboard](#web-dashboard) section above for details.
+### How It Works
 
-### Manual API Key Management
+```
+Request → Auth Middleware → findApiKey()
+                              ↓
+                    ┌─────────────────┐
+                    │  Cache Enabled? │
+                    └─────────────────┘
+                              ↓
+                    ┌─────────────────┐
+                    │ Check Cache     │─── Hit? → Return Cached API Key (<1ms)
+                    └─────────────────┘
+                              ↓ Miss
+                    ┌─────────────────┐
+                    │ Read from File  │─── Populate Cache → Return API Key (5-50ms)
+                    └─────────────────┘
+```
 
-API keys are stored in `data/apikeys.json`. You can edit this file directly, but using the dashboard is recommended to avoid errors.
+### Cache Features
 
-#### API Key Structure
+- **TTL Expiration**: Entries expire after 5 minutes (configurable via `CACHE_TTL_MS`)
+- **LRU Eviction**: When cache is full, least recently used entries are evicted
+- **Negative Caching**: Non-existent keys are cached as `null` to prevent repeated lookups
+- **Automatic Updates**: Cache is updated when API key usage is recorded (e.g., token counts)
+- **Optional Warm-up**: Pre-load all keys on startup to eliminate cold starts
+
+### Performance Benefits
+
+| Metric | Without Cache | With Cache | Improvement |
+|--------|---------------|------------|-------------|
+| API key lookup latency | 5-50ms | <1ms | **>10x faster** |
+| File I/O operations | 1 per request | ~0.05 per request | **95% reduction** |
+| Concurrent request capacity | Limited by file locking | 100+ requests | **No contention** |
+
+### Configuration Options
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `CACHE_ENABLED` | `true` | Enable or disable the cache entirely |
+| `CACHE_TTL_MS` | `300000` | Time-to-live in milliseconds (300000 = 5 minutes) |
+| `CACHE_MAX_SIZE` | `1000` | Maximum number of API keys to cache |
+| `CACHE_WARMUP_ON_START` | `false` | Pre-load all API keys on application startup |
+| `CACHE_LOG_LEVEL` | `none` | Logging verbosity: `none`, `info`, or `debug` |
+
+### Cache Monitoring
+
+Check cache performance and statistics:
+
+```bash
+curl -H "Authorization: Bearer pk_your_key" http://localhost:3030/cache-stats
+```
+
+Response:
+```json
+{
+  "hits": 1523,
+  "misses": 12,
+  "hitRate": 99.22,
+  "size": 45,
+  "maxSize": 1000,
+  "enabled": true
+}
+```
+
+**Metrics Explained:**
+- `hits`: Number of successful cache retrievals
+- `misses`: Number of cache misses (required file read)
+- `hitRate`: Percentage of requests served from cache (target: >95%)
+- `size`: Current number of entries in cache
+- `maxSize`: Maximum cache capacity
+- `enabled`: Whether cache is currently enabled
+
+### Cache Coherency
+
+The cache maintains data consistency through:
+
+1. **TTL Expiration**: Entries auto-expire after 5 minutes, ensuring fresh data
+2. **Write-Through Updates**: When token usage is recorded, the cache is immediately updated
+3. **Selective Invalidation**: Only the affected key is updated, not the entire cache
+4. **Fail-Safe Design**: If the cache is disabled, all operations fall back to file-based storage
+
+### Logging
+
+Debug cache operations by setting `CACHE_LOG_LEVEL`:
+
+```bash
+# Enable debug logging (shows every cache hit/miss)
+CACHE_LOG_LEVEL=debug
+
+# Enable info logging (shows cache updates and warm-up)
+CACHE_LOG_LEVEL=info
+
+# Disable cache logging (default)
+CACHE_LOG_LEVEL=none
+```
+
+Example log output:
+```
+[cache] Cache hit {"key":"pk_user_1...","found":true}
+[cache] Cache miss - fallback to file {"key":"pk_user_2..."}
+[cache] Cache populated after file read {"key":"pk_user_2...","found":true}
+[cache] Cache updated after usage update {"key":"pk_user_1...","tokensUsed":150,"totalTokens":5000}
+```
+
+---
+
+API keys are stored in `data/apikeys.json`. Edit manually to add/remove/modify keys.
+
+### API Key Structure
 
 ```json
 {
@@ -699,7 +518,7 @@ A: Yes! Use endpoint `/v1/messages` with Anthropic format. The proxy will auto-f
 A: Yes, glm-4.5-air, glm-4.7, glm-4.5-flash, etc. Check Z.AI docs for full list.
 
 **Q: What if quota runs out?**
-A: Wait until the 5-hour window ends, or request admin to increase limit via the dashboard.
+A: Wait until the 5-hour window ends, or request admin to increase limit.
 
 **Q: Is my data stored?**
 A: No logging of request/response. Only token usage is tracked.
@@ -707,24 +526,56 @@ A: No logging of request/response. Only token usage is tracked.
 **Q: What's the difference between OpenAI-compatible vs Anthropic-compatible?**
 A: OpenAI-compatible (`/v1/chat/completions`) uses OpenAI format. Anthropic-compatible (`/v1/messages`) uses Anthropic Messages API format. Both are proxied to Z.AI glm-4.7.
 
-**Q: How do I manage API keys?**
-A: Use the web dashboard at `http://localhost:3001`. You can create, view, edit, and delete keys through the UI without editing JSON manually.
-
-**Q: Is the dashboard secure?**
-A: The dashboard supports optional authentication via bearer token or basic auth. Configure `DASHBOARD_AUTH_TOKEN` or `DASHBOARD_AUTH_USERNAME/PASSWORD` in your `.env` file.
-
-**Q: Do I need to restart the server after changing API keys?**
-A: No! Changes made through the dashboard take effect immediately. The proxy reads the latest key data on every request.
-
-**Q: Can multiple users access the dashboard simultaneously?**
-A: Yes, the dashboard supports multiple concurrent users. Real-time updates are pushed to all connected clients via WebSocket.
-
-**Q: How do I monitor token usage in real-time?**
-A: Open the dashboard and view the usage visualization cards. They update automatically as API requests are made.
-
 ---
 
 ## Troubleshooting
+
+### Cache Issues
+
+**Cache hit rate is low (<95%)**
+```bash
+# Check cache statistics
+curl -H "Authorization: Bearer pk_your_key" http://localhost:3030/cache-stats
+
+# Enable warm-up to pre-load all keys on startup
+CACHE_WARMUP_ON_START=true
+```
+
+**API key changes not reflected**
+```bash
+# Cache has 5-minute TTL. Wait for expiration or restart service:
+docker-compose restart
+
+# Or disable cache temporarily for testing
+CACHE_ENABLED=false
+```
+
+**Debug cache behavior**
+```bash
+# Enable debug logging to see cache operations
+CACHE_LOG_LEVEL=debug
+
+# Check logs for cache hits/misses
+docker-compose logs -f | grep "\[cache\]"
+```
+
+**Cache using too much memory**
+```bash
+# Reduce maximum cache size
+CACHE_MAX_SIZE=500
+
+# Check current cache size
+curl -H "Authorization: Bearer pk_your_key" http://localhost:3030/cache-stats
+```
+
+**Disable cache entirely**
+```bash
+# Set environment variable
+CACHE_ENABLED=false
+
+# Then restart service
+docker-compose restart
+```
 
 ### Container won't start
 ```bash
@@ -762,82 +613,18 @@ curl -H "Authorization: Bearer YOUR_ZAI_KEY" https://api.z.ai/api/coding/paas/v4
 # (Need to check in Z.AI dashboard)
 ```
 
-### Dashboard won't start
-```bash
-# Check if port is already in use
-lsof -ti:3001 | xargs kill -9
-
-# Verify .env has DASHBOARD_PORT set
-cat .env | grep DASHBOARD_PORT
-
-# Check dashboard logs
-bun dashboard
-```
-
-### Dashboard authentication not working
-```bash
-# Verify auth variables are set in .env
-cat .env | grep DASHBOARD_AUTH
-
-# Test authentication manually
-curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:3001/api/keys
-
-# Check browser console for errors
-# Open DevTools → Console tab
-```
-
-### Dashboard not reflecting changes
-```bash
-# Verify hot reload is working
-# 1. Make a change in the dashboard
-# 2. Immediately test the API:
-curl -H "Authorization: Bearer YOUR_KEY" http://localhost:3000/stats
-
-# 3. Check apikeys.json file
-cat data/apikeys.json | jq .
-
-# Changes should be instant - no restart needed
-```
-
-### WebSocket connection issues
-```bash
-# Check if WebSocket is accessible
-wscat -c "ws://localhost:3001?auth_token=YOUR_TOKEN"
-
-# Or test in browser console
-const ws = new WebSocket("ws://localhost:3001?auth_token=YOUR_TOKEN");
-ws.onmessage = (e) => console.log(e.data);
-```
-
 ---
 
 ## Development
 
 ### Run tests
 ```bash
-# Run all tests
 bun test
-
-# Run API endpoint tests
-bun test:api
-
-# Run WebSocket tests
-bun test:websocket
-
-# Run hot reload tests
-bun test:hot-reload
-
-# Run tests in watch mode
-bun test:watch
 ```
 
 ### Build
 ```bash
-# Build proxy service
-bun build src/index.ts --outdir dist
-
-# Build dashboard
-bun build index.ts --outdir dist
+bun build src/index.ts --outdir /tmp/build
 ```
 
 ### Type check

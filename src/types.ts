@@ -36,3 +36,12 @@ export interface StatsResponse {
   };
   total_lifetime_tokens: number;
 }
+
+export interface CacheStatsResponse {
+  hits: number;
+  misses: number;
+  hitRate: number;
+  size: number;
+  maxSize: number;
+  enabled: boolean;
+}

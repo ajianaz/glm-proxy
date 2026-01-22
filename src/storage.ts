@@ -2,6 +2,44 @@ import fs from 'fs';
 import path from 'path';
 import type { ApiKeysData, ApiKey } from './types.js';
 import { broadcastUsageUpdated } from './websocket-manager.js';
+import { apiKeyCache } from './cache.js';
+
+// Helper function to check if cache is enabled (reads env var at runtime)
+function isCacheEnabled(): boolean {
+  return process.env.CACHE_ENABLED !== 'false';
+}
+
+// Cache logging configuration
+const CACHE_LOG_LEVEL = process.env.CACHE_LOG_LEVEL || 'none';
+
+/**
+ * Simple logger for cache operations
+ * Logs are only output if the level is <= CACHE_LOG_LEVEL
+ * Levels: none < info < debug
+ */
+function logCache(level: 'info' | 'debug', message: string, meta?: Record<string, unknown>): void {
+  if (CACHE_LOG_LEVEL === 'none') {
+    return;
+  }
+
+  if (level === 'debug' && CACHE_LOG_LEVEL !== 'debug') {
+    return;
+  }
+
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    timestamp,
+    level,
+    message,
+    ...meta,
+  };
+
+  if (level === 'debug') {
+    console.log(`[cache] ${message}`, meta ? JSON.stringify(meta) : '');
+  } else {
+    console.log(`[cache] ${message}`, meta ? JSON.stringify(meta) : '');
+  }
+}
 
 const DATA_FILE = process.env.DATA_FILE || path.join(process.cwd(), 'data/apikeys.json');
 const LOCK_FILE = DATA_FILE + '.lock';
@@ -50,9 +88,45 @@ export async function writeApiKeys(data: ApiKeysData): Promise<void> {
 }
 
 export async function findApiKey(key: string): Promise<ApiKey | null> {
+  // Check cache first if enabled
+  if (isCacheEnabled()) {
+    // Use has() to check if key exists in cache (distinguishes miss from cached null)
+    if (apiKeyCache.has(key)) {
+      // Key exists in cache, retrieve it (may be null for not-found keys)
+      const cached = apiKeyCache.get(key);
+
+      // Debug log cache hit
+      logCache('debug', 'Cache hit', {
+        key: key.substring(0, 8) + '...', // Partial key for security
+        found: cached !== null,
+      });
+
+      return cached;
+    }
+
+    // Debug log cache miss
+    logCache('debug', 'Cache miss - fallback to file', {
+      key: key.substring(0, 8) + '...',
+    });
+  }
+
+  // Cache miss or disabled - fall back to file read
   return await withLock(async () => {
     const data = await readApiKeys();
-    return data.keys.find(k => k.key === key) || null;
+    const apiKey = data.keys.find(k => k.key === key) || null;
+
+    // Populate cache for future requests (including null for not-found keys)
+    if (isCacheEnabled()) {
+      apiKeyCache.set(key, apiKey);
+
+      // Debug log cache population
+      logCache('debug', 'Cache populated after file read', {
+        key: key.substring(0, 8) + '...',
+        found: apiKey !== null,
+      });
+    }
+
+    return apiKey;
   });
 }
 
@@ -113,9 +187,57 @@ export async function updateApiKeyUsage(
       window_end: windowEnd,
       is_expired: isExpired,
     });
+
+    // Update cache with modified API key to maintain coherency
+    if (isCacheEnabled()) {
+      apiKeyCache.set(key, apiKey);
+
+      // Info log cache invalidation/update
+      logCache('info', 'Cache updated after usage update', {
+        key: key.substring(0, 8) + '...',
+        tokensUsed,
+        totalTokens: apiKey.total_lifetime_tokens,
+      });
+    }
   });
 }
 
 export async function getKeyStats(key: string): Promise<ApiKey | null> {
   return await findApiKey(key);
+}
+
+/**
+ * Warm up the cache by loading all API keys into memory.
+ * This is optional and should be called on application startup if enabled.
+ * Runs asynchronously and doesn't block the startup process.
+ */
+export async function warmupCache(): Promise<void> {
+  if (!isCacheEnabled()) {
+    return;
+  }
+
+  try {
+    // Read all API keys from storage
+    const data = await withLock(async () => {
+      return await readApiKeys();
+    });
+
+    // Populate cache with all keys
+    let loaded = 0;
+    for (const apiKey of data.keys) {
+      apiKeyCache.set(apiKey.key, apiKey);
+      loaded++;
+    }
+
+    // Log warm-up completion
+    const stats = apiKeyCache.getStats();
+    logCache('info', 'Cache warm-up completed', {
+      keysLoaded: loaded,
+      cacheSize: stats.size,
+      maxSize: stats.maxSize,
+    });
+  } catch (error) {
+    // Don't fail startup if warm-up fails, just log the error
+    console.error('Cache warm-up failed:', error);
+  }
 }
