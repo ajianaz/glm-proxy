@@ -305,5 +305,21 @@ export {
   getValidationTestScenarios,
   getAllScenarios,
 } from './scenarios.js';
+export {
+  validateLatencyTargets,
+  validateSingleTest,
+  saveValidationReport,
+  generateValidationReport,
+  runValidationSmokeTest,
+  LATENCY_TARGETS,
+} from './latency-validation.js';
 export { LoadTestScenario } from './types.js';
-export type { LoadTestConfig, LoadTestResult, LoadTestSnapshot } from './types.js';
+export type {
+  LoadTestConfig,
+  LoadTestResult,
+  LoadTestSnapshot,
+  LatencyValidationResult,
+  ValidationReport,
+  LatencySpike,
+  StabilityCheck,
+} from './types.js';
