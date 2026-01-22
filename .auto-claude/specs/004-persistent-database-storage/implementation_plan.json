@@ -2,33 +2,35 @@
   "feature": "Persistent Database Storage",
   "description": "# Persistent Database Storage\n\nReplace file-based storage with SQLite or PostgreSQL and Drizzle ORM for API keys, usage data, and configuration. Includes migration tool and data backup/restore functionality.\n\n## Rationale\nCurrent file-based storage doesn't support high concurrency and prevents horizontal scaling. Database enables multiple instances to share state and is critical for production deployments. Addresses major technical debt.\n\n## User Stories\n- As a production engineer, I want database-backed storage so that we can scale horizontally with multiple instances\n- As a DevOps engineer, I want automatic backups so that we don't lose API key data\n- As a developer, I want easy migration from file-based to database storage so that upgrading is seamless\n\n## Acceptance Criteria\n- [ ] SQLite support for simple deployments (zero external dependencies)\n- [ ] PostgreSQL support for production deployments\n- [ ] Migration tool to convert existing apikeys.json to database\n- [ ] Database schema supports all current API key fields\n- [ ] Database operations use transactions for consistency\n- [ ] Connection pooling for performance\n- [ ] Backup and restore functionality\n- [ ] Database health checks and connection error handling\n- [ ] Backward compatibility with file-based storage during transition period",
   "created_at": "2026-01-22T03:27:58.071Z",
-  "updated_at": "2026-01-22T03:33:25.495Z",
+  "updated_at": "2026-01-22T03:39:18.731Z",
   "status": "in_progress",
   "phases": [
     {
       "id": "phase-1",
       "name": "Database Setup & Schema Design",
       "description": "Install dependencies, set up Drizzle ORM, and define database schema matching current API key structure",
-      "status": "pending",
+      "status": "in_progress",
       "subtasks": [
         {
           "id": "1.1",
           "name": "Install Drizzle ORM and database drivers",
           "description": "Install drizzle-orm, bun:sqlite (built-in), and postgres driver (postgres package)",
-          "status": "pending",
+          "status": "completed",
           "files": [
             "package.json"
           ],
           "acceptance_criteria": [
             "Dependencies installed in package.json",
             "bun install completes successfully"
-          ]
+          ],
+          "completed_at": "2026-01-22T10:33:00.000Z",
+          "notes": "Successfully installed drizzle-orm@0.45.1, postgres@3.4.8, and drizzle-kit@0.31.8. Verified bun:sqlite is available."
         },
         {
           "id": "1.2",
           "name": "Create Drizzle configuration",
           "description": "Set up drizzle.config.ts with support for both SQLite and PostgreSQL",
-          "status": "pending",
+          "status": "completed",
           "files": [
             "drizzle.config.ts"
           ],
@@ -36,7 +38,9 @@
             "Configuration supports both SQLite and PostgreSQL",
             "Schema folder defined",
             "Migration files configured"
-          ]
+          ],
+          "completed_at": "2026-01-22T10:42:00.000Z",
+          "notes": "Created drizzle.config.ts with environment-based database selection. Supports PostgreSQL via DATABASE_URL and SQLite via DATABASE_PATH (defaults to ./data/sqlite.db). Added better-sqlite3 dev dependency for drizzle-kit compatibility. TypeScript compilation verified."
         },
         {
           "id": "1.3",
