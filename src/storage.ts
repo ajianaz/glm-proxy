@@ -114,6 +114,11 @@ export async function updateApiKeyUsage(
     );
 
     await writeApiKeys(data);
+
+    // Update cache with modified API key to maintain coherency
+    if (CACHE_ENABLED) {
+      apiKeyCache.set(key, apiKey);
+    }
   });
 }
 
