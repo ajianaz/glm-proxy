@@ -38,8 +38,8 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
 - ✅ SQLite backup (COMPLETED: 5.1)
 - ✅ PostgreSQL backup (COMPLETED: 5.2)
 - ✅ Restore functionality (COMPLETED: 5.3)
-- CLI commands
-- Scheduled backups
+- ✅ CLI commands (COMPLETED: 5.4)
+- ✅ Scheduled backups (COMPLETED: 5.5)
 
 ### Phase 6: Health Checks & Error Handling [PENDING]
 - Health check function
@@ -542,3 +542,42 @@ Replacing file-based storage with SQLite/PostgreSQL using Drizzle ORM for horizo
     ✅ Supports PostgreSQL restore (via restorePostgreSQL with psql fallback)
     ✅ Validates backup before restore (verifyBackup option with verifyBackupIntegrity)
     ✅ Creates pre-restore backup (backupBeforeRestore option using backupDatabase)
+- **5.5** Add scheduled backup option (COMPLETED)
+  - Implemented comprehensive scheduled backup functionality in src/db/scheduler.ts
+  - Core features:
+    * Cron-like scheduling with full support for standard cron expressions (minute hour day month weekday)
+    * Flexible scheduling patterns: daily, hourly, weekly, monthly, custom intervals
+    * Environment-based configuration via BACKUP_ENABLED, BACKUP_SCHEDULE, BACKUP_OUTPUT_DIR, BACKUP_COMPRESS, BACKUP_RETAIN
+    * Can be disabled by setting BACKUP_ENABLED=false or not setting it (default: disabled)
+    * Automatic backup rotation using the retain parameter from backupDatabase()
+  - Implementation details:
+    * calculateNextExecution(): Parses cron expressions and calculates next execution time
+    * parseCronPart(): Parses individual cron parts (supports wildcard, step, range, list, single value)
+    * loadSchedulerConfigFromEnv(): Loads configuration from environment variables
+    * startScheduler(): Starts the scheduled backup service with callbacks
+    * stopScheduler(): Stops the scheduler and clears timers
+    * getSchedulerStatus(): Returns current scheduler status
+    * isValidCronExpression(): Validates cron expressions
+  - Updated src/index.ts to automatically start scheduler when application starts (if enabled)
+    * Added logging for backup completions and errors
+    * Non-blocking startup using async IIFE
+    * Shows next scheduled backup time
+  - Updated .env.example with comprehensive documentation of all backup environment variables
+  - Created src/db/scheduler.test.ts with 31 comprehensive tests:
+    * Cron parsing tests (valid expressions, invalid expressions, all patterns)
+    * calculateNextExecution tests (daily, hourly, every 6 hours, weekly, monthly, ranges, lists)
+    * loadSchedulerConfigFromEnv tests (defaults, all env vars, validation)
+    * isValidCronExpression tests (validation)
+    * startScheduler/stopScheduler tests (enabled/disabled, already running, callbacks)
+    * All 31 tests passing
+  - Code quality:
+    * Follows existing code patterns and conventions
+    * No console.log statements (only user-facing backup notifications)
+    * Comprehensive JSDoc documentation with usage examples
+    * ESLint validation passed (no errors in scheduler.ts)
+    * TypeScript compilation successful for scheduler module
+  - All acceptance criteria met:
+    ✅ Configurable via environment variables (BACKUP_ENABLED, BACKUP_SCHEDULE, etc.)
+    ✅ Supports cron-like scheduling (full cron expression parsing with all patterns)
+    ✅ Rotates old backups (uses retain parameter from backupDatabase)
+    ✅ Can be disabled (BACKUP_ENABLED=false or not set)

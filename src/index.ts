@@ -8,6 +8,7 @@ import { authMiddleware, getApiKeyFromContext, type AuthContext } from './middle
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { createProxyHandler } from './handlers/proxyHandler.js';
 import type { StatsResponse } from './types.js';
+import { startScheduler, loadSchedulerConfigFromEnv, type ScheduledBackupResult } from './db/scheduler.js';
 
 type Bindings = {
   ZAI_API_KEY: string;
@@ -86,9 +87,40 @@ app.get('/', (c) => {
 
 const port = parseInt(process.env.PORT || '3000');
 
+// Start scheduled backups if enabled
+const startScheduledBackups = async (): Promise<void> => {
+  try {
+    const config = loadSchedulerConfigFromEnv();
+
+    if (config.enabled) {
+      // Add callback to log backup completions and errors
+      config.onBackupComplete = (result: ScheduledBackupResult) => {
+        console.log(`[${result.timestamp}] Scheduled backup created: ${result.backupPath}`);
+        console.log(`  Size: ${(result.size / 1024).toFixed(2)} KB, Compressed: ${result.compressed}`);
+        console.log(`  Removed old backups: ${result.removedOldBackups}`);
+        console.log(`  Next backup: ${result.nextBackupTime}`);
+      };
+
+      config.onBackupError = (error: Error) => {
+        console.error(`Scheduled backup failed: ${error.message}`);
+      };
+
+      await startScheduler(config);
+      console.log('Scheduled backups enabled with schedule:', config.schedule);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Failed to start scheduled backups:', errorMessage);
+  }
+};
+
+// Start the application
+(async () => {
+  await startScheduledBackups();
+  console.log(`Proxy Gateway starting on port ${port}`);
+})();
+
 export default {
   port,
   fetch: app.fetch,
 };
-
-console.log(`Proxy Gateway starting on port ${port}`);

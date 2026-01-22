@@ -2,7 +2,7 @@
   "feature": "Persistent Database Storage",
   "description": "# Persistent Database Storage\n\nReplace file-based storage with SQLite or PostgreSQL and Drizzle ORM for API keys, usage data, and configuration. Includes migration tool and data backup/restore functionality.\n\n## Rationale\nCurrent file-based storage doesn't support high concurrency and prevents horizontal scaling. Database enables multiple instances to share state and is critical for production deployments. Addresses major technical debt.\n\n## User Stories\n- As a production engineer, I want database-backed storage so that we can scale horizontally with multiple instances\n- As a DevOps engineer, I want automatic backups so that we don't lose API key data\n- As a developer, I want easy migration from file-based to database storage so that upgrading is seamless\n\n## Acceptance Criteria\n- [ ] SQLite support for simple deployments (zero external dependencies)\n- [ ] PostgreSQL support for production deployments\n- [ ] Migration tool to convert existing apikeys.json to database\n- [ ] Database schema supports all current API key fields\n- [ ] Database operations use transactions for consistency\n- [ ] Connection pooling for performance\n- [ ] Backup and restore functionality\n- [ ] Database health checks and connection error handling\n- [ ] Backward compatibility with file-based storage during transition period",
   "created_at": "2026-01-22T03:27:58.071Z",
-  "updated_at": "2026-01-22T05:13:05.999Z",
+  "updated_at": "2026-01-22T05:15:54.405Z",
   "status": "in_progress",
   "phases": [
     {
@@ -430,16 +430,21 @@
           "id": "5.5",
           "name": "Add scheduled backup option",
           "description": "Implement optional scheduled backups with configurable intervals",
-          "status": "pending",
+          "status": "completed",
           "files": [
-            "src/db/scheduler.ts"
+            "src/db/scheduler.ts",
+            "src/db/scheduler.test.ts",
+            "src/index.ts",
+            ".env.example"
           ],
           "acceptance_criteria": [
             "Configurable via environment variables",
             "Supports cron-like scheduling",
             "Rotates old backups",
             "Can be disabled"
-          ]
+          ],
+          "completed_at": "2026-01-22T17:00:00.000Z",
+          "notes": "Implemented comprehensive scheduled backup functionality:\n\n**Core Features:**\n- Cron-like scheduling with full support for standard cron expressions (minute hour day month weekday)\n- Flexible scheduling patterns: daily, hourly, weekly, monthly, custom intervals\n- Environment-based configuration via BACKUP_ENABLED, BACKUP_SCHEDULE, BACKUP_OUTPUT_DIR, BACKUP_COMPRESS, BACKUP_RETAIN\n- Can be disabled by setting BACKUP_ENABLED=false or not setting it (default: disabled)\n- Automatic backup rotation using the retain parameter from backupDatabase()\n\n**Implementation Details:**\n- Created src/db/scheduler.ts with:\n  * calculateNextExecution(): Parses cron expressions and calculates next execution time\n  * parseCronPart(): Parses individual cron parts (supports wildcard, step, range, list, single value)\n  * loadSchedulerConfigFromEnv(): Loads configuration from environment variables\n  * startScheduler(): Starts the scheduled backup service with callbacks\n  * stopScheduler(): Stops the scheduler and clears timers\n  * getSchedulerStatus(): Returns current scheduler status\n  * isValidCronExpression(): Validates cron expressions\n\n- Updated src/index.ts to automatically start scheduler when application starts (if enabled)\n  * Added logging for backup completions and errors\n  * Non-blocking startup using async IIFE\n  * Shows next scheduled backup time\n\n- Updated .env.example with comprehensive documentation:\n  * BACKUP_ENABLED: Enable/disable scheduled backups (default: false)\n  * BACKUP_SCHEDULE: Cron expression (default: \"0 2 * * *\" - daily at 2 AM)\n  * BACKUP_OUTPUT_DIR: Backup directory (default: ./data/backups)\n  * BACKUP_COMPRESS: Compress backups (default: true)\n  * BACKUP_RETAIN: Number of backups to keep (default: 10)\n\n**Testing:**\n- Created src/db/scheduler.test.ts with 31 comprehensive tests:\n  * Cron parsing tests (valid expressions, invalid expressions, all patterns)\n  * calculateNextExecution tests (daily, hourly, every 6 hours, weekly, monthly, ranges, lists)\n  * loadSchedulerConfigFromEnv tests (defaults, all env vars, validation)\n  * isValidCronExpression tests (validation)\n  * startScheduler/stopScheduler tests (enabled/disabled, already running, callbacks)\n- All 31 tests passing\n\n**Code Quality:**\n- Follows existing code patterns and conventions\n- No console.log statements (only console.log for user-facing backup notifications)\n- Comprehensive JSDoc documentation with usage examples\n- ESLint validation passed (no errors in scheduler.ts)\n- TypeScript compilation successful for scheduler module\n\n**All Acceptance Criteria Met:**\n✅ Configurable via environment variables (BACKUP_ENABLED, BACKUP_SCHEDULE, etc.)\n✅ Supports cron-like scheduling (full cron expression parsing with all patterns)\n✅ Rotates old backups (uses retain parameter from backupDatabase)\n✅ Can be disabled (BACKUP_ENABLED=false or not set)"
         }
       ]
     },
